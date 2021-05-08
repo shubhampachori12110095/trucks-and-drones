@@ -7,6 +7,11 @@ class CustomEnv(gym.Env):
 
   def __init__(self, arg1, arg2, ...):
     super(CustomEnv, self).__init__()
+
+    self.strategy = 'stepwise' # 'stepwise', 'changing' (wie heuristische vorgehensweisen)
+    self.state_mode = 'image' # 'image', coordinates
+
+    self.range_nodes = [5,10]
     # Define action and observation space
     # They must be gym.spaces objects
     # Example when using discrete actions:
@@ -20,7 +25,16 @@ class CustomEnv(gym.Env):
     ...
   def reset(self):
     # Reset the state of the environment to an initial state
+
     ...
   def render(self, mode='human', close=False):
     # Render the environment to the screen
     ...
+
+
+class tsp_generator:
+
+	def __init__(self):
+
+
+	def random_problem(self):
