@@ -426,7 +426,7 @@ class CoordinatesLocking:
         else:
             self.rechead = False
 
-        self.logger.coordinates_signale(self.vehicle_name, self.travel_type, restr_signal)
+        self.logger.coordinates_signal(self.vehicle_name, self.travel_type, restr_signal)
 
         if visualize == True:
             self.logger.coordinates(self.vehicle_name, self.travel_type, new_coordinates)
