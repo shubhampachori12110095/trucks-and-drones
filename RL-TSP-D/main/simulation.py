@@ -14,25 +14,6 @@ SoC: State of Charge
 ##################################
 ######## Customer Classes ########
 ##################################
-
-def customer_parameter(customer_type      = 'static',
-                       num_customers      = [5,10],
-                       init_demand        = [1,1],
-                       first_demand_step  = [0,0],
-                       demand_after_steps = None,
-                       demand_add         = 1,
-                       signal_list        = [1,1-1],
-                       ):
-    return {
-            'customer_type': customer_type,
-            'num_custermers': num_custermers,
-            'init_demand': demand,
-            'first_demand_step': first_demand_step,
-            'demand_after_steps': demand_after_steps,
-            'demand_add': demand_add,
-            'signal_list': signal_list,
-            }
-
 class BaseCustomerDemand:
 
     def __init__(self, customer_name, logger, demand):
@@ -109,6 +90,62 @@ class DynamicCustomerClass(BaseCustomerClass):
         else:
             self.demand_base_obj.step(day_step)
 
+def param_interpret(variable):
+    if isinstance(variable, (list, tuple, np.ndarray)):
+        return np.random.randint(variable[0],variable[1]+1)
+    else:
+        return variable
+# Customer Module:
+# ----------------------------------------------------------------------------------------------------------------
+
+def customer_parameter(
+        customer_type      = 'static',
+        num_customers      = [5,10],
+        init_demand        = [1,1],
+        first_demand_step  = [0,0],
+        demand_after_steps = None,
+        demand_add         = 1,
+        signal_list        = [1,1-1],
+       ):
+    return {
+        'customer_type': customer_type,
+        'num_customers': num_customers,
+        'init_demand': init_demand,
+        'first_demand_step': first_demand_step,
+        'demand_after_steps': demand_after_steps,
+        'demand_add': demand_add,
+        'signal_list': signal_list,
+        }
+
+class CustomerCreator:
+
+    def __init__(self, logger, customer_parameter):
+        self.logger             =logger
+        self.customer_parameter = customer_parameter
+        self.num_customers      = customer_parameter['num_customers']
+        del self.customer_parameter['num_customers']
+
+        #[setattr(self, k, v) for k, v in customer_parameter.items()]
+
+    def create_customer(self, name):
+        c_param = {}
+        for key in self.customer_parameter.keys():
+            c_param[key] = param_interpret(self.customer_parameter[key])
+        return BaseCustomer(name, self.logger, c_param)
+
+    def create_customer_list(self):
+        customer_list = []
+        [customer_list.append(create_customer('customer_'+str(i))) for i in range(self.num_customers)]
+        return customer_list
+
+
+# Depot Module:
+# ----------------------------------------------------------------------------------------------------------------
+
+
+# Vehicle at Node
+# ----------------------------------------------------------------------------------------------------------------
+
 def vehicle_at_customer(vehicle_obj, customer_obj, amount):
 
     amount = min(
@@ -131,45 +168,108 @@ def vehicle_at_depot(vehicle_obj, depot_obj, amount):
     vehicle_obj.cargo_obj.standard_cargo.add_value(amount)
     depot_obj.stock.subtract_value(amount)
 
+# Vehicle Travel
+# ----------------------------------------------------------------------------------------------------------------
+
+def MV_travel(MV_obj, UV_obj_list, destination):
+    new_coordinates = MV_obj.travel_to(destination)
+    [UV_obj.set_coordinates(new_coordinates) for UV_obj in UV_obj_list]
+
+def UV_travel(UV_obj, destination):
+    MV_obj.travel_to(destination)
+
+# Run each Step
+# ----------------------------------------------------------------------------------------------------------------
+
+def reset_rates(vehicle_obj_list):
+    [vehicle_obj.cargo_obj.cargo_per_step.reset(),vehicle_obj.cargo_obj.cargo_UV_per_step.reset() for vehicle_obj in vehicle_obj_list]
 
 
-def MV_unload_UV(MV_vehicle_obj,UV_vehicle_obj_list):
+# MV and UV interactions:
+# ----------------------------------------------------------------------------------------------------------------
 
-    UV_max_amount = vehicle_obj.cargo_obj.
+
+def MV_unload_UV(MV_obj,UV_obj_list):
+    '''
+    - only unload when cargo can be also unloaded
+    - unload nevertheless
+    '''
+
+    # first check how many UV can be unloaded:
+    num_UV_to_unload = min(MV_obj.cargo_obj.cargo_UV_per_step, len(UV_obj_list))
+    init
+
+    for i in range(num_UV_to_unload):
+
+        cargo_amount = min(
+            UV_obj_list[i].cargo_obj.cargo_per_step,
+            )
+
+    # second check unload cargo for UV
+
+    UV_num_to_unload = vehicle_obj
+    UV_weight        = vehicle_obj.cargo_obj.
 
     vehicle_obj.cargo_obj.unload_UV_cargo()
 
-def MV_load_UV(MV_vehicle_obj, UV_vehicle_obj):
+def MV_load_UV(MV_obj, UV_obj):
 
 
+# Database Management with Tracer and Logger:
+# ----------------------------------------------------------------------------------------------------------------
 
-def MV_travel(MV_vehicle_obj, UV_vehicle_obj_list, destination):
-    new_coordinates = MV_vehicle_obj.travel_to(destination)
-    [UV_vehicle_obj.set_coordinates(new_coordinates) for UV_vehicle_obj in UV_vehicle_obj_list]
-
-def UV_travel(UV_vehicle_obj, destination):
-    MV_vehicle_obj.travel_to(destination)
-
-
-class TraceAndLog:
+class GlobalTracer:
 
     def __init__(self):
-        
-        self.trace_restr_dict = {}
+
+        self.trace_restr_dict   = {}
         self.trace_vehicle_dict = {}
+
+        self.groups_dict = {}
+
+        self.groups_dict['vehicle'] = []
+        self.groups_dict['MV']      = []
+        self.groups_dict['UV']      = []
+
+        self.groups_dict['node']             = []
+        self.groups_dict['customer']         = []
+        self.groups_dict['static_customer']  = []
+        self.groups_dict['dynamic_customer'] = []
+        self.groups_dict['depot']            = []
+
+
+        self.groups_dict['range'] = []
+        self.groups_dict['SoC']   = []
+
+        self.groups_dict['cargo']    = []
+        self.groups_dict['UV_cargo'] = []
+        self.groups_dict['MV_cargo'] = []
+
+        self.groups_dict['stock']  = []
+        self.groups_dict['demand'] = []
+
+        self.groups_dict['coordinates']          = []
+        self.groups_dict['vehicle_coordinates']  = []
+        self.groups_dict['MV_coordinates']       = []
+        self.groups_dict['UV_coordinates']       = []
+        self.groups_dict['node_coordinates']     = []
+        self.groups_dict['depot_coordinates']    = []
+        self.groups_dict['customer_coordinates'] = []
+
 
     def add_restriction(tracer):
         self.trace_restr_dict[tracer.value_name] = tracer
 
     def add_vehicle(tracer):
         self.trace_vehicle_dict[tracer.vehicle_name] = tracer
+        
 
-
-class TrainingLogger(TraceAndLog):
+class TrainingLogger(BaseLogger):
     def __init__(self):
         super().__init__()
 
-class TestingLogger(TraceAndLog):
+
+class TestingLogger(BaseLogger):
     def __init__(self):
         super().__init__()
 

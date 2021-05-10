@@ -115,13 +115,17 @@ def RestrValueObject:
     Traces a the value of a variable that is restricted. Can also be used to trace unrestriced variabels, in which case a dummy restriction will be created (doesn't restrict anything).
     '''
 
-    def __init__(self, name, logger, max_restr=None,min_restr=None,init_value=0,signal_list=[1,1,-1]):
+    def __init__(self, name, logger, max_restr=None,min_restr=None,init_value=0,signal_list=[1,1,-1],group_list=None):
 
 
         self.tracer = ValueTrace(name)
         logger.add_restriction(self.tracer)
 
+        if isinstance(group_list, list):
+            [logger.groups_dict[group].append(name) for group in group_list]
+
         self.max_restr  = max_restr
+        self.min_restr  = min_restr
         self.init_value = init_value
         self.reset()
 

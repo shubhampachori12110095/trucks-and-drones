@@ -163,11 +163,10 @@ class CargoClass:
     '''
     def __init__(self, vehicle_name, logger, cargo_param):
 
-        for k, v in cargo_param.items():
-            setattr(self, k, v)
+        [setattr(self, k, v) for k, v in cargo_param.items()]
 
-        self.cargo_per_step = cargo_per_step
-        self.cargo_UV_per_step = cargo_UV_per_step
+        self.cargo_per_step    = RestrValueObject(vehicle_name+'_cargo_per_step', logger, self.cargo_per_step, 0, self.cargo_per_step, self.signal_list)
+        self.cargo_UV_per_step = RestrValueObject(vehicle_name+'_cargo_UV_per_step', logger, self.cargo_UV_per_step, 0, self.cargo_UV_per_step, self.signal_list)
 
         if self.cargo_type == 'standard+extra':
             self.standard_cargo = RestrValueObject(vehicle_name+'_standard_cargo', logger, self.max_cargo, 0, self.init_value, self.signal_list)
@@ -182,21 +181,6 @@ class CargoClass:
 
         else:
             raise Exception("cargo_type was set to '{}', but has to be: 'standard+extra', 'standard+including', 'only_standard'".format(self.cargo_type))
-
-            
-
-
-    def load_cargo(self,amount_pct):
-        self.standard_cargo.add_value(amount_pct*self.cargo_per_step)
-
-    def unload_cargo(self,amount_pct):
-        self.standard_cargo.subtract_value(amount_pct*self.cargo_per_step)
-
-    def load_UV_cargo(self,amount_pct):
-        self.UV_cargo.add_value(amount_pct*self.cargo_UV_per_step)
-
-    def unload_UV_cargo(self,amount_pct):
-        self.UV_cargo.subtract_value(amount_pct*self.cargo_UV_per_step)
 
 
 
@@ -248,6 +232,7 @@ class DiscreteNodeChooser:
 
 # Base Vehicle Classes
 # ----------------------------------------------------------------------------------------------------------------
+
 class CoordinatesTrace:
     def __init__(self, vehicle_name, travel_type):
         self.vehicle_name    = vehicle_name
@@ -272,7 +257,7 @@ class VehicleClass:
         
     def set_coordinates(coordinates):
         '''
-        Init some starting coordinates eg. the starting depot.
+        Init some starting coordinates eg. the starting depot. Also used for UV transportation.
         '''
         self.coord_tracer.cur_coordinates = coordinates
 

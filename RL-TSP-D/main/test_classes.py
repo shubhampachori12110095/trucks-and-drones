@@ -1,36 +1,65 @@
+'''
 
+[thing.add() for thing in list_sub]
 
-class SubClass:
+entspricht:
 
-    def __init__(self, value=1):
+for thing in list_sub:
+    thing.add()
+
+'''
+
+class Tracer:
+    def __init__(self, value):
         self.value = value
 
-    def add_one(self):
-    	self.value +=1
+tracer = Tracer(0)
+#-------------------------------------------------------------------
+
+
+class BaseClass:
+
+    def __init__(self, obj):
+        self.obj = obj
+
+    def add(self):
+        self.obj.value +=1
+
+list_base = [BaseClass(tracer),BaseClass(tracer),BaseClass(tracer)]
+
+[thing.add() for thing in list_base]
+print(tracer.value)
+#-------------------------------------------------------------------
 
 
 class MetaClass:
 
-    def __init__(self):
-        self.sub_obj = SubClass()
+    def __init__(self,tracer):
+        self.sub_obj = BaseClass(tracer)
 
-meta_class = MetaClass()
+list_meta = [MetaClass(tracer),MetaClass(tracer),MetaClass(tracer)]
 
-print(meta_class.sub_obj.value)
-meta_class.sub_obj.value = 3
-print(meta_class.sub_obj.value)
+[thing.sub_obj.add() for thing in list_meta]
+print(tracer.value)
+#-------------------------------------------------------------------
 
 
-class InheritClass(SubClass):
+class InheritClass(BaseClass):
 
-    def __init__(self, value):
-        super().__init__(value)
+    def __init__(self, obj):
+        super().__init__(obj)
 
-inh_class = InheritClass(6)
-print(inh_class.value)
+    def add(self):
+        self.obj.value +=2
 
-list_1 = [SubClass(),SubClass(),SubClass()]
+    def add_value(self,value):
+        self.obj.value +=value
 
-[thing.add_one() for thing in list_1]
+list_inherit = [InheritClass(tracer),InheritClass(tracer),InheritClass(tracer)]
 
-print(list_1[0].value)
+[thing.add() for thing in list_inherit]
+print(tracer.value)
+
+[thing.add_value(5) for thing in list_inherit]
+print(tracer.value)
+#-------------------------------------------------------------------
