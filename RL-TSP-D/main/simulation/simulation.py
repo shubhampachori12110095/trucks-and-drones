@@ -139,6 +139,8 @@ class BaseSimulator:
 
         self.depot_list = DepotCreator(self.temp_db, self.depot_param)
 
+        return self.temp_db
+
 
     def init_step(self):
 
@@ -161,3 +163,7 @@ class BaseSimulator:
     def finish_step(self):
 
   
+# Simulation:
+# ----------------------------------------------------------------------------------------------------------------
+
+class AutomateActions()
