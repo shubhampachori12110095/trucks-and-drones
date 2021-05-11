@@ -1,5 +1,10 @@
+'''
+
+'''
+
 import numpy as np
 from restrictions import RestrValueObject
+from common_sim_func import param_interpret, random_coordinates
 
 
 # Range
@@ -27,10 +32,13 @@ class StandardBattery:
     '''
     For battery recharge.
     '''
-    def __init__(self,vehicle_name,logger,max_charge,charge_per_step,discharge_per_step,init_value=0,signal_list=[1,1,-1]):
-        self.SoC = RestrValueObject(vehicle_name+'_SoC',logger, max_restr=max_charge,min_restr=0,init_value=0,signal_list=[1,1,-1])
-        self.charge_per_step    = charge_per_step
-        self.discharge_per_step = discharge_per_step
+    def __init__(self,vehicle_name,temp_db,battery_parameter):
+
+        [setattr(self, k, param_interpret(v)) for k, v in battery_parameter.items()]
+        
+        self.SoC = RestrValueObject(self.max_charge, 0, self.init_value, self.signal_list)
+        temp_db.add_restriction(self.range_dist, vehicle_name+'_SoC', base_group='battery')
+
 
     def travel_step(self,distance):
         real_discharge = self.SoC.subtract_value(distance*self.discharge_per_step)
@@ -41,10 +49,10 @@ class StandardBattery:
         real_charge = self.SoC.add_value(self.charge_per_step)
 
 
-def range_parameter(range_type       = 'range',
-                    max_range        = None,
-                    init_value_type  = 0,
-                    signal_list      = [1,1-1],
+def range_parameter(range_type  = 'range',
+                    max_range   = None,
+                    init_value  = 0,
+                    signal_list = [1,1-1],
                     ):
     return {
             'range_type': range_type,
@@ -58,8 +66,12 @@ class StandardRange:
     '''
     For battery swap or unlimited range.
     '''
-    def __init__(self,vehicle_name,logger,max_range,init_value=0,signal_list=[1,1,-1])
-        self.range_dist = RestrValueObject(vehicle_name+'_range',logger, max_restr=max_range,min_restr=0,init_value=0,signal_list=[1,1,-1])
+    def __init__(self, vehicle_name, temp_db, range_parameter):
+
+        [setattr(self, k, param_interpret(v)) for k, v in range_parameter.items()]
+        
+        self.range_dist = RestrValueObject(self.max_range,0,self.init_value,self.signal_list)
+        temp_db.add_restriction(self.range_dist, vehicle_name+'_range', base_group='range')
 
     def travel_step(self,distance):
         distance = self.range_dist.subtract_value()
@@ -161,23 +173,32 @@ class CargoClass:
     '''
     Has normal cargo space for standard customer products and extra cargo space for UV. 
     '''
-    def __init__(self, vehicle_name, logger, cargo_param):
+    def __init__(self, vehicle_name, temp_db, cargo_param):
 
-        [setattr(self, k, v) for k, v in cargo_param.items()]
+        [setattr(self, k, param_interpret(v)) for k, v in cargo_param.items()]
 
-        self.cargo_per_step    = RestrValueObject(vehicle_name+'_cargo_per_step', logger, self.cargo_per_step, 0, self.cargo_per_step, self.signal_list)
-        self.cargo_UV_per_step = RestrValueObject(vehicle_name+'_cargo_UV_per_step', logger, self.cargo_UV_per_step, 0, self.cargo_UV_per_step, self.signal_list)
+        self.cargo_per_step    = RestrValueObject(self.cargo_per_step, 0, self.cargo_per_step, self.signal_list)
+        self.cargo_UV_per_step = RestrValueObject(self.cargo_UV_per_step, 0, self.cargo_UV_per_step, self.signal_list)
+
+        temp_db.add_restriction(self.cargo_per_step, vehicle_name+'_cargo_per_step', base_group='cargo_rate')
+        temp_db.add_restriction(self.cargo_UV_per_step, vehicle_name+'_cargo_UV_per_step', base_group='cargo_UV_rate')
 
         if self.cargo_type == 'standard+extra':
-            self.standard_cargo = RestrValueObject(vehicle_name+'_standard_cargo', logger, self.max_cargo, 0, self.init_value, self.signal_list)
-            self.UV_cargo       = RestrValueObject(vehicle_name+'_UV_cargo', logger, self.max_cargo_UV, 0, self.init_value, self.signal_list)
+            self.standard_cargo = RestrValueObject(self.max_cargo, 0, self.init_value, self.signal_list)
+            self.UV_cargo       = RestrValueObject(self.max_cargo_UV, 0, self.init_value, self.signal_list)
+            
+            temp_db.add_restriction(self.standard_cargo, vehicle_name+'_standard_cargo', base_group='cargo')
+            temp_db.add_restriction(self.cargo_UV_per_step, vehicle_name+'_UV_cargo', base_group='cargo_UV')
 
         elif self.cargo_type == 'standard+including':
-            self.standard_cargo = RestrValueObject(vehicle_name+'_cargo_standard_and_UV', logger, self.max_cargo, 0, self.init_value, self.signal_list)
+            self.standard_cargo = RestrValueObject(self.max_cargo, 0, self.init_value, self.signal_list)
             self.UV_cargo       = self.standard_cargo
 
+            temp_db.add_restriction(self.standard_cargo, vehicle_name+'_standard_cargo', base_group='cargo')
+
         elif self.cargo_type == 'standard':
-            self.standard_cargo = RestrValueObject(vehicle_name+'_standard_cargo', logger, self.max_cargo, 0, self.init_value, sself.ignal_list)
+            self.standard_cargo = RestrValueObject(self.max_cargo, 0, self.init_value, sself.ignal_list)
+            temp_db.add_restriction(self.standard_cargo, vehicle_name+'_standard_cargo', base_group='cargo')
 
         else:
             raise Exception("cargo_type was set to '{}', but has to be: 'standard+extra', 'standard+including', 'only_standard'".format(self.cargo_type))
@@ -192,8 +213,8 @@ class ExactCoordinates:
     '''
     Uses the exact coordinates chosen by the agent.
     '''
-    def __init__(self,nodes_obj):
-        self.nodes_obj = nodes_obj
+    def __init__(self, temp_db):
+        self.temp_db = temp_db
 
     def transform(self, coordinates):
         return coordinates
@@ -203,42 +224,32 @@ class AutoNodeChooser:
     '''
     Alters the coordinates to the nearest customer (or depot) coordinates.
     '''
-    def __init__(self,nodes_obj):
-        self.nodes_obj = nodes_obj
+    def __init__(self, temp_db):
+        self.temp_db = temp_db
 
     def transform(self, coordinates):
-        nodes = self.nodes_obj.__dict__['curr_nodes']
+        nodes = self.temp_db.current_nodes
         dist_2 = np.sum((nodes - coordinates)**2, axis=1)
         coordinates = nodes[np.argmin(dist_2)]
         return transformed_coordinates
-
-    def set_new_placement(self, distance, direction):
-        self.coordinator.check_and_move(distance, direction)
 
 
 class DiscreteNodeChooser:
     '''
     Chooses the coordinates based on a discrete action, which will be a customer (or a depot).
     '''
-    def __init__(self,nodes_obj):
-        self.nodes_obj = nodes_obj
+    def __init__(self, temp_db):
+        self.temp_db = temp_db
 
     def transform(self, discrete_node):
-        nodes = self.nodes_obj.__dict__['curr_nodes']
-        coordinates = nodes[discrete_node[0]]
+        nodes = self.temp_db.current_nodes
+        coordinates = nodes[discrete_node]
         return transformed_coordinates
 
 
 
 # Base Vehicle Classes
 # ----------------------------------------------------------------------------------------------------------------
-
-class CoordinatesTrace:
-    def __init__(self, vehicle_name, travel_type):
-        self.vehicle_name    = vehicle_name
-        self.travel_type     = travel_type
-        self.cur_coordinates = None
-        self.cur_signal      = 0
 
 class VehicleClass:
     '''
@@ -251,15 +262,12 @@ class VehicleClass:
         self.cargo_obj  = cargo_obj
         self.travel_obj = travel_obj
         self.coord_obj  = coord_obj
-
-        self.coord_tracer = CoordinatesTrace(cargo_obj.vehicle_name,travel_obj.travel_type)
-        cargo_obj.logger.add_vehicle(self.tracer)
         
     def set_coordinates(coordinates):
         '''
         Init some starting coordinates eg. the starting depot. Also used for UV transportation.
         '''
-        self.coord_tracer.cur_coordinates = coordinates
+        self.cur_coordinates = coordinates
 
     def travel_to(self,destination):
         '''
@@ -274,14 +282,14 @@ class VehicleClass:
         abs_traveled    = self.travel_obj.travel(direction)
         new_coordinates = (direction/direction)*abs_traveled
         
-        self.coord_tracer.cur_coordinates = new_coordinates
+        self.cur_coordinates = new_coordinates
         return new_coordinates
 
 
 class LockedTravelVehicleClass(VehicleClass): #################################################################!!!!!!!
 
-    def __init__(self, cargo_obj, travel_obj, coord_obj, visualize, signal_list):
-        super().__init__(argo_obj, travel_obj, coord_obj, visualize, signal_list)
+    def __init__(self, cargo_obj, travel_obj, coord_obj):
+        super().__init__(argo_obj, travel_obj, coord_obj)
         
         self.reached = True
 
@@ -318,11 +326,11 @@ class LockedTravelVehicleClass(VehicleClass): ##################################
             self.rechead = False
 
         # Store restr_signal for possible penalization
-        self.logger.coordinates_signal(self.vehicle_name, self.travel_type, restr_signal)
+        self.temp_db.coordinates_signal(self.vehicle_name, self.travel_type, restr_signal)
 
         # Draw traveled route:
         if self.visualize == True:
-            self.logger.coordinates(self.vehicle_name, self.travel_type, new_coordinates)
+            self.temp_db.coordinates(self.vehicle_name, self.travel_type, new_coordinates)
         
         return new_coordinates
 
@@ -331,11 +339,10 @@ class LockedTravelVehicleClass(VehicleClass): ##################################
 # Vehicle Creator
 # ----------------------------------------------------------------------------------------------------------------
 
-
 class VehicleCreator:
 
-    def __init__(self, logger, nodes_obj,
-                 coord_type='exact', locked_travel=False, visualize=False, signal_list=[1,1-1],
+    def __init__(self, temp_db,
+                 coord_type='exact', locked_travel=False,
                  # Manned Vehicles:
                  MV_cargo_param  = MV_cargo_parameter(), 
                  MV_range_param  = range_parameter(), 
@@ -346,13 +353,11 @@ class VehicleCreator:
                  UV_travel_param = travel_parameter(travel_type='arial'),
                  ):
 
-        self.logger          = logger
+        self.temp_db         = temp_db
         self.nodes_obj       = nodes_obj
 
         self.coord_type      = coord_type
         self.locked_travel   = locked_travel
-        self.visualize       = visualize
-        self.signal_list     = signal_list
 
         self.MV_cargo_param  = MV_cargo_param
         self.MV_range_param  = MV_range_param
@@ -365,33 +370,40 @@ class VehicleCreator:
 
     def create_vehicles(self, num_MV=2,num_UV_per_MV=2):
     
-        MV_list        = []
-        UV_per_MV_list = []
+        #MV_list        = []
+        #UV_per_MV_list = []
         
         for i in range(num_MV):
-            MV_list.append(self.create_vehicle('MV_street_'+str(i), self.MV_cargo_param, self.MV_range_param, self.MV_travel_param))
+            MV_obj = self.create_vehicle('MV_'+str(i), self.MV_cargo_param, self.MV_range_param, self.MV_travel_param)
+            #MV_list.append(MV_obj)
+            self.temp_db.add_vehicle(MV_obj,'MV_'+str(i),group_list=['MV'])
+
+            
             UV_list = []
             for j in range(num_UV_per_MV):
-                UV_list.append(self.create_vehicle('UV_arial_'+str(i)+'_'+str(j), self.UV_cargo_param, self.UV_range_param, self.UV_travel_param))
-            UV_per_MV_list.append(UV_list)
+                UV_obj = self.create_vehicle('UV_'+str(i)+'_'+str(j), self.UV_cargo_param, self.UV_range_param, self.UV_travel_param)
+                #UV_list.append(UV_obj)
+                self.temp_db.add_vehicle(MV_obj, 'MV_'+str(i), group_list=['UV','MV_'+str(i)])
+            
+            #UV_per_MV_list.append(UV_list)
 
-        return MV_list, UV_per_MV_list
+        #return MV_list, UV_per_MV_list
 
 
     def create_vehicle(self, vehicle_name, cargo_param, range_param, travel_param):
 
 
-        cargo_obj = CargoClass(vehicle_name, self.logger, cargo_param)
+        cargo_obj = CargoClass(vehicle_name, self.temp_db, cargo_param)
 
 
 
         # Initilize Range
         # Range calculation through batter:
         if range_param['range_type'] == 'battery':
-            range_obj = StandardBattery(vehicle_name, self.logger, range_param)
+            range_obj = Standartemp_dbattery(vehicle_name, self.temp_db, range_param)
         # Range calculation with max distance or no range restriction if max_range = None:
         elif range_param['range_type'] == 'range':
-            range_obj = StandardRange(vehicle_name, self.logger, range_param)
+            range_obj = StandardRange(vehicle_name, self.temp_db, range_param)
         # Exception:
         else:
             raise Exception("range_type was set to '{}', but has to be: 'battery', 'range'".format(range_type))
@@ -400,10 +412,10 @@ class VehicleCreator:
         # Initilize Travel
         # Travel by street:
         if travel_param['travel_type'] == 'street':
-            travel_obj = StreetTravel(vehicle_name, self.logger, range_obj, travel_param)
+            travel_obj = StreetTravel(vehicle_name, self.temp_db, range_obj, travel_param)
         # Travel by air:
         elif travel_param['travel_type'] == 'arial':
-            travel_obj = ArialTravel(vehicle_name, self.logger, range_obj, travel_param)
+            travel_obj = ArialTravel(vehicle_name, self.temp_db, range_obj, travel_param)
         # Exception:
         else:
             raise Exception("travel_type was set to '{}', but has to be: 'street', 'arial'".format(travel_type))
@@ -411,21 +423,21 @@ class VehicleCreator:
 
         # Initilize Coordinate Chooser
         # Always travel to exact coordinates:
-        if coord_type == 'exact':
-            coord_obj = ExactCoordinates(self.nodes_obj)
+        if self.coord_type == 'exact':
+            coord_obj = ExactCoordinates(self.temp_db)
         # Travel to nearest node or depot:
-        elif coord_type == 'auto':
-            coord_obj = AutoNodeChooser(self.nodes_obj)
+        elif self.coord_type == 'auto':
+            coord_obj = AutoNodeChooser(self.temp_db)
         # Travel to depot, used for disrcete action:
-        elif coord_type == 'discrete':
-            coord_obj = DiscreteNodeChooser(self.nodes_obj)
+        elif self.coord_type == 'discrete':
+            coord_obj = DiscreteNodeChooser(self.temp_db)
         # Exception:
         else:
-            raise Exception("coord_type was set to '{}', but has to be: 'exact', 'auto', 'discrete'".format(coord_type))
+            raise Exception("coord_type was set to '{}', but has to be: 'exact', 'auto', 'discrete'".format(self.coord_type))
 
         # Check if coordinates should be locked till vehicle reaches the destination:
-        if locked_travel:
-            return LockedTravelVehicleClass(cargo_obj, travel_obj, coord_obj, self.visualize, self.signal_list)
+        if self.locked_travel:
+            return LockedTravelVehicleClass(cargo_obj, travel_obj, coord_obj)
         
         # No coordinates locking:
-        return VehicleClass(cargo_obj, travel_obj, coord_obj, self.visualize, self.signal_list)
+        return VehicleClass(cargo_obj, travel_obj, coord_obj)

@@ -1,5 +1,6 @@
-import numpy as np
+'''
 
+'''
 
 class MinToMaxRestriction:
     '''
@@ -103,31 +104,20 @@ class DummyRestriction(MinToMaxRestriction):
         cur_value -= value
         return cur_value, self.non_viol_signal
 
-def ValueTrace:
-
-    def __init__(self,value_name):
-        self.value_name = value_name
-        self.cur_signal = 0
-        self.cur_value  = None
 
 def RestrValueObject:
     '''
     Traces a the value of a variable that is restricted. Can also be used to trace unrestriced variabels, in which case a dummy restriction will be created (doesn't restrict anything).
     '''
 
-    def __init__(self, name, logger, max_restr=None,min_restr=None,init_value=0,signal_list=[1,1,-1],group_list=None):
-
-
-        self.tracer = ValueTrace(name)
-        logger.add_restriction(self.tracer)
-
-        if isinstance(group_list, list):
-            [logger.groups_dict[group].append(name) for group in group_list]
+    def __init__(self, max_restr=None,min_restr=None,init_value=0,signal_list=[1,1,-1]):
 
         self.max_restr  = max_restr
         self.min_restr  = min_restr
         self.init_value = init_value
         self.reset()
+        self.reset_signal()
+
 
         if max_restr == None and min_restr == None:
             self.restriction = DummyRestriction(signal_list)        
@@ -140,37 +130,40 @@ def RestrValueObject:
 
 
     def reset(self):
-        self.tracer.cur_value = self.init_value
+        self.cur_value  = self.init_value
+
+    def reset_signal(self):
+        self.cur_signal = 0
 
     def set_to_max(self):
-        self.tracer.cur_value = self.max_restr
+        self.cur_value = self.max_restr
 
     def set_to_min(self):
-        self.tracer.cur_value = self.min_restr
+        self.cur_value = self.min_restr
 
 
     def update(self, new_value, restr_signal):
-        self.tracer.cur_value  = new_value
-        self.tracer.cur_signal = restr_signal
+        self.cur_value  = new_value
+        self.cur_signal = restr_signal
 
     def update_signal(self, restr_signal):
-        self.tracer.cur_signal = restr_signal
+        self.cur_signal = restr_signal
 
 
     def add_value(self, value):
-        new_value, restr_signal = self.restriction.add_value(self.tracer.cur_signal,value)
+        new_value, restr_signal = self.restriction.add_value(self.cur_signal,value)
         self.update(new_value,restr_signal)
 
     def subtract_value(self, value):
-        new_value, restr_signal = self.restriction.subtract_value(self.tracer.cur_signal,value)
+        new_value, restr_signal = self.restriction.subtract_value(self.cur_signal,value)
         self.update(new_value,restr_signal)
 
 
     def check_add_value(self,value):
-        new_value, restr_signal = self.restriction.add_value(self.tracer.cur_signal,value)
-        return self.tracer.cur_signal - new_value
+        new_value, restr_signal = self.restriction.add_value(self.cur_signal,value)
+        return self.cur_signal - new_value
 
     def check_subtract_value(self,value):
-        new_value, restr_signal = self.restriction.subtract_value(self.tracer.cur_signal,value)
-        return self.tracer.cur_signal - new_value
+        new_value, restr_signal = self.restriction.subtract_value(self.cur_signal,value)
+        return self.cur_signal - new_value
 

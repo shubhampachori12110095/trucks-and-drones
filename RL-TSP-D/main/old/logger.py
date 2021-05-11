@@ -1,6 +1,16 @@
-class BaseLogger:
-
 """
+Logs scalars to tensorboard without tensor ops.
+Modified Code from Michael Gygli: https://git.io/JLN0e
+"""
+
+import tensorflow as tf
+from io import StringIO
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+class Logger(object):
+    """
     Creates a summary writer for tensorboard logging.
 
     Args:
@@ -9,7 +19,7 @@ class BaseLogger:
         only_per_episode (bool): If `True` logs will only be saved once per episode instead of every step. This can save space since the log files can get pretty big for training processes with millions of steps.
     """
 
-    def __init__(self, name, log_dir):
+    def __init__(self, NAME, D_PATH, only_per_episode=False):
 
         self.NAME             = NAME
         self.D_PATH           = D_PATH
@@ -74,12 +84,3 @@ class BaseLogger:
             except:
                 summary = tf.summary.scalar(value=[tf.Summary.Value(tag=tag, simple_value=value)])
                 self.writer.add_summary(summary, step)
-
-class TrainingLogger(BaseLogger):
-    def __init__(self):
-        super().__init__()
-
-
-class TestingLogger(BaseLogger):
-    def __init__(self):
-        super().__init__()
