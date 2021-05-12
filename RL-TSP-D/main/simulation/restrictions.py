@@ -151,19 +151,19 @@ def RestrValueObject:
 
 
     def add_value(self, value):
-        new_value, restr_signal = self.restriction.add_value(self.cur_signal,value)
+        new_value, restr_signal = self.restriction.add_value(self.cur_value,value)
         self.update(new_value,restr_signal)
 
     def subtract_value(self, value):
-        new_value, restr_signal = self.restriction.subtract_value(self.cur_signal,value)
+        new_value, restr_signal = self.restriction.subtract_value(self.cur_value,value)
         self.update(new_value,restr_signal)
 
 
     def check_add_value(self,value):
-        new_value, restr_signal = self.restriction.add_value(self.cur_signal,value)
-        return self.cur_signal - new_value
+        new_value, restr_signal = self.restriction.add_value(self.cur_value,value)
+        return new_value - self.cur_value
 
     def check_subtract_value(self,value):
-        new_value, restr_signal = self.restriction.subtract_value(self.cur_signal,value)
-        return self.cur_signal - new_value
+        new_value, restr_signal = self.restriction.subtract_value(self.cur_value,value)
+        return self.cur_value - new_value
 

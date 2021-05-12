@@ -175,6 +175,8 @@ class CargoClass:
     '''
     def __init__(self, vehicle_name, temp_db, cargo_param):
 
+        self.name = vehicle_name
+
         [setattr(self, k, param_interpret(v)) for k, v in cargo_param.items()]
 
         self.cargo_per_step    = RestrValueObject(self.cargo_per_step, 0, self.cargo_per_step, self.signal_list)
@@ -205,7 +207,7 @@ class CargoClass:
 
 
 
-# Coordinates
+# Coordinates ####################### MOVE TO ACTION INTERPRETER #######################
 # ----------------------------------------------------------------------------------------------------------------
 
 
@@ -373,6 +375,7 @@ class VehicleCreator:
         #MV_list        = []
         #UV_per_MV_list = []
         
+        UV_index = 0
         for i in range(num_MV):
             MV_obj = self.create_vehicle('MV_'+str(i), self.MV_cargo_param, self.MV_range_param, self.MV_travel_param)
             #MV_list.append(MV_obj)
@@ -381,9 +384,11 @@ class VehicleCreator:
             
             UV_list = []
             for j in range(num_UV_per_MV):
-                UV_obj = self.create_vehicle('UV_'+str(i)+'_'+str(j), self.UV_cargo_param, self.UV_range_param, self.UV_travel_param)
-                #UV_list.append(UV_obj)
-                self.temp_db.add_vehicle(MV_obj, 'MV_'+str(i), group_list=['UV','MV_'+str(i)])
+                UV_obj = self.create_vehicle('UV_'+str(UV_index), self.UV_cargo_param, self.UV_range_param, self.UV_travel_param)
+                self.temp_db.add_vehicle(UV_obj, 'UV_'+str(UV_index), group_list=['UV'])
+                UV_list.append('UV_'+str(UV_index))
+
+            self.temp_db.MV_transporting_UV['MV_'+str(i)] = UV_list
             
             #UV_per_MV_list.append(UV_list)
 
@@ -392,7 +397,7 @@ class VehicleCreator:
 
     def create_vehicle(self, vehicle_name, cargo_param, range_param, travel_param):
 
-
+        self.vehicle_name = vehicle_name
         cargo_obj = CargoClass(vehicle_name, self.temp_db, cargo_param)
 
 

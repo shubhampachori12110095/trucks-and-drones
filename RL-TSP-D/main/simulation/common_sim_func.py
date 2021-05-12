@@ -17,4 +17,12 @@ def random_coordinates(grid):
 def return_indices_of_a(list_a, list_b):
     return [i for i, v in enumerate(list_a) if v in set(list_b)]
 
-def compare_coordinates
+def l_ignore_none(l):
+	return [i for i in l if i is not None]
+
+def clip_pos(value):
+	if value < 0:
+		value = 0
+	return value
+
+#def compare_coordinates
