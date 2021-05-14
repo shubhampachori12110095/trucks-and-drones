@@ -174,7 +174,6 @@ def vehicle_at_depot(vehicle_obj, depot_obj, amount):
     return amount
  
 
-
 # Functions for simulation init:
 # ----------------------------------------------------------------------------------------------------------------
 
@@ -234,10 +233,8 @@ class BaseSimulator:
         reset_rates(self.temp_db.base_groups['vehicles'])
 
 
-    def action_move(self, vehicle_i, coordinates):
+    def move(self, vehicle_i, coordinates):
         
-        #coord_index_list = [i for i, elem in enumerate(coord_list) if elem != None]
-        #[self.action_move(self.temp_db.v_index_list[i],coord_index_list[i]) for i in coord_list]
         
         # Check if UV is moveable:
         if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
@@ -256,9 +253,9 @@ class BaseSimulator:
 
             
 
-    def action_unload_vehicles(self, vehicle_i, num_v, cargo_amount_list):
+    def unload_vehicles(self, vehicle_i, num_v, cargo_amount_list):
         
-        #[self.action_unload_vehicles(i_and_num[0], i_and_num[1]) for i_and_num in v_unloading_num_v_list]
+        
         
         if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
             # Get vehicles:
@@ -286,9 +283,9 @@ class BaseSimulator:
 
 
 
-    def action_load_vehicle(self, vehicle_i, vehicle_j, cargo_amount):
+    def load_vehicle(self, vehicle_i, vehicle_j, cargo_amount):
 
-        #[self.action_load_vehicle(i_and_j[0], i_and_j[1]) for i_and_j in v_loading_v_list]
+        
 
         if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
 
@@ -309,10 +306,9 @@ class BaseSimulator:
             self.temp_db.action_signal['vehicle_'+str(vehicle_i)+'_free_to_load_v'] -= 1
 
 
+    def unload_cargo(self, vehicle_i, customer_j, amount):
 
-    def action_unload_cargo(self, vehicle_i, customer_j, amount):
-
-        #[self.action_load_cargo(i_j_a[0], i_j_a[1], i_j_a[2]) for i_j_a in v_unloading_c_amount_list]
+        
 
         if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
 
@@ -323,9 +319,9 @@ class BaseSimulator:
             self.temp_db.action_signal['vehicle_'+str(vehicle_i)+'_free_to_unload_cargo'] -= 1
 
 
-    def action_load_cargo(self, vehicle_i, depot_j, amount):
+    def load_cargo(self, vehicle_i, depot_j, amount):
 
-        #[self.action_load_cargo(i_j_a[0], i_j_a[1], i_j_a[2]) for i_j_a in v_loading_d_amount_list]
+        
         
         if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
 
@@ -338,89 +334,15 @@ class BaseSimulator:
 
     #def finish_step(self):
 
-
-# Action Interpretation:
-# ----------------------------------------------------------------------------------------------------------------
-'''
-- continous, discrete
-- mulit-outputs, single-outputs
-
-continous outputs:
-- coordinates (2) or nodes (1)
-- move (1)
-- unload_v (1)
-- load_v (1) or (2) for to_load specification
-- unload cargo (1) or (2) for node specification
-- load cargo (1) or (2) for node specification
-'''
-
-def action_parameter(
-    destination_type = 'coordinates', #'nodes'
-    destination_data = 'contin', #'discrete'
-    move_data        = 'discrete',
-    
-    ):
-    return {
-            'max_stock': max_stock,
-            'resupply_rate': resupply_rate,
-            'unlimited_supply': unlimited_supply,
-            'init_value': init_value,
-            'signal_list': signal_list,
-            }y
-
-def single_action(self, action_array)
-  
-def transform_single_outputs(self, action_array)
-
-
-def transform_multi_outputs(self, action_array_list)
+    def finish_epoch(self):
+        # force return to depots for tsp
 
 
 
 
-def create_action_interpreter(action_param):
-    c_func_dict = {}
-
-    action_interpr = type('Action_Interpreter', (ActionInterpreter, ), c_func_dict)
-
-
-class ActionInterpreter:
-
-    def __init__(self):
-
-        classmethod(function)
 
 
 
 
-# constructor
-def constructor(self, arg):
-    self.constructor_arg = arg
-  
-# method
-def displayMethod(self, arg):
-    print(arg)
-  
-# class method
-@classmethod
-def classMethod(cls, arg):
-    print(arg)
-  
-# creating class dynamically
-Geeks = type("Geeks", (object, ), {
-    # constructor
-    "__init__": constructor,
-      
-    # data members
-    "string_attribute": "Geeks 4 geeks !",
-    "int_attribute": 1706256,
-      
-    # member functions
-    "func_arg": displayMethod,
-    "class_func": classMethod
-})
 
-type(name, bases, dict)
 
-newer = type('Newer', (test, ),
-        dict(a ='Geeks', b = 2018))
