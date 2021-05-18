@@ -106,3 +106,7 @@ class BaseStateInterpreter:
     def obs_space(self)
         self.observation_space = spaces.Box(low=0, high=255, shape=
                         (HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8)
+
+
+
+

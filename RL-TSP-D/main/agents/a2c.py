@@ -2,42 +2,79 @@ import numpy as np
 import tensorflow as tf
 
 import keras
-from keras import layers
+from keras.layers import Input, Dense, Flatten, Concatenate
 
 from collections import deque
 
 
-class ActorCrticNetwork:
+class DiamondNetwork:
 
     def __init__(self,):
+        
 
-        self.discrete_activation = 'softmax'
+        self.input_shape_list    = [(5,), (6,), (3,)]
+        
+        self.start_indiv_hidden  = [
+                                    [10, 12, 6],
+                                    [20, 20, 20]
+                                   ]
+
+        self.combined_hidden     = [60,
+                                    80,
+                                    40]
+
+        self.end_indiv_hidden    = [
+                                    [20, 20, 20, 20],
+                                    [10, 12, 4, 2]
+                                   ]
+        
+        
+        self.outputs_list        = [5, 6, 2, 1]
+
+
         self.hidden_activation   = 'relu'
-        self.list_input_shapes   = [[5,6], [3]]
-        self.num_critic_outputs  = 1
-        self.list_actor_outputs  = [30,2]
+
+        self.output_activation   = ['softmax', 'softmax', 'softmax', None]
 
 
+    def input_to_hidden(self, i):
 
-        num_inputs = [[5,6],[3]]
-        num_actions = 60
-        num_hidden = 30
+        input_layer = Input(self.input_shape_list[i])
+
+        hidden = input_layer
+        if len(self.start_indiv_hidden) > 0:
+            for j in range(len(self.start_indiv_hidden)):
+                hidden = Dense(self.start_indiv_hidden[j, i], activation=self.hidden_activation)(hidden)
+
+        return (input_layer, hidden)
+
+
+    def hidden_to_output(self, i, output_layer):
+
+        if len(self.end_indiv_hidden) > 0:
+            for j in range(len(self.end_indiv_hidden)):
+                output_layer = Dense(self.end_indiv_hidden[j, i], activation=self.hidden_activation)(output_layer)
+
+        return Dense(self.outputs_list[i], activation=self.output_activation[i])(output_layer)
+
 
     def create_model(self):
 
-        #3 input layer? 
-        input_1 = layers.Input(shape=(30,6,))
-        input_2 = layers.Input(shape=(3,))
-        #input_3 = Input(shape=(2,))
+        input_layers_and_connect_layers = [self.input_to_hidden(i) for i in range(len(self.input_shape_list))]
 
-        flatten_0     = layers.Flatten()(input_1)
-        dense_layer_0 = layers.Dense(30, activation='relu')(flatten_0)
-        combined = layers.Concatenate(axis=-1)([dense_layer_0,input_2])#,input_3])
-        common = layers.Dense(num_hidden, activation="relu")(combined)
-        action = layers.Dense(num_actions, activation="softmax")(common)
-        critic = layers.Dense(1)(common)
+        input_layers_and_connect_layers = list(zip(*input_layers_and_connect_layers))
+        input_layers   = list(input_layers_and_connect_layers[0])
+        connect_layers = list(input_layers_and_connect_layers[1])
 
-        model = keras.Model(inputs=[input_1, input_2], outputs=[action, critic])
+        combined = Concatenate(axis=-1)(connect_layers)
+
+        for num_neurons in self.combined_hidden:
+            combined = Dense(shape=num_outputs, self.actor_output_act)(combined)
+
+        output_layers = [self.hidden_to_output(i,combined) for i in range(len(self.outputs_list))]
+
+        model = keras.Model(inputs=input_layers, outputs=output_layers)
+        return input_layers, output_layers, model
 
 
 def a2c_parameter(
@@ -155,15 +192,19 @@ class MultiA2C:
 
                 for step in range(max_steps_per_episode):
 
-                    action_prob, state_value = self.model(state)
 
-                    action = greedy_epsilon(action_prob)                    
+                    outputs = self.model(state)
+                
+                    state_value_list  = outputs[self.value_index]
+                    action_probs_list = outputs.pop(self.value_indexs)
 
-                    state, reward, done, _ = env.step(action)
+                    actions = [greedy_epsilon(action_probs) for action_probs in action_probs_list]
 
-                    action_prob_hist.append(tf.math.log(action_prob[0, action]))
-                    state_value_hist.append(state_value[0, 0])
-                    rewards_hist.append(reward)
+                    state, reward, done, _ = env.step(actions)
+
+                    action_prob_hist[i].append(tf.math.log(action_probs_list[i, action[i]])) for i in range(len(actions))
+                    state_value_hist[i].append(state_value[i, 0])
+                    rewards_hist[i].append(reward)
 
                     episode_reward += reward
 
@@ -201,9 +242,15 @@ class MultiA2C:
             state = env.reset()
             done = False
             
-            while not done:
-                action_prob, state_value = self.model(state)
-                action = np.argmax(np.squeeze(action_probs))
+            while not done:                
+                
+                outputs = self.model(state)
+                
+                state_value_list  = outputs[self.value_index]
+                action_probs_list = outputs.pop(self.value_indexs)
+                
+                action = [np.argmax(np.squeeze(action_probs)) for action_probs in action_probs_list[:-1]]
+                
                 state, reward, done, _ = env.step(action)
 
             template = "running reward: {:.2f} at episode {}"
