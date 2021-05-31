@@ -3,117 +3,103 @@ import gym
 import pandas as pd
 import random
 
-from keras.models import Sequential
-from keras.layers import Dense, Dropout
-from keras.optimizers import Adam
-
-from datetime import datetime
-from collections import deque
+import keras
+from keras.layers import Input, Dense, Flatten, Concatenate
 
 
-from env import CustomEnv
+def net_parameter(
+        num_neurons_multip = 2,
+        input_shape_list   = [(5,), (6,), (3,)],
+        start_indiv_hidden = [
+                              [10, 12, 6],
+                              [20, 20, 20]
+                             ],
+        combined_hidden    = [60,
+                              80,
+                              40],
+        end_indiv_hidden   = [
+                              [20, 20, 20, 20],
+                              [10, 12, 4, 2]
+                             ],
+        outputs_list       = [5, 6, 2, 1],
+        hidden_activation  = 'relu',
+        output_activation  = ['softmax', 'softmax', 'softmax', None],
+        ):
+    return {
+        'input_shape_list':   input_shape_list,
+        'start_indiv_hidden': start_indiv_hidden,
+        'combined_hidden':    combined_hidden,
+        'end_indiv_hidden':   end_indiv_hidden,
+        'outputs_list':       outputs_list,
+        'hidden_activation':  hidden_activation,
+        'output_activation':  output_activation,
+        }
+
+def transform_input_dict(net_parameter):
+
+    for key in input_param.keys():
 
 
+def check_env_space(env_space):
 
-class DQN:
-    def __init__(self, env=CustomEnv()):
-        self.env     = env
-        self.memory  = deque(maxlen=2000)
+    if isinstance(env_space, (list, tuple, np.ndarray)):
+        return env_space, len(env_space)
+    else:
+        return [env_space], 1
+
+
+class DiamondNetwork:
+
+    def __init__(self, env, net_parameter):
         
-        self.gamma = 0.85
-        self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
-        self.learning_rate = 0.005
-        self.tau = .125
+        [setattr(self, k, v) for k, v in net_parameter.items()]
 
-        self.model        = self.create_model()
-        self.target_model = self.create_model()
+        observation_space, len_obs_list = check_env_space(self.env.observation_space)
+        action_space, len_action_list   = check_env_space(self.env.action_space)
+
+        if not isinstance(self.input_shape_list, (list, tuple, np.ndarray)):
+            self.input_shape_list = [(observation_space[i,0] for i in range(len_obs_list))]
+
+        if not isinstance(self.)
+            .................................
+
+    def input_to_hidden(self, i):
+
+        input_layer = Input(self.input_shape_list[i])
+
+        hidden = input_layer
+        if len(self.start_indiv_hidden) > 0:
+            for j in range(len(self.start_indiv_hidden)):
+                hidden = Dense(self.start_indiv_hidden[j, i], activation=self.hidden_activation)(hidden)
+
+        return (input_layer, hidden)
+
+
+    def hidden_to_output(self, i, output_layer):
+
+        if len(self.end_indiv_hidden) > 0:
+            for j in range(len(self.end_indiv_hidden)):
+                output_layer = Dense(self.end_indiv_hidden[j, i], activation=self.hidden_activation)(output_layer)
+
+        return Dense(self.outputs_list[i], activation=self.output_activation[i])(output_layer)
+
 
     def create_model(self):
-        model = Sequential()
-        state_shape = self.env.observation_space.shape
-        model.add(Dense(24, input_dim=state_shape[0], activation="relu"))
-        model.add(Dense(48, activation="relu"))
-        model.add(Dense(24, activation="relu"))
-        model.add(Dense(self.env.action_space.n))
-        model.compile(loss="mean_squared_error",
-            optimizer=Adam(lr=self.learning_rate))
-        return model
 
-    def act(self, state):
-        self.epsilon *= self.epsilon_decay
-        self.epsilon = max(self.epsilon_min, self.epsilon)
-        if np.random.random() < self.epsilon:
-            return self.env.action_space.sample()
-        return np.argmax(self.model.predict(state)[0])
+        input_layers_and_connect_layers = [self.input_to_hidden(i) for i in range(len(self.input_shape_list))]
 
-    def remember(self, state, action, reward, new_state, done):
-        self.memory.append([state, action, reward, new_state, done])
+        input_layers_and_connect_layers = list(zip(*input_layers_and_connect_layers))
+        input_layers   = list(input_layers_and_connect_layers[0])
+        connect_layers = list(input_layers_and_connect_layers[1])
 
-    def replay(self):
-        batch_size = 32
-        if len(self.memory) < batch_size: 
-            return
+        combined = Concatenate(axis=-1)(connect_layers)
 
-        samples = random.sample(self.memory, batch_size)
-        for sample in samples:
-            state, action, reward, new_state, done = sample
-            target = self.model.predict(state)
-            if done:
-                target[0][action] = reward
-            else:
-                Q_future = max(self.target_model.predict(new_state)[0])
-                # sum(actor.action_prob*self.target_model.predict(new_state)[0])
-                target[0][action] = reward + Q_future * self.gamma # + GLOBAL REWARD falls für diese stelle relevant
-            self.model.fit(state, target, epochs=1, verbose=0)
+        for num_neurons in self.combined_hidden:
+            combined = Dense(shape=num_outputs, self.actor_output_act)(combined)
 
-    def target_train(self):
-        weights = self.model.get_weights()
-        target_weights = self.target_model.get_weights()
-        for i in range(len(target_weights)):
-            target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
-        self.target_model.set_weights(target_weights)
+        output_layers = [self.hidden_to_output(i,combined) for i in range(len(self.outputs_list))]
 
-    def save_model(self, fn):
-        self.model.save(fn)
-
-
-def main():
-    env = CustomEnv()
-
-    epoch_len = 1000
-    epochs    = 500
-
-    # updateTargetNetwork = 1000
-    dqn_agent = DQN(env=env)
-    steps = []
-    for e in range(epochs):
-        cur_state = env.reset()#.reshape(1,2)
-        print(np.shape(cur_state))
-        
-        for step in range(epoch_len):
-            action = dqn_agent.act(cur_state)
-            new_state, reward, done, _ = env.step(action)
-
-            #new_state = new_state#.reshape(1,2)
-            dqn_agent.remember(cur_state, action, reward, new_state, done)
-            
-            if step % 100 == 0:
-                dqn_agent.replay()       # internally iterates default (prediction) model
-                dqn_agent.target_train() # iterates target model
-
-            cur_state = new_state
-            if done:
-                break
-
-        if e % 10 == 0:
-            dqn_agent.save_model("/models/epoch-{}.model".format(e))
-
-
-if __name__ == "__main__":
-    main()
-
-
+        model = keras.Model(inputs=input_layers, outputs=output_layers)
+        return input_layers, output_layers, model
 
 

@@ -16,7 +16,7 @@ def battery_parameter(range_type         = 'battery',
                       charge_per_step    = 50,
                       discharge_per_step = 10,
                       init_value         = 0,
-                      signal_list        = [1,1-1],
+                      signal_list        = [1,1,-1],
                       ):
     return {
             'range_type': range_type,
@@ -52,7 +52,7 @@ class StandardBattery:
 def range_parameter(range_type  = 'range',
                     max_range   = None,
                     init_value  = 0,
-                    signal_list = [1,1-1],
+                    signal_list = [1,1,-1],
                     ):
     return {
             'range_type': range_type,
@@ -130,33 +130,14 @@ class ArialTravel:
 # ----------------------------------------------------------------------------------------------------------------
 
 
-def MV_cargo_parameter(cargo_type         = 'standard+extra',
+def cargo_parameter(cargo_type         = 'standard+extra',
                        max_cargo          = 10,
                        max_cargo_UV       = 1,
                        cargo_weigth_UV    = 1,
                        cargo_per_step     = 1,
                        cargo_UV_per_step  = 1,
                        init_value         = 0,
-                       signal_list        = [1,1-1],
-                       ):
-    return {
-            'cargo_type': cargo_type,
-            'max_cargo': max_cargo,
-            'max_cargo_UV': max_cargo_UV,
-            'cargo_per_step': cargo_per_step,
-            'cargo_UV_per_step': cargo_UV_per_step,
-            'init_value': init_value,
-            'signal_list': signal_list,
-            }
-
-
-def UV_cargo_parameter(cargo_type         = 'standard',
-                       max_cargo          = 1,
-                       max_cargo_UV       = 0,
-                       cargo_per_step     = 1,
-                       cargo_UV_per_step  = 0,
-                       init_value         = 0,
-                       signal_list        = [1,1-1],
+                       signal_list        = [1,1,-1],
                        ):
     return {
             'cargo_type': cargo_type,
@@ -259,11 +240,12 @@ class VehicleClass:
     Cargo loading/ unloading is restricted either by possibles actions or automatic management through heuristics.
     Travel is based on taking a direction.
     '''
-    def __init__(self, cargo_obj, travel_obj, coord_obj):
+    def __init__(self, cargo_obj, travel_obj, coord_obj, loadable=False):
 
         self.cargo_obj  = cargo_obj
         self.travel_obj = travel_obj
         self.coord_obj  = coord_obj
+        self.loadable   = loadable
         
     def set_coordinates(coordinates):
         '''
@@ -371,6 +353,8 @@ class VehicleCreator:
 
 
     def create_vehicles(self, num_MV=2,num_UV_per_MV=2):
+
+        #### LOADABLE ergänzen######
     
         #MV_list        = []
         #UV_per_MV_list = []

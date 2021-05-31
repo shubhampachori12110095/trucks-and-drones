@@ -3,25 +3,31 @@
 """
 import pygame
 
+
+def reward_parameter(
+        grid_surface_dim    = [400, 400],
+        grid_padding        = 10,
+        info_surface_height = 120,
+        marker_size         = 6):
+    return {
+        'grid_surface_dim'   : grid_surface_dim,
+        'grid_padding'       : grid_padding,
+        'info_surface_height': info_surface_height,
+        'marker_size'        : marker_size,
+        }
+
+
 class BaseVisualizor:
 
-    def __init__(self, 
-            name, visual_param, simulator, 
-            grid_surface_dim    = [400, 400],
-            grid_padding        = 10,
-            info_surface_height = 120,
-            marker_size         = 6):
+    def __init__(self, name, visual_param, simulator):
 
         # Initialize pygame
-        pygame.init()
+        pygame.init()c
 
         # Define parameter:
         self.name                = name
         self.simulator           = simulator
-        self.grid_surface_dim    = grid_surface_dim
-        self.grid_padding        = grid_padding
-        self.info_surface_height = info_surface_height
-        self.marker_size         = marker_size
+        [setattr(self, k, v) for k, v in visual_param.items()]
 
         # Define some colors
         self.black    = (0, 0, 0)
@@ -57,7 +63,7 @@ class BaseVisualizor:
 
         # init info surface:
         # creates an additional surface that will be displayed under the grid
-        # this surface displays imformation about name, current epoch and epoch-step
+        # this surface displays imformation about name, current episode and episode-step
         # can also diyplay more information via the add_info_dict, if this is defined by the parameters
         self.info_surface = Surface(grid_surface_dim[0], info_surface_height)
 
@@ -179,19 +185,19 @@ class BaseVisualizor:
         self.grid_info_surface.blit(text, (x_text, y_text))
 
 
-    def draw_env_info(self, epoch, step, add_info_dict=None):
+    def draw_env_info(self, episode, step, add_info_dict=None):
         '''
         Draws some general information to the info surface.
         '''
         text_name  = self.big_font.render('Agent: '+self.name, True, self.black)
-        text_epoch = self.medium_font.render('Epoch: '+str(epoch), True, self.black)
+        text_episode = self.medium_font.render('episode: '+str(episode), True, self.black)
         text_step  = self.medium_font.render('Step: '+str(step), True, self.black)
 
         big_height    = text.get_height()
         medium_height = text.get_height()
 
         self.info_surface.blit(text_name,  (5, 5))
-        self.info_surface.blit(text_epoch, (5, 5 + big_height + 3))
+        self.info_surface.blit(text_episode, (5, 5 + big_height + 3))
         self.info_surface.blit(text_step,  (5, 5 + big_height + medium_height + 6))
 
         if isinstance(add_info_dict, dict):
@@ -203,7 +209,7 @@ class BaseVisualizor:
                 self.info_surface.blit(text, (5, y))
 
 
-    def draw_distance_traveled(self, epoch, step, coordinates_list, color=(0,0,0)):
+    def draw_distance_traveled(self, episode, step, coordinates_list, color=(0,0,0)):
         '''
         ergänzen bei vehicle, temp_db update:
         arial travel: append start and end coordinates
@@ -214,15 +220,16 @@ class BaseVisualizor:
 
 
     def visualize_step(self):
+        ###### NONE ERGÄNZEN!!!!!!!!!
         self.reset_surfaces()
-        [self.draw_rect_marker(coordinates)            for coordinates in self.simulator.temp_db.coord_list_nodes]
-        [self.draw_circle_marker(coordinates[-1])      for coordinates in self.simulator.temp_db.list_coord_list_not_transportable_v]
-        [self.draw_triangle_marker(coordinates[-1])    for coordinates in self.simulator.temp_db.list_coord_list_not_transportable_v]
+        [self.draw_rect_marker(coordinates)            for coordinates in self.simulator.temp_db.cur_coord_nodes if coordinates not None]
+        [self.draw_circle_marker(coordinates[-1])      for coordinates in self.simulator.temp_db.cur_coord_transportable_v if coordinates not None]
+        [self.draw_triangle_marker(coordinates[-1])    for coordinates in self.simulator.temp_db.cur_coord_not_transportable_v if coordinates not None]
 
-        [self.draw_distance_traveled(coordinates_list) for coordinates_list in self.simulator.temp_db.list_coord_list_not_transportable_v]
-        [self.draw_distance_traveled(coordinates_list) for coordinates_list in self.simulator.temp_db.list_coord_list_transportable_v]
+        [self.draw_distance_traveled(coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_not_transportable_v]
+        [self.draw_distance_traveled(coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_transportable_v]
 
-        self.draw_env_info(epoch, step)
+        self.draw_env_info(episode, step)
 
         self.screen.blit(self.grid_surface,      (self.grid_padding, self.grid_padding))
         self.screen.blit(self.grid_info_surface, (self.grid_padding, self.grid_padding))

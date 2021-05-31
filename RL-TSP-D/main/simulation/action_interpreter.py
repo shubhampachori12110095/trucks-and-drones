@@ -17,8 +17,9 @@ the total number of outputs will be num_outputs*num_dimension*(sum used outputs)
 for both CONTIN and DISCRETE defining an output as 0 means not using it.
 '''
 def create_v_num_outputs(
+        ############# NONE ergänzen ###############
         # coordinates:
-        num_coord_outputs = 0,
+        num_coord_outputs = None ERGÄNZEN,
         
         # alternative to num_coord, to choose a discrete node
         # when used both the agent will be forced to learn the coord of a corresponding node
@@ -49,18 +50,20 @@ def create_v_num_outputs(
         # seperates vehicle loading and unloading, if num_v_amount is 0 this will determine the amount
         num_v_load_outputs = 0,
         num_v_unload_outputs = 0,
+
+        seperate_actions = True ERGÄNZEN,
     ):
     return {
-        ['num_coord_outputs']:     num_coord_outputs,
-        ['num_nodes_outputs']:     num_nodes_outputs,
-        ['num_v_to_load_outputs']: num_v_to_load_outputs,
-        ['num_move_outputs']:      num_move_outputs,
-        ['num_amount_outputs']:    num_amount_outputs,
-        ['num_v_amount_outputs']:  num_v_amount_outputs,
-        ['num_load_outputs']:      num_load_outputs,
-        ['num_unload_outputs']:    num_unload_outputs,
-        ['num_v_load_outputs']:    num_v_load_outputs,
-        ['num_v_unload_outputs']:  num_v_unload_outputs,
+        'num_coord_outputs':     num_coord_outputs,
+        'num_nodes_outputs':     num_nodes_outputs,
+        'num_v_to_load_outputs': num_v_to_load_outputs,
+        'num_move_outputs':      num_move_outputs,
+        'num_amount_outputs':    num_amount_outputs,
+        'num_v_amount_outputs':  num_v_amount_outputs,
+        'num_load_outputs':      num_load_outputs,
+        'num_unload_outputs':    num_unload_outputs,
+        'num_v_load_outputs':    num_v_load_outputs,
+        'num_v_unload_outputs':  num_v_unload_outputs,
         }
 
 
@@ -77,9 +80,9 @@ def examples_define_action_parameter():
 
     # Example for CONTIN with 10 nodes and a grid=[10,15]
     # the single output will be transformed with int(output*10) to get the node index
-    discrete_nodes_no_transp_v = create_v_num_outputs(num_nodes_outputs=1)
+    contin_nodes_no_transp_v = create_v_num_outputs(num_nodes_outputs=1)
     # one output with a dimension of 10 and one with 15:
-    discrete_coord__no_transp_v = create_v_num_outputs(num_coord_outputs=2)
+    contin_coord__no_transp_v = create_v_num_outputs(num_coord_outputs=2)
 
 
 
@@ -87,26 +90,31 @@ def examples_define_action_parameter():
 # Action Interpretation:
 # ----------------------------------------------------------------------------------------------------------------
 
-def discrete_to_norm(dimension_list, action_list)
+def discrete_to_norm(dimension_list, action_list):
+    '''Returns the normalized actions of a discrete action space.'''
     return [(action_list[i]/(dimension_list[i]-1)) for i in range(len(action_list))]
 
 
 class MoveFunctions:
+    '''The ActionInterpreter will use this functions based on the set parameters to calculate coordinates.'''
 
-    def __init__(placeholder_dict, simulator):
+    def __init__(placeholder_dict, simulator, auto_move_mode='random'):
 
         self.placeholder_dict = placeholder_dict
         self.simulator        = simulator
 
     def compare_coord(self):
-        for i in range(len(self.placeholder_dict['coord_outputs']))
-            real_coord   = self.temp_db.base_groups['nodes'][self.placeholder_dict['nodes_outputs'][i]].cur_coord
+        ''' Compares the chosen coordinates with the coordinates of a chosen node.'''
+        for i in range(len(self.placeholder_dict['coord_outputs'])):
+            ###### cur_coord_nodes ist manchmal NONE!!!!!!!!!!!!!!!!!!!!!!!!!!
+            real_coord   = self.simulator.temp_db.cur_coord_nodes[self.placeholder_dict['nodes_outputs'][i]]
             chosen_coord = self.placeholder_dict['coord_outputs'][i]
-            self.temp_db.action_signal['vehicle_'+str(i)+'_compare_coord'] += (real_coord - ((real_coord-chosen_coord) * 2))
+            self.simulator.temp_db.action_signal['compare_coord'][i] += (real_coord - ((real_coord-chosen_coord) * 2))
 
         self.coord_list = self.placeholder_dict['coord_outputs']
 
     def move_and_coord(self):
+        ''' Checks if the vehicle should move to the chosen coordinates.'''
         for i in range(len(self.placeholder_dict['move_outputs'])):
             if self.placeholder_dict['move_outputs'][i] == 0:
                 self.placeholder_dict['coord_outputs'][i] = None
@@ -114,19 +122,61 @@ class MoveFunctions:
         self.coord_list = self.placeholder_dict['coord_outputs']
 
     def move_and_nodes(self):
+        ''' Checks if the vehicle should move to the chosen node'''
+
         for i in range(len(self.placeholder_dict['move_outputs'])):
             if self.placeholder_dict['move_outputs'][i] == 0:
                 self.placeholder_dict['nodes_outputs'][i] = None
 
-        self.coord_list = self.placeholder_dict['nodes_outputs']
+        ###### cur_coord_nodes ist manchmal NONE!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.coord_list = [self.simulator.temp_db.cur_coord_nodes[self.placeholder_dict['nodes_outputs'][i]] for i in self.placeholder_dict['nodes_outputs']]
 
-    def list_of_random_nodes(self):
+    def random_nodes(self):
+        ''' sets the coord_list to shuffled node coordinates.'''
+        ######################### ERGÄNZE RESTRIKTION DASS ER NICHT ZURÜCKFÄHRT!!!!!
+        ###### cur_coord_nodes ist manchmal NONE!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.coord_list = random.sample(elem.cur_coord for elem in self.simulator.temp_db.cur_coord_nodes)
 
-        self.coord_list =
+    def nearest_nodes(self):
+        ''' sets the coord_list to nearest nodes'''
+        ######################### ERGÄNZE RESTRIKTION DASS ER NICHT ZURÜCKFÄHRT!!!!! 
+
+        # init coordinates list
+        self.coordinates = []
+        # copy coordinates of all nodes to list
+        ###### cur_coord_nodes ist manchmal NONE!!!!!!!!!!!!!!!!!!!!!!!!!!
+        node_coordinates = [elem.cur_coord for elem in self.simulator.temp_db.cur_coord_nodes]
+        # iterate through each vehicle
+        for i in range(len(self.simulator.temp_db.base_groups['vehicles'])):
+            # Check if vehicle is free to move:
+            if any('vehicle_'+str(i) in elem for elem in self.simulator.temp_db.free_vehicles):
+                # calculate distance to all nodes
+                distance_list = [elem - self.simulator.temp_db.base_groups['vehicles'][i].cur_coord for elem in node_coordinates]
+                # transform distance by summation of x and y to absulte values
+                distance_list = [abs(sum(elem)) for elem in distance_list]
+                # add coordinates to list by indexing the min distance
+                self.coordinates.append(node_coordinates[argmin(distance_list)])
+            else:
+                # append None to signal no movement:
+                self.coordinates.append(None)
+
+    def auto_movement(self):
+
+        if self.auto_move_mode == 'random':
+            # create coordinates to random nodes
+            self.random_nodes()
+        elif self.auto_move_mode == 'nearest_neighbour'
+            # create coordintaes to nearest nodes
+            self.nearest_nodes()
 
     def base_move_func(self):
-        coord_index_list = [i for i, elem in enumerate(self.coord_lis) if elem != None]
-        self.simulator.move(self.simulation.temp_db.v_index_list[i],coord_index_list[i]) for i in self.coord_list
+        ''' Calls simulator.move to move all vehicles that should be moved'''
+        # create list of indices for coordinates that aren't None
+        coord_index_list = [i for i, elem in enumerate(self.coord_list) if elem != None]
+        # Move vehicles based on coordinates that aren't None
+        self.simulator.move(i,self.coord_list[i]) for i in coord_index_list
+
+    
 
 
 
@@ -407,6 +457,19 @@ class BaseActionInterpreter:
             'unload_cargo':    create_unload_cargo_functions(   self.action_prio_dict['unload_cargo']   , self.placeholder_dict, simulator),
             'load_cargo':      create_load_cargo_functions(     self.action_prio_dict['load_cargo']     , self.placeholder_dict, simulator),
             }
+
+    def action_space(self):
+
+        if self.seperate_actions == True:
+            
+            action_space_list = []
+            for key in self.placeholder_dict.keys():
+                
+                if self.dimension_dict[key] != None:
+                    action_space_list.append(spaces.Discrete(self.dimension_dict[key]))
+                else:
+                    action_space_list.append(spaces.Box(low=0, high=1, shape=(HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8))
+
  
 
 

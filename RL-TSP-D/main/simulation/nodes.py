@@ -27,7 +27,7 @@ def customer_parameter(
         demand_add         = 1,
         max_demand         = None,
         init_value         = [1,1],
-        signal_list        = [1,1-1],
+        signal_list        = [1,1,-1],
        ):
     return {
         'customer_type': customer_type,
@@ -79,20 +79,21 @@ class BaseCustomer:
 # Depot:
 # ----------------------------------------------------------------------------------------------------------------
 
-def depot_parameter(num_depots       = [1,1],
-                    max_stock        = None,
-                    resupply_rate    = 1,
-                    unlimited_supply = True,
-                    init_value       = 30,
-                    signal_list      = [1,1-1],
-                    ):
+def depot_parameter(
+        num_depots       = 1,
+        max_stock        = None,
+        resupply_rate    = 1,
+        unlimited_supply = True,
+        init_value       = 30,
+        signal_list      = [1,1,-1],
+        ):
     return {
-            'max_stock': max_stock,
-            'resupply_rate': resupply_rate,
-            'unlimited_supply': unlimited_supply,
-            'init_value': init_value,
-            'signal_list': signal_list,
-            }
+        'max_stock': max_stock,
+        'resupply_rate': resupply_rate,
+        'unlimited_supply': unlimited_supply,
+        'init_value': init_value,
+        'signal_list': signal_list,
+        }
 
 class DepotCreator:
 

@@ -7,76 +7,6 @@ from keras.layers import Input, Dense, Flatten, Concatenate
 from collections import deque
 
 
-class DiamondNetwork:
-
-    def __init__(self,):
-        
-
-        self.input_shape_list    = [(5,), (6,), (3,)]
-        
-        self.start_indiv_hidden  = [
-                                    [10, 12, 6],
-                                    [20, 20, 20]
-                                   ]
-
-        self.combined_hidden     = [60,
-                                    80,
-                                    40]
-
-        self.end_indiv_hidden    = [
-                                    [20, 20, 20, 20],
-                                    [10, 12, 4, 2]
-                                   ]
-        
-        
-        self.outputs_list        = [5, 6, 2, 1]
-
-
-        self.hidden_activation   = 'relu'
-
-        self.output_activation   = ['softmax', 'softmax', 'softmax', None]
-
-
-    def input_to_hidden(self, i):
-
-        input_layer = Input(self.input_shape_list[i])
-
-        hidden = input_layer
-        if len(self.start_indiv_hidden) > 0:
-            for j in range(len(self.start_indiv_hidden)):
-                hidden = Dense(self.start_indiv_hidden[j, i], activation=self.hidden_activation)(hidden)
-
-        return (input_layer, hidden)
-
-
-    def hidden_to_output(self, i, output_layer):
-
-        if len(self.end_indiv_hidden) > 0:
-            for j in range(len(self.end_indiv_hidden)):
-                output_layer = Dense(self.end_indiv_hidden[j, i], activation=self.hidden_activation)(output_layer)
-
-        return Dense(self.outputs_list[i], activation=self.output_activation[i])(output_layer)
-
-
-    def create_model(self):
-
-        input_layers_and_connect_layers = [self.input_to_hidden(i) for i in range(len(self.input_shape_list))]
-
-        input_layers_and_connect_layers = list(zip(*input_layers_and_connect_layers))
-        input_layers   = list(input_layers_and_connect_layers[0])
-        connect_layers = list(input_layers_and_connect_layers[1])
-
-        combined = Concatenate(axis=-1)(connect_layers)
-
-        for num_neurons in self.combined_hidden:
-            combined = Dense(shape=num_outputs, self.actor_output_act)(combined)
-
-        output_layers = [self.hidden_to_output(i,combined) for i in range(len(self.outputs_list))]
-
-        model = keras.Model(inputs=input_layers, outputs=output_layers)
-        return input_layers, output_layers, model
-
-
 def a2c_parameter(
         max_steps_episode = 1000,
         gamma             = 0.99,
@@ -108,7 +38,7 @@ class MultiA2C:
 
     def __init__(self, env, model, a2c_param=a2c_parameter()):
 
-        [setattr(self, k, param_interpret(v)) for k, v in a2c_param.items()]
+        [setattr(self, k, v) for k, v in a2c_param.items()]
 
         self.env    = env
         self.model  = model
@@ -262,7 +192,7 @@ class BaseA2C:
 
     def __init__(self, env, model, a2c_param=a2c_parameter()):
 
-        [setattr(self, k, param_interpret(v)) for k, v in a2c_param.items()]
+        [setattr(self, k, v) for k, v in a2c_param.items()]
 
         self.env    = env
         self.model  = model
