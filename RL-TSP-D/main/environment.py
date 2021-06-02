@@ -4,7 +4,8 @@ from gym import spaces
 from simulation.simulation import BaseSimulator
 from simulation.action_interpreter import BaseActionInterpreter
 from simulation.state_interpreter import BaseStateInterpreter
-from simulation.reward_calculator import BaseRewardCalculator
+from reward_calculator import BaseRewardCalculator
+from visualizor import BaseVisualizer
 
 from logger import TrainingLogger, TestingLogger
 

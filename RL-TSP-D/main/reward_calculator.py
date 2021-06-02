@@ -1,6 +1,6 @@
 import numpy as np
 
-def visual_parameter(
+def reward_parameter(
         reward_modes        = None, #['normalized', 'discounted']
         reward_type         = 'single_vehicle', # 'multi_vehicle', 'sum_vehicle'
         restriction_rewards = ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],

@@ -92,11 +92,15 @@ all_parameter_list = [
 
 
 standard_simulation = simulation_parameter(
-    grid          = [10,10],
-    coord_type    = 'exact',
-    locked_travel = False,
-    num_MV        = 2,
-    num_UV_per_MV = 2)
+    grid            = [10,10],
+    coord_type      = 'exact',
+    locked_travel   = False,
+    num_MV          = 2,
+    num_UV_per_MV   = 2,
+    prio_v          = 'UV', # 'MV'
+    same_step_cargo = True,
+    same_step_v     = True
+    )
 
 
 # Visulation Prameter:
@@ -112,8 +116,32 @@ standard_visual = reward_parameter(
 # Action Interpreter Prameter:
 # ----------------------------------------------------------------------------------------------------------------
 
+standard_actions = output_parameter(
+    contin_outputs   = ['coord','amount','v_amount'], # ['load', 'unload', v_load, v_unload]
+    discrete_outputs = ['nodes', 'v_to_load', 'move', 'load_unload', 'v_load_unload'],
+    discrete_dims    = 20,
+    combine          = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
+    )
 
 
 # State Interpreter Prameter:
 # ----------------------------------------------------------------------------------------------------------------
+
+standard_states = input_parameter(
+    image_input     = ['grid'], # ['amount','v_amount']
+    contin_inputs   = ['cur_coord','cur_amount','cur_v_amount'], # ['all_v_coord', 'all_v_amount', 'all_v_v_amount', 'd_coord', 'd_amounts', 'c_coord', 'c_amounts']
+    discrete_inputs = ['free_v'], # ['loaded_v', 'stuck_v', 'v_type']
+    discrete_dims   = 20,
+    combine         = 'contin', # 'discrete', 'by_categ', 'all', list of lists of input names
+    )
+
+
+# Reward Calculator Prameter:
+# ----------------------------------------------------------------------------------------------------------------
+
+standard_rewards = reward_parameter(
+    reward_modes        = None, #['normalized', 'discounted']
+    reward_type         = 'single_vehicle', # 'multi_vehicle', 'sum_vehicle'
+    restriction_rewards = ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],
+    action_rewards      = ['compare_coord','free_to_travel','unloading_v','free_to_unload_v','free_to_be_loaded_v','free_to_load_v','free_to_unload_cargo','free_to_load_cargo'])
 

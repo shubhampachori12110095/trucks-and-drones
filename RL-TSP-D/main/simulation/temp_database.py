@@ -8,27 +8,27 @@ def lookup_db(db_dict, name_list):
 
 class TempDatabase:
 
-    def __init__(self, grid=[10,10]):
+    def __init__(self, grid):
 
         # Grid by x and y size
         self.grid = grid
 
-        # Dict where restriction objects live
-        self.base_groups_restr = {
-            'battery': [],
-            'range': [],
-            'cargo': [],
-            'cargo_rate': [],
-            'cargo_UV': [],
-            'cargo_UV_rate': [],
-            'stock': [],
-            'demand': [],
-            }
-
         # Dict where vehicle and node objects live
         self.base_groups = {
             'vehicles': [],
-            'nodes': [],
+            'nodes'   : [],
+            }
+
+        # Dict with current values of restriction objects
+        self.restr_dict = {
+            'battery'      : [],
+            'range'        : [],
+            'cargo'        : [],
+            'cargo_rate'   : [],
+            'cargo_UV'     : [],
+            'cargo_UV_rate': [],
+            'stock'        : [],
+            'demand'       : [],
             }
 
         # transporter name as key to look up list of loaded vehicles
@@ -49,11 +49,59 @@ class TempDatabase:
         # Current times till vehicles reach their destination ##### ergänze bei vehicles
         self.times_till_destination = []
 
+
+        self.status_dict = {
+            # Vehicles:
+            'v_coord'   : [], # list of current vehicle coordinates
+            'v_free'    : [], # list of zeros and ones to indicate if vehicle is free to move
+            'v_stuck'   : [], # list of zeros and ones to indicate if vehicle range is depleted (and not at depot or transporter)
+            'v_loaded'  : [], # list of zeros and ones to indicate if vehicle is currently transported
+            'v_type'    : [], # list of zeros and ones to indicate if vehicle is a transporter
+            'v_loadable': [], # list of zeros and ones to indicate if vehicle can be transported
+
+            'speed'
+            'travel_type'
+            'range_type'
+            max_restrictions
+
+            # Nodes
+            'c_coord'   : [], # list of current customer coordinates
+            'd_coord'   : [], # list of current depot coordinates
+
+            # Restrictions
+            'battery'      : [],
+            'range'        : [],
+            'cargo'        : [],
+            'cargo_rate'   : [],
+            'cargo_UV'     : [],
+            'cargo_UV_rate': [],
+            'stock'        : [],
+            'demand'       : [],
+            }
+
+
+        self.key_groups_dict = {
+            'coordinates' : ['v_coord','c_coord','d_coord'],
+            'binary'      : ['v_free','v_stuck','v_loaded','v_type','v_loadable'],
+            'values'      : ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],
+            'vehicles'    : ['v_coord','battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','v_free','v_stuck','v_loaded','v_type','v_loadable'],
+            'customers'   : ['c_coord','demand'],
+            'depots'      : ['d_coord','stock'],
+            'restrictions': ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand']
+            }
+
+    def free_vehicles(self):
+
+        return []
+
     def reset_db(self):
         # Calculate number of vehicles
         self.num_vehicles = len(self.base_groups['vehicles'])
         # Claculate number of nodes
         self.num_nodes    = len(self.base_groups['nodes'])
+
+        self.num_customers =
+        self.num_depots    =
 
         # Reset visited coordinates
         self.past_coord_not_transportable_v = [[] for v in self.base_groups['vehicles'] if not v.loadable] ##### ergänze bei vehicles
