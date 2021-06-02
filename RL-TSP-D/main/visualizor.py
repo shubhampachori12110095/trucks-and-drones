@@ -239,5 +239,9 @@ class BaseVisualizor:
         pygame.display.flip()
 
 
+    def convert_to_img_array(self):
+        return pygame.surfarray.array3d(self.grid_surface)
+
+
     def close(self):
         pygame.quit()

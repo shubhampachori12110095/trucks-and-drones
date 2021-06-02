@@ -13,19 +13,26 @@ def None_to_empty_list(variable):
 
 
 def input_parameter(
-        image_input       = ['grid'], # ['amount','v_amount']
-        contin_inputs     = ['cur_coord','cur_amount','cur_v_amount'], # ['layers', 'sum_x_y_layers']
-        discrete_inputs   = None,
+        image_input       = ['grid'],
+        contin_inputs     = ['coordinates','values','vehicles','customers','depots'],
+        discrete_inputs   = ['binary'],
         discrete_dims     = 20,
         combine_per_index = ['per_vehicle', 'per_customer', 'per_depot'], # list of input name lists
         combine_per_type  = None,
-        flatten           = True, # Flattens per combined (and all inputs not in a combined list), if no combination are used everything will be flattened.
+        # Flattens per combined (and all inputs not in a combined list),
+        # if no combination are used everything will be flattened,
+        flatten           = True,
+        flatten_images    = False,
         ):
     return {
-        'image_input'    : image_input,
-        'contin_inputs'  : contin_inputs,
-        'discrete_inputs': discrete_inputs,
-        'combine'        : combine,
+        'image_input'      : image_input,
+        'contin_inputs'    : contin_inputs,
+        'discrete_inputs'  : discrete_inputs,
+        'discrete_dims'    : discrete_dims,
+        'combine_per_index': combine_per_index,
+        'combine_per_type' : combine_per_type,
+        'flatten'          : flatten,
+        'flatten_images'   : flatten_images,
         }
 
 
@@ -46,7 +53,6 @@ class BaseStateInterpreter:
             'contin_dict'   :{},
             'discrete_dict' :{}
             }
-
 
         # Prepare Inputs to use:
         self.all_inputs = self.discrete_inputs + self.contin_inputs
@@ -185,14 +191,24 @@ class BaseStateInterpreter:
         if self.flatten == True:
             all_inputs = [self.combined_flatten(elem) for elem in all_inputs]
 
-        if len(all_inputs) == 1:
-            if len(all_inputs[0]) == 1:
-                return all_inputs[0]
+        for key in self.image_input:
+            image_array = self.visualizor.convert_to_img_array().transpose([1, 0, 2]) // 255
+            if flatten_images:
+                image_array = self.combined_flatten(image_array)
+            all_inputs  = [image_array] + all_inputs
 
+        if len(all_inputs) == 1:
+                return all_inputs[0]
         return all_inputs
 
 
     def obs_space(self):
-        self.observation_space = spaces.Box(low=0, high=255, shape=(HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8)
+
+        all_inputs = self.observe_state()
+        if isinstance(all_inputs, np.ndarray):
+            return spaces.Box(low=0, high=1, shape=np.shape(all_inputs), dtype=np.uint8)
+        if isinstance(all_inputs, list):
+            return [spaces.Box(low=0, high=1, shape=np.shape(elem), dtype=np.uint8) for elem in all_inputs]
+
 
 

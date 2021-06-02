@@ -49,6 +49,7 @@ class CustomEnv(gym.Env):
         #self.test_logger   = TestingLogger()
 
         # Init gym spaces:
+        self.reset()
         self.action_space      = self.action_interp.action_space()
         self.observation_space = self.state_interp.obs_space()
 
