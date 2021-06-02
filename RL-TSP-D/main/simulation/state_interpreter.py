@@ -94,6 +94,8 @@ class BaseStateInterpreter:
 
     def value_to_contin(self, key):
         ''' Normalizes list of Values'''
+        max_value = self.temp_db.max_values_dict[key]
+        min_value = self.temp_db.min_values_dict[key]
         value_list = self.temp_db.status_dict[key]
         return (np.array(value_list) - min_value) // (max_value - min_value)
 
@@ -188,12 +190,12 @@ class BaseStateInterpreter:
 
         all_inputs = inputs_by_indeces + inputs_by_types
 
-        if self.flatten == True:
+        if self.flatten:
             all_inputs = [self.combined_flatten(elem) for elem in all_inputs]
 
         for key in self.image_input:
             image_array = self.visualizor.convert_to_img_array().transpose([1, 0, 2]) // 255
-            if flatten_images:
+            if self.flatten_images:
                 image_array = self.combined_flatten(image_array)
             all_inputs  = [image_array] + all_inputs
 
