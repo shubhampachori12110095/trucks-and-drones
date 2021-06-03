@@ -33,6 +33,8 @@ Contents
 .. toctree::
    :maxdepth: 2
    :caption: Module Documentations:
+   
+   modules/logger_doc
 
 Indices and tables
 ==================
