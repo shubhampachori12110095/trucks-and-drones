@@ -1,7 +1,68 @@
 .. _getting_started:
 
-Getting Started Guide
-=====================
+Chapter 1 - Indroduction and Basic Ideas
+========================================
+
+The Tutorials sections aims to provide an overview of the develepoment process for the module ``RL-TSP-VRP-D``. Since the project was developed with high flexibility in mind, this section will also provide a better understanding on how the module can be utilized. The reasoning behind the highly flexible approach is to create the possibility to explore a wide range of reinforcement learning implementations to solve different version of the travelling salesman (TSP) and vehicle routing problem (VRP). Another example for the necessity of flexibility is the option to use drones or robots as an extention to TSP and VRP.
+
+With the first chapter the basic ideas and approaches will be presented. At the same time, some first ideas to which extend the module should be flexible will be explored. More detailes on that will follow in the next chapters.
+
+Vehicles
+********
+
+The vehicle routing problem is an extension to the travelling saleman problem. While TSP only uses one vehicle, the VRP has to be solved for multiple vehicles. Another extension is the usage of drones or robots, which can be transported by the standard vehicles. The drones or robots can differ to the standard vehicles by the cargo space, the range and the way they travel. For example, drones can travel by air while standard vehicles and robots can only travel by street. Both drones and robots can also have a limited range, which can be simulted by a battery that needs to be recharged. The following questions  explore the options for vehicles:
+
+- How many standard vehicles, drones and robots?
+- Can the vehicle be used as a transporter for other vehicles?
+- Does the vehicle travel by street or air?
+- How fast can the vehicle travel?
+- How much cargo (and possibly other vehicles) can be stored in the vehicle?
+- Should a transporter store other vehciles in an extra cargo space?
+- How much space will a loaded vehicle take up?
+- How fast can cargo or other vehicles be unloaded/ loaded?
+- Does the vehicle have a max. range?
+- Should a possible max. range be simulated by a battery or by a fixed value that simply resets by visiting a transporter or depot?
+- Is it possibly to recharge the battery/ reset the max range at both transporters and depots or only at depots?
+
+
+Nodes
+*****
+
+In the vanilla TSP only one depot exists: The vehicle visites each customer node via a given route and returns to the depot node. To include more possibilities it should also be possible to create more than one depot. Another option might be different demands at each customers or maybe even demands that appear not at the start at once, but instead independent during a day. The ideas/ questions for nodes are:
+
+- How many customers and depots?
+- How high should demands be and should they be variable?
+- When will the demand of a customer appear?
+- Does the demand disappear, when not being satisfied after a certain time?
+- Can demands recharge?
+- Is the stock in a depot unlimited?
+- If the stock is limited, can it recharge?
+
+
+Simulation
+**********
+The interactions between vehicles and nodes will be simulated. For this purpose there need to be options to determine which interactions occur at the same time or if there needs to be a specific sequence by priorisation. Additionaly the grid size needs to be specified.
+
+- What is the grid size?
+- (Should transporter always move before being able to unload other vehicles)
+- Can transporter unload vehicles and cargo at the same time?
+- If same time unloading is possible, what should be prioritized?
+- Are there actions that will be executed automatically (e.g. unloading when at customer or loading when at depot)?
+
+
+Environment
+***********
+
+
+
+
+
+
+
+
+
+
+
 
 ``peak-shaver`` aims to provide the tools to explore different approaches of reinforcement learning within a simulation of the `HIPE Dataset <https://www.energystatusdata.kit.edu/hipe.php>`_ . The module for the simulation ``common_env`` is made as a ``gym`` environment, which provides a common API for a wide range of different RL-libraries (for example ``stable-baseline`` which is also used as part of the study project). You can also create your own Agents following the ``gym`` guide-lines, but note that ``common_env`` can provide some extra functionality (look up the :ref:`module <common_env_doc>`, for example the extra return `episode_max_peak` in :meth:`common_env.common_env.step`). Furthermore the module ``reward_maker`` is used to specify the kind of reward the agent will receive.
 

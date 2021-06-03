@@ -29,6 +29,7 @@ Contents
 .. toctree::
    :maxdepth: 2
    :caption: Tutorials:
+   tutorials/chap_1_basic_idea
 
 .. toctree::
    :maxdepth: 2
