@@ -1,4 +1,4 @@
-.. _getting_started:
+.. _chap_1_basic_idea:
 
 Chapter 1 - Indroduction and Basic Ideas
 ========================================
