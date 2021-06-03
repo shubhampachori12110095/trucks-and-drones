@@ -85,7 +85,13 @@ def examples_define_action_parameter():
     contin_coord__no_transp_v = create_v_num_outputs(num_coord_outputs=2)
 
 
-
+def output_parameter(
+        contin_outputs   = ['coord','amount','v_amount'], # ['load', 'unload', v_load, v_unload]
+        discrete_outputs = ['nodes', 'v_to_load', 'move', 'load_unload', 'v_load_unload'],
+        discrete_dims    = 20,
+        combine          = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
+        ):
+    return
 
 # Action Interpretation:
 # ----------------------------------------------------------------------------------------------------------------

@@ -128,12 +128,16 @@ standard_actions = output_parameter(
 # ----------------------------------------------------------------------------------------------------------------
 
 standard_states = input_parameter(
-    image_input     = ['grid'], # ['amount','v_amount']
-    contin_inputs   = ['cur_coord','cur_amount','cur_v_amount'], # ['all_v_coord', 'all_v_amount', 'all_v_v_amount', 'd_coord', 'd_amounts', 'c_coord', 'c_amounts']
-    discrete_inputs = ['free_v'], # ['loaded_v', 'stuck_v', 'v_type']
-    discrete_dims   = 20,
-    combine         = 'contin', # 'discrete', 'by_categ', 'all', list of lists of input names
-    )
+    image_input       = ['grid'],
+    contin_inputs     = ['coordinates','values','vehicles','customers','depots'],
+    discrete_inputs   = ['binary'],
+    discrete_dims     = 20,
+    combine_per_index = ['per_vehicle', 'per_customer', 'per_depot'], # list of input name lists
+    combine_per_type  = None,
+    # Flattens per combined (and all inputs not in a combined list),
+    # if no combination are used everything will be flattened,
+    flatten           = True,
+    flatten_images    = False)
 
 
 # Reward Calculator Prameter:
