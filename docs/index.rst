@@ -13,6 +13,8 @@ Information about the installation, first steps and a general example are found 
 
 You are free to use this code for your own research (Check this license). If you want to utilize this solution tailored to your company or need any other assisstanced in implementing artificial intelligence, contact me: maik.schuermann97@gmail.com.
 
+TEST
+
 Contents
 ========
 
