@@ -3,14 +3,14 @@
 Chapter 1 - Indroduction and Basic Ideas
 ========================================
 
-The Tutorials sections aims to provide an overview of the develepoment process for the module ``RL-TSP-VRP-D``. Since the project was developed with high flexibility in mind, this section will also provide a better understanding on how the module can be utilized. The reasoning behind the highly flexible approach is to create the possibility to explore a wide range of reinforcement learning implementations to solve different version of the travelling salesman (TSP) and vehicle routing problem (VRP). Another example for the necessity of flexibility is the option to use drones or robots as an extention to TSP and VRP.
+The Tutorials sections aims to provide an overview of the develepoment for the module ``RL-TSP-VRP-D``. Since the project was developed with high flexibility in mind, it can be difficult to comprehend the module in all its details. Thats why the tutorial section aims to explain the details behind the development and at the same time provides a better understanding on how the module can be utilized. The reasoning behind the highly flexible approach is to create the possibility to explore a wide range of reinforcement learning implementations to solve different version of the travelling salesman (TSP) and vehicle routing problem (VRP). Another example for the flexibility is the option to use drones or robots as an extention to TSP and VRP.
 
-With the first chapter the basic ideas and approaches will be presented. At the same time, some first ideas to which extend the module should be flexible will be explored. More detailes on that will follow in the next chapters.
+With the first chapter the basic ideas and approaches will be presented. At the same time, some first ideas to which extend the module should be flexible will be explored. More details on that will follow in the next chapters.
 
 Vehicles
 ********
 
-The vehicle routing problem is an extension to the travelling saleman problem. While TSP only uses one vehicle, the VRP has to be solved for multiple vehicles. Another extension is the usage of drones or robots, which can be transported by the standard vehicles. The drones or robots can differ to the standard vehicles by the cargo space, the range and the way they travel. For example, drones can travel by air while standard vehicles and robots can only travel by street. Both drones and robots can also have a limited range, which can be simulted by a battery that needs to be recharged. The following questions  explore the options for vehicles:
+The vehicle routing problem is an extension to the travelling saleman problem. While TSP only uses one vehicle, the VRP has to be solved for multiple vehicles. Another extension is the usage of drones or robots, which can be transported by the standard vehicles. The drones or robots can differ to the standard vehicles.  For example, drones can travel by air while standard vehicles and robots can only travel by street. Both drones and robots can also have a limited range (simulated by a battery that needs to be recharged). The following questions explore the options for vehicles:
 
 - How many standard vehicles, drones and robots?
 - Can the vehicle be used as a transporter for other vehicles?
@@ -28,7 +28,7 @@ The vehicle routing problem is an extension to the travelling saleman problem. W
 Nodes
 *****
 
-In the vanilla TSP only one depot exists: The vehicle visites each customer node via a given route and returns to the depot node. To include more possibilities it should also be possible to create more than one depot. Another option might be different demands at each customers or maybe even demands that appear not at the start at once, but instead independent during a day. The ideas/ questions for nodes are:
+In the vanilla TSP only one depot exists: The vehicle visites each customer node via a given route and returns to the depot node. But to include more options it should also be possible to create more than one depot. Another option might be to make the customer demands more variable. Each customer could have a different demand and perhaps each demand appears at specific time of day. The ideas/ questions for nodes are:
 
 - How many customers and depots?
 - How high should demands be and should they be variable?
