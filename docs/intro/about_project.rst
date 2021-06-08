@@ -13,11 +13,13 @@ Objectives
 **********
 
 Implementations:
+
 - Q-Learning: DQN
 - Policy Gradients: Actor-Critic, PPO
 - Gym Environment: a highly configurable environment to simulate TSP and VRP with possible extension like drones or robots
 
 Research:
+
 - Train on different TSP and VRP tasks
 - Test trained RL models against heuristic approaches and exact solutions
 
