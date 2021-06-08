@@ -3,26 +3,32 @@
 About the project
 =================
 
-Leveling the electricity consumption of an industrial plant is relevant in the industry with regard to the possibility of reducing electricity costs. The cost-factor electricity consists of two parts: One part depends on the amount consumed and cannot be influenced without reducing the production or exchanging the machines. The second part depends on the maximum capacity used per year. This part can be reduced by capping power peaks. With the increasing share of renewable energies and the elimination of constant electricity generators, the topic is becoming more and more relevant on the generator side too. The share of renewable energies can only be increased further if energy storages are used on the side of the producers and consumers. This will prevent the grid to be be loaded irregularly and unexpectedly, thus saving grid fees [Fuch12].
-
-In order to smooth the power consumption of a production system, the energy demand must be adjusted or an energy storage device must be used. In order to adapt the energy demand, the production itself would have to be changed and this would severely limit the work processes. In this thesis, therefore, the possibility of using an energy storage device is considered to shift power peaks into periods with lower power requirements. The main focus of the work should be on the investigation of the extent to which machine learning can be used for this possibility: An LSTM is used to make predictions about future consumption and, based on this, reinforcement learning agents, with different approaches, decide when to charge and discharge. Then it is checked whether an RL agent can achieve a better result than a conventional heuristic and whether such a solution is a suitable solution for this type of problem.
+With its continuous development and fast improvements artificial intelligence is becoming more and more powerful. One of the big topics in artificial intelligence is Reinforcement Learning (RL), which is useable in any decision-based task (e.g., games). Recently RL algorithms were able to beat humans at the board game GO and at video games like StarCraft or Dota2. This is especially impressive considering the games complexity. With the complexity the number of possibilities and outcomes become too great to be solvable through exact calculations – an optimal solution can’t be calculated with certainty. By considering that the RL algorithm were able to beat the world champions at there respective game, its possible to assume that the algorithms have the potential to reach at least good to almost optimal solutions. 
+Other examples of decision-based tasks that can be unsolvable for optimal solutions are the travelling salesman (TSP) and vehicle routing problem (VRP). Both problems are based on satisfying customer demands by visiting each customer to deliver some products. The goal for both problems is to take the most efficient route while visiting each customer. While the TSP uses only one vehicle, the VRP must be solved for multiple vehicles. So, depending on the number of customers and number of vehicles the problems can quickly become unsolvable for exact solutions. With the recent developments in RL, it’s reasonable to assume that RL algorithms can be fitted to solve the TSP and VRP. 
+The goal of this project is to implement and test RL against heuristic approaches and calculated exact solutions for TSP and VRP. Both TSP and VRP will also be tested with the extension of using drones or robots. 
 
 Objectives
 **********
 
-- LSTM Implementiereung
-- Vergleich Rl-Möglichkeite
-- Vergleich Performance mit Heuristik
+Implementations:
+- Q-Learning: DQN
+- Policy Gradients: Actor-Critic, PPO
+- Gym Environment: a highly configurable environment to simulate TSP and VRP with possible extension like drones or robots
+
+Research:
+- Train on different TSP and VRP tasks
+- Test trained RL models against heuristic approaches and exact solutions
 
 Findings
 ********
 
-- Ergebnis des Vergleichs der Rl-Möglichkeiten
-- Ergebnis des Vergleichs mit Heuristik
-- Fazit ob es sich lohnt
+- Which RL algorithm was the best choice
+- How does it perform against heuristic approaches
+- Can it find exact solutions?
+- Is RL feasible for solving TSP or VRP?
 
 Future Research
 ***************
 
-- was verbessert werden kann/muss
-- wie code auch zukünftig benutzt werden kann
+- Other algorithm that could perform better?
+- Other neural network architecture?
