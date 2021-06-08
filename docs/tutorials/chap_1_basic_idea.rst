@@ -52,3 +52,10 @@ The interactions between vehicles and nodes will be simulated. For this purpose,
 
 Environment
 ***********
+The purpose of the environment is to connect the RL agents with the simulation. Additionaly, two classes will be implemented in order to interpret the actions from the agents and the observations of the simulation. The objects that will be interacting via the environment are:
+
+- Simulator: The simulation of the TSP or VRP (with drones).
+- Visualizer: 
+- StateInterpreter:
+- ActionInterpreter:
+- RewardCalculator:
