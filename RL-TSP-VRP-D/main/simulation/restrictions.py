@@ -110,7 +110,13 @@ def RestrValueObject:
     Traces a the value of a variable that is restricted. Can also be used to trace unrestriced variabels, in which case a dummy restriction will be created (doesn't restrict anything).
     '''
 
-    def __init__(self, max_restr=None,min_restr=None,init_value=0,signal_list=[1,1,-1]):
+    def __init__(self, name, v_index, temp_db, max_restr=None,min_restr=None,init_value=0,signal_list=[1,1,-1]):
+
+        self.name = name
+        self.v_index = v_index
+        self.temp_db = temp_db
+
+        self.temp_db.add_restriction(name, max_restr, min_restr, init_value)
 
         self.max_restr  = max_restr
         self.min_restr  = min_restr
@@ -130,40 +136,40 @@ def RestrValueObject:
 
 
     def reset(self):
-        self.cur_value  = self.init_value
+        self.temp_db.status_dict[self.name][self.v_index] = self.init_value
 
     def reset_signal(self):
-        self.cur_signal = 0
+        self.temp_db.status_dict['signal_'self.name][self.v_index] = 0
 
     def set_to_max(self):
-        self.cur_value = self.max_restr
+        self.temp_db.status_dict[self.name][self.v_index] = self.max_restr
 
     def set_to_min(self):
-        self.cur_value = self.min_restr
+        self.temp_db.status_dict[self.name][self.v_index] = self.min_restr
 
 
     def update(self, new_value, restr_signal):
-        self.cur_value  = new_value
-        self.cur_signal = restr_signal
+        self.temp_db.status_dict[self.name][self.v_index]  = new_value
+        self.temp_db.status_dict['signal_'self.name][self.v_index] = restr_signal
 
     def update_signal(self, restr_signal):
-        self.cur_signal = restr_signal
+        self.temp_db.status_dict['signal_'self.name][self.v_index] = restr_signal
 
 
     def add_value(self, value):
-        new_value, restr_signal = self.restriction.add_value(self.cur_value,value)
+        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.v_index],value)
         self.update(new_value,restr_signal)
 
     def subtract_value(self, value):
-        new_value, restr_signal = self.restriction.subtract_value(self.cur_value,value)
+        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.v_index],value)
         self.update(new_value,restr_signal)
 
 
     def check_add_value(self,value):
-        new_value, restr_signal = self.restriction.add_value(self.cur_value,value)
+        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.v_index],value)
         return new_value - self.cur_value
 
     def check_subtract_value(self,value):
-        new_value, restr_signal = self.restriction.subtract_value(self.cur_value,value)
+        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.v_index],value)
         return self.cur_value - new_value
 

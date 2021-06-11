@@ -6,6 +6,13 @@ def lookup_db(db_dict, name_list):
     return [obj_list.append(db_dict[startswith(name)]) for name in name_list]
 
 
+def append_to(dict_var, key, value):
+    if any(key in elem for elem in dict_var):
+        dict_var[key].append(value)
+    else:
+        dict_var[key] = [value]
+
+
 class TempDatabase:
 
     def __init__(self, grid):
@@ -59,24 +66,59 @@ class TempDatabase:
             'v_type'    : [], # list of zeros and ones to indicate if vehicle is a transporter
             'v_loadable': [], # list of zeros and ones to indicate if vehicle can be transported
 
-            'speed'
-            'travel_type'
-            'range_type'
-            max_restrictions
+            'speed'      : [],
+            'travel_type': [],
+            'range_type' : [],
 
             # Nodes
-            'c_coord'   : [], # list of current customer coordinates
-            'd_coord'   : [], # list of current depot coordinates
+            'c_coord': [], # list of current customer coordinates
+            'd_coord': [], # list of current depot coordinates
 
             # Restrictions
-            'battery'      : [],
-            'range'        : [],
-            'cargo'        : [],
-            'cargo_rate'   : [],
-            'cargo_UV'     : [],
-            'cargo_UV_rate': [],
-            'stock'        : [],
-            'demand'       : [],
+            'battery'     : [],
+            'range'       : [],
+            'cargo'       : [],
+            'cargo_rate'  : [],
+            'cargo_v'     : [],
+            'cargo_v_rate': [],
+            'stock'       : [],
+            'demand'      : [],
+
+            'max_battery'     : [],
+            'max_range'       : [],
+            'max_cargo'       : [],
+            'max_cargo_rate'  : [],
+            'max_cargo_v'     : [],
+            'max_cargo_v_rate': [],
+            'max_stock'       : [],
+            'max_demand'      : [],
+
+            'min_battery'     : [],
+            'min_range'       : [],
+            'min_cargo'       : [],
+            'min_cargo_rate'  : [],
+            'min_cargo_v'     : [],
+            'min_cargo_v_rate': [],
+            'min_stock'       : [],
+            'min_demand'      : [],
+
+            'init_battery'     : [],
+            'init_range'       : [],
+            'init_cargo'       : [],
+            'init_cargo_rate'  : [],
+            'init_cargo_v'     : [],
+            'init_cargo_v_rate': [],
+            'init_stock'       : [],
+            'init_demand'      : [],
+
+            'signal_battery'     : [],
+            'signal_range'       : [],
+            'signal_cargo'       : [],
+            'signal_cargo_rate'  : [],
+            'signal_cargo_v'     : [],
+            'signal_cargo_v_rate': [],
+            'signal_stock'       : [],
+            'signal_demand'      : [],
             }
 
 
@@ -134,28 +176,28 @@ class TempDatabase:
             self.restriction_signals[key] = [elem.cur_signal for elem in self.base_groups_restr[key]]
 
 
+    def add_restriction(self, name, max_restr, min_restr, init_value):
+        append_to(self.status_dict, name, init_restr)
+        append_to(self.status_dict, 'max_'+name, max_restr)
+        append_to(self.status_dict, 'min_'+name, min_restr)
+        append_to(self.status_dict, 'init_'+name, init_restr)
+        append_to(self.status_dict, 'signal_'+name, 0)
 
-    def add_restriction(obj, name, base_group=None):
-        #self.trace_restr_dict[name] = obj
 
-        if base_group is not None:
-            base_groups_restr[base_group].append(obj)
-
-        #if isinstance(group_list, list):
-            #[temp_db.groups_dict[group].append(name) for group in group_list]
-
-    def add_vehicle(obj, name, base_group=None):
-        #self.trace_vehicle_dict[name] = obj
-
-        if base_group is not None:
-            base_groups_vehicles[base_group].append(obj)
+    def add_vehicle(self, vehicle, travel_type, range_type, speed):
+        append_to(self.base_groups, 'vehicles', vehicle)
+        
+        append_to(self.status_dict, 'travel_type', travel_type)
+        append_to(self.status_dict, 'range_type', range_type)
+        append_to(self.status_dict, 'speed', speed)
+        
+        append_to(self.status_dict, 'v_free', 1)
+        append_to(self.status_dict, 'v_type', int(vehicle.v_type))
+        append_to(self.status_dict, 'v_loadable', int(vehicle.v_loadable))
 
     
-    def add_node(obj, name, base_group=None):
-        #self.base_groups_nodes[name] = obj
-
-        if base_group is not None:
-            base_groups_restr[base_group].append(obj)
+    def add_node(self, node):
+        append_to(self.base_groups, 'nodes', node)
 
 
 

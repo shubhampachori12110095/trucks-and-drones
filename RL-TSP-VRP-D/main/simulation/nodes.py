@@ -47,12 +47,9 @@ class CustomerCreator:
         self.num_customers      = customer_parameter['num_customers']
         del self.customer_parameter['num_customers']
 
-    def create_customer(self, name, i):
-        c_param = {}
-        for key in self.customer_parameter.keys():
-            c_param[key] = param_interpret(self.customer_parameter[key])
-            coordinates  = random_coordinates(self.temp_db.grid)
-        customer_obj = BaseCustomer(name, i, self.temp_db, c_param, coordinates)
+    def create_customer(self, n_index):
+        coordinates  = random_coordinates(self.temp_db.grid)
+        customer_obj = BaseCustomer(n_index, self.temp_db, self.customer_parameter, coordinates)
         self.temp_db.add_node(customer_obj)
         return customer_obj
     
@@ -60,6 +57,7 @@ class CustomerCreator:
         customer_list = []
         [customer_list.append(create_customer('customer_'+str(i),i)) for i in range(self.num_customers)]
         return customer_list
+
 
 class BaseCustomer:
 
