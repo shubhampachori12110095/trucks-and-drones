@@ -61,8 +61,7 @@ class CustomEnv(gym.Env):
         
         # take action:
         self.simulator.temp_db.init_step()
-        self.action_interp.outputs_to_actions(action)
-        self.action_interp.take_actions()
+        self.action_interp.take_actions(action)
         self.simulator.temp_db.finish_step()
 
         # new state:
