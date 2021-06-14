@@ -18,7 +18,7 @@ unterscheidung ob dinge gleichzeitig oder nacheinander passieren können:
 import numpy as np
 
 from common_sim_func import param_interpret, random_coordinates, l_ignore_none
-from nodes import CustomerCreator, DepotCreator
+from nodes import NodeCreator
 from vehicles import VehicleCreator
 from temp_database import TempDatabase, lookup_db
 
@@ -208,40 +208,37 @@ class BaseSimulator:
 
     def __init__(self, all_parameter_list, sim_param):
 
-        self.grid          = grid
-        self.coord_type    = coord_type
-        self.locked_travel = locked_travel
-        self.num_MV        = num_MV
-        self.num_UV_per_MV = num_UV_per_MV
+        self.temp_db = TempDatabase(self.grid)
 
-        [setattr(self, k, v) for k, v in create_param_name(all_parameter_list).items()]
         [setattr(self, k, v) for k, v in sim_param.items()]
+
+        all_param_dict = create_param_name(all_parameter_list)
+
+
+        self.vehicle_creator = VehicleCreator(
+            self.temp_db,
+            # Manned Vehicles:
+            all_param_dict['MV_cargo_param'], all_param_dict['MV_range_param'], all_param_dict['MV_travel_param'],
+            # Unmanned Vehicles:
+            all_param_dict['UV_cargo_param'], all_param_dict['UV_range_param'], all_param_dict['UV_travel_param']
+        )
+
+        self.node_creator = NodeCreator(self.temp_db, all_param_dict['customer_param'], all_param_dict['depot_param'])
 
 
     def reset_simulation(self):
 
-        self.temp_db = TempDatabase(self.grid)
-
-        self.vehicle_list = VehicleCreator(
-            self.temp_db, self.coord_type, self.locked_travel,
-            # Manned Vehicles:
-            self.MV_cargo_param, self.MV_range_param, self.MV_travel_param,
-            # Unmanned Vehicles:
-            self.UV_cargo_param, self.UV_range_param, self.UV_travel_param).create_vehicles(param_interpret(self.num_MV ),param_interpret(self.num_UV_per_MV))
-
-        self.customer_list = CustomerCreator(self.temp_db, self.customer_param).create_customer_list()
-
-        self.depot_list = DepotCreator(self.temp_db, self.depot_param).create_depot_list()
+        self.vehicle_creator.create_vehicles(param_interpret(self.num_MV ),param_interpret(self.num_UV_per_MV))
+        self.node_creator.create_nodes()
 
         self.temp_db.reset_db()
-        
-        return self.temp_db
+
 
 
     def move(self, vehicle_i, coordinates):
         
         # Check if UV is moveable:
-        if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
+        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
             vehicle     = self.temp_db.base_groups['vehicles'][vehicle_i]
             transp_list = self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)]
 
@@ -260,7 +257,7 @@ class BaseSimulator:
 
     def unload_vehicles(self, vehicle_i, num_v, cargo_amount_list): 
         
-        if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
+        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
             # Get vehicles:
             vehicle = self.temp_db.base_groups['vehicles'][vehicle_i]
             UV_list = lookup_db(self.temp_db.base_groups['vehicles'], self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)])
@@ -277,7 +274,7 @@ class BaseSimulator:
             # Update Database:
             for elem in unloaded_list:
                 self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)].remove(elem)
-                self.temp_db.free_vehicles.append(elem)
+                self.temp_db.status_dict['v_free'][elem.v_index] = 1
 
             self.temp_db.action_signal['free_to_unload_v'][i] += 1
 
@@ -288,7 +285,7 @@ class BaseSimulator:
 
     def load_vehicle(self, vehicle_i, vehicle_j, cargo_amount):
 
-        if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
+        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
 
             v_to_load = self.temp_db.base_groups['vehicles'][vehicle_j]
             
@@ -296,6 +293,7 @@ class BaseSimulator:
                 loaded = v_load_v(self.temp_db.base_groups['vehicles'][vehicle_i], v_to_load, cargo_amount)
 
             if loaded and v_to_load.loadable:
+                self.temp_db.status_dict['v_free'][vehicle_j] = 0
                 self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)].append('vehicle_'+str(vehicle_j))
                 self.temp_db.action_signal['free_to_be_loaded_v'][j] += 1
             else:
@@ -309,7 +307,7 @@ class BaseSimulator:
 
     def unload_cargo(self, vehicle_i, customer_j, amount):
 
-        if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
+        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
 
             real_amount = vehicle_at_customer(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['customers'][customer_j], amount)
             self.temp_db.action_signal['free_to_unload_cargo'][i] += 1
@@ -320,13 +318,19 @@ class BaseSimulator:
 
     def load_cargo(self, vehicle_i, depot_j, amount):
         
-        if any('vehicle_'+str(vehicle_i) in elem for elem in self.temp_db.free_vehicles):
+        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
 
             real_amount = vehicle_at_depot(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['depots'][depot_j], amount)
             self.temp_db.action_signal['free_to_load_cargo'][i] += 1
 
         else:
             self.temp_db.action_signal['free_to_load_cargo'][i]update_signal -= 1
+
+
+    def recharge_range(self, vehicle_i):
+
+        if any(self.temp_db.status_dict['v_coord'][vehicle_i] for elem in recharge_coord):
+            recharge_v(self.temp_db.base_groups[vehicle_i])
 
 
     #def finish_step(self):

@@ -87,3 +87,84 @@ class LockedTravelVehicleClass(VehicleClass): ##################################
             self.temp_db.coordinates(self.vehicle_name, self.travel_type, new_coordinates)
         
         return new_coordinates
+
+
+
+#########################################################################################################
+
+class BaseCustomerDemand:
+
+    def __init__(self, customer_name, temp_db, demand):
+
+        self.customer_name = customer_name
+        self.temp_db        = temp_db
+        self.demand        = demand
+
+    def step(self, day_step):
+        self.temp_db.update_node(self.customer_name,self.demand.value)
+
+
+class RechargingCustomerDemand():
+
+    def __init__(self, customer_name, temp_db, demand, demand_after_steps, demand_add):
+
+        self.customer_name = customer_name
+        self.temp_db        = temp_db
+        self.demand        = demand
+
+        self.demand_after_steps = demand_after_steps
+        self.demand_add         = demand_add
+        self.step_count         = 0
+
+    def step(self, day_step, count=True):
+        if count:
+            if self.step_count == self.demand_after_steps:
+                self.demand.add_value(self.demand_add)
+                self.step_count = 0
+            else:
+                self.step_count += 1
+        self.temp_db.update_node(self.customer_name,self.demand.value)
+
+
+class BaseCustomerClass:
+
+    def __init__(self, customer_name, temp_db, customer_param):
+
+        self.customer_name = customer_name
+        self.temp_db = temp_db
+
+        self.demand = RestrValueObject(customer_name, temp_db, max_restr=self.init_demand, min_restr=0, init_value=self.init_demand, signal_list=self.signal_list)
+
+        if self.demand_after_steps == None:
+            self.demand_base_obj = BaseCustomerDemand(customer_name, temp_db, self.demand)
+        else:
+            self.demand_base_obj = RechargingCustomerDemand(customer_name, temp_db, self.demand, self.demand_after_steps, self.demand_add)
+
+    def unload_vehicle(self,amount):
+        return self.demand.subtract_value(amount)
+
+    def step(self, day_step):
+        self.demand_base_obj.step(day_step)
+        
+
+
+class DynamicCustomerClass(BaseCustomerClass):
+
+    def __init__(self, customer_name, temp_db, customer_param):
+        super().__init__(customer_name, temp_db, customer_param)
+
+        self.step_counter = 0
+    
+    def step(self, day_step):
+
+        if day_step < self.first_demand_step:
+            self.demand.zero_demand()
+            self.demand_base_obj.step(day_step, False)
+        
+        elif day_step == self.first_demand_step:
+            self.demand.set_to_max()
+            self.demand_base_obj.step(day_step, False)
+        
+        else:
+            self.demand_base_obj.step(day_step)
+            

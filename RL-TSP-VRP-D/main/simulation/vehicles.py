@@ -186,11 +186,13 @@ class VehicleClass:
     Cargo loading/ unloading is restricted either by possibles actions or automatic management through heuristics.
     Travel is based on taking a direction.
     '''
-    def __init__(self, v_index, v_type, v_loadable, cargo_obj, travel_obj):
+    def __init__(self, v_index, v_type, v_loadable, cargo_obj, travel_obj, weight=0):
 
         self.v_index = v_index
         self.v_type = v_type
         self.v_loadable = v_loadable
+
+        self.weight = weight
         
         self.cargo_obj  = cargo_obj
         self.travel_obj = travel_obj

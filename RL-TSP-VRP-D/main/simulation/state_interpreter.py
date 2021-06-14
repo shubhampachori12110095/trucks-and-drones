@@ -194,7 +194,7 @@ class BaseStateInterpreter:
             all_inputs = [self.combined_flatten(elem) for elem in all_inputs]
 
         for key in self.image_input:
-            image_array = self.visualizor.convert_to_img_array().transpose([1, 0, 2]) // 255
+            image_array = self.visualizor.convert_to_img_array().transpose([1, 0, 2]) / 255
             if self.flatten_images:
                 image_array = self.combined_flatten(image_array)
             all_inputs  = [image_array] + all_inputs

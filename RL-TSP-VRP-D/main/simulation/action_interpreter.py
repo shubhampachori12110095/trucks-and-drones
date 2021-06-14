@@ -2,6 +2,517 @@ import numpy as np
 from gym import spaces
 
 
+def output_parameter(
+        mode             = 'single_vehicle', # 'multi_vehicle'
+        flattened        = 'per_output', #'per_vehicle', #'all'
+        contin_outputs   = ['coord','amount','v_amount'],
+        discrete_outputs = ['nodes', 'v_to_load'],
+        binary_discrete  = ['move', 'load_unload', 'v_load_unload'],
+        binary_contin    = [],
+        discrete_bins    = 20,
+        combine          = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
+        ):
+    return {
+        'contin_outputs': contin_outputs,
+        'discrete_outputs': discrete_outputs,
+        'discrete_dims': discrete_dims,
+        'combine': combine,
+    }
+
+
+
+
+
+def discrete_to_norm(dimension_list, action_list):
+    '''Returns the normalized actions of a discrete action space.'''
+    return [(action_list[i]/(dimension_list[i]-1)) for i in range(len(action_list))]
+
+
+class BaseActionInterpreter:
+
+    def __init__(self, v_action_dict, action_prio_list, simulator, only_at_node_interactions=False):
+
+        self.temp_db = simulator.temp_db
+        self.simulator = simulator
+
+        all_outputs = ['coord', 'nodes','move', 'amount', 'v_amount', 'v_to_load', 'load_unload', 'v_load_unload', 'load', 'unload', 'v_load', 'v_unload', 'v_and_single_v', 'v_and_multi_v']
+
+        binary_outputs = ['move','load_unload','v_load_unload','load_sep_unload','v_load_sep_unload']
+
+        value_outputs = ['amount','v_amount', 'load_sep_unload', 'v_load_sep_unload', 'v_and_single_v', 'v_and_multi_v']
+
+        coord_outputs = ['coord', 'nodes']
+
+        if len(list(set(self.contin_outputs) & set(self.discrete_outputs) & set(self.binary_discrete) & set(self.binary_contin))) > 0:
+            raise Exception(list(set(self.contin_outputs) & set(self.discrete_outputs) & set(self.binary_discrete) & set(self.binary_contin))+' were dublicates, but must only be used once as outputs.')
+
+        val_output_set = set(self.contin_outputs+self.discrete_outputs)
+        binary_output_set = set(self.binary_contin+self.binary_discrete)
+
+        self.discrete_set = set(self.discrete_outputs+self.binary_discrete)
+        self.contin_set = set(self.contin_outputs+self.binary_contin)
+        
+
+        if 'amount' in val_output_set:
+            if 'load_sep_unload' in val_output_set:
+                raise Exception('"amount" and "load_sep_unload" can not be both value outputs, set "load_sep_unload" to binary.')
+
+        if 'v_amount' in val_output_set:
+            if 'v_load_sep_unload' in val_output_set:
+                raise Exception('"v_amount" and "v_load_sep_unload" can not be both value outputs, set "v_load_sep_unload" to binary.')
+
+        for elem in list(val_output_set):
+            if elem not in set(value_outputs):
+                raise Exception(elem+' is not accepted as value output, use any of: '+value_outputs)
+
+        for elem in list(inary_output_set):
+            if elem not in set(binary_outputs):
+                raise Exception(elem+' is not accepted as binary output, use any of: '+binary_outputs)
+
+        if 'load_sep_unload' in binary_output_set  and 'load_unload' in binary_output_set:
+            raise Exception("'load_sep_unload' and 'load_unload' can't be both binary outputs")
+
+        if 'v_load_sep_unload' in binary_output_set  and 'v_load_unload' in binary_output_set:
+            raise Exception("'v_load_sep_unload' and 'v_load_unload' can't be both binary outputs")
+
+        if 'v_and_single_v' in value_outputs  and 'v_and_multi_v' in value_outputs:
+            raise Exception("'v_and_single_v' and 'v_and_multi_v' can't be both outputs")
+
+
+        self.shapes = []
+        self.bins = []
+
+    def decode_actions(self, actions, max_val_array):
+        # check if actions are discrete
+        for i in range(len(actions)):
+            if self.bins[i] != 0:
+                actions[i] = np.argmax(actions[i]) / (self.bins[i]-1)
+            else:
+                actions[i] = actions[i][0]
+
+        return np.round(actions*max_val_array).astype(int)
+
+    def calc_num_bins(self, key, max_val):
+        
+        if key in self.discrete_set:
+            self.bins.append(min(max_val,self.discrete_bins))
+            self.shapes.append(min(max_val,self.discrete_bins))
+        else:
+            self.bins.append(0)
+            self.shapes.append(1)
+
+
+    def init_coord_indeces(self, val_output_set, binary_output_set):
+        '''
+        coordinates:
+        - no coordinates -> automate movement
+        - only coordinates
+        - only nodes
+        - both coordinates and nodes -> reward based on nearest node (option: move to node or move to coordinates?)
+        - additionaly move
+        '''
+
+        self.coord_funcs = []
+
+        # Binary addition:
+        if 'move' in binary_output_set:
+            self.coord_funcs.append(self.binary_check)
+            self.bins.append(self.calc_num_bins('move',2))
+
+        # both coordinates and nodes -> reward based on nearest node (option: move to node or move to coordinates?)
+        if 'coord' in val_output_set and 'node' in val_output_set:
+            self.coord_funcs.append(self.compare_coord)
+            self.coord_funcs.append(self.to_node)
+            self.bins.append(self.calc_bins_and_shapes('coord',self.temp_db.grid[0]))
+            self.bins.append(self.calc_num_bins('coord',self.temp_db.grid[1]))
+            self.bins.append(self.calc_num_bins('nodes',self.temp_db.num_nodes))
+
+
+        # only coordinates:
+        elif 'coord' in val_output_set:
+            self.coord_funcs.append(self.to_coordinates)
+            self.bins.append(self.calc_num_bins('coord',self.temp_db.grid[0]))
+            self.bins.append(self.calc_num_bins('coord',self.temp_db.grid[1]))
+
+        # only nodes:
+        elif 'node' in val_output_set:
+            self.coord_funcs.append(self.to_node)
+            self.bins.append(self.calc_num_bins('nodes',self.temp_db.num_nodes))
+
+        # automate:
+        else:
+            self.coord_funcs.append(self.auto_coordinates)
+
+    
+    def init_cargo_indices(self, val_output_set, binary_output_set):
+        '''
+        cargo:
+        - no outputs -> automate cargo
+        - only amount -> automate loading, unloading based on current location
+        - only load_sep_unload as value outputs -> no automation
+
+        - additions if 'amount' as value output:
+            - 'load_sep_unload' as TWO binary outputs -> no automation
+            - alternative 'load_unload' as ONE binary output -> automate loading/unloading
+
+        - additions if 'load_sep_unload' as value output:
+            - alternative 'load_unload' as ONE binary output -> no automation
+        '''
+
+        self.load_cargo_funcs = []
+        self.unload_cargo_funcs = []
+
+        # binary additions:
+        if 'load_sep_unload' in binary_output_set:
+            self.load_cargo_funcs.append(self.two_binary_check)
+            self.unload_cargo_funcs.append(self.two_binary_check)
+
+        elif 'load_unload' in binary_output_set:
+            self.load_cargo_funcs.append(self.binary_check)
+            self.unload_cargo_funcs.append(self.binary_check)
+
+
+        # only 'amount'
+        if 'amount' in val_output_set:
+            self.load_cargo_funcs.append(self.one_amount)
+            self.unload_cargo_funcs.append(self.one_amount)
+
+        # only 'load_sep_unload'
+        elif 'load_sep_unload' in val_output_set:
+            self.load_cargo_funcs.append(self.two_amounts)
+            self.unload_cargo_funcs.append(self.two_amounts)
+
+        # automate
+        else:
+            self.load_cargo_funcs.append(self.auto_amounts)
+            self.unload_cargo_funcs.append(self.auto_amounts)
+
+            
+    def init_v_transport_indices(self, val_output_set, binary_output_set):
+        '''
+        same as cargo but additionaly vehicle to load can be chosen:
+        - 'v_and_single_v' chooses single vehicle (one output)
+        - 'v_and_multi_v' chooses multiple vehicles (multi output contin, same outputs for discrete but not one hotted)
+        '''
+
+        v_load_cargo_funcs = []
+        v_unload_cargo_funcs = []
+
+        # specifying the vehicle to load/unload
+        if 'v_and_single_v' in val_output_set:
+            v_load_cargo_funcs.append(self.v_single_v)
+            v_unload_cargo_funcs.append(self.v_single_v)
+        
+        elif 'v_and_multi_v' in val_output_set:
+            v_load_cargo_funcs.append(self.v_multi_v)
+            v_unload_cargo_funcs.append(self.v_multi_v)
+
+
+        # binary additions:
+        if 'load_sep_unload' in binary_output_set:
+            v_load_cargo_funcs.append(self.two_binary_check)
+            v_unload_cargo_funcs.append(self.two_binary_check)
+
+        elif 'load_unload' in binary_output_set:
+            v_load_cargo_funcs.append(self.binary_check)
+            v_unload_cargo_funcs.append(self.binary_check)
+
+
+        # only 'v_amount'
+        if 'v_amount' in val_output_set:
+            v_load_cargo_funcs.append(self.one_amount)
+            v_unload_cargo_funcs.append(self.one_amount)
+
+        # only 'v_load_sep_unload'
+        elif 'v_load_sep_unload' in val_output_set:
+            v_load_cargo_funcs.append(self.two_amounts)
+            v_unload_cargo_funcs.append(self.two_amounts)
+
+        # automate
+        else:
+            v_load_cargo_funcs.append(self.auto_amounts)
+            v_unload_cargo_funcs.append(self.auto_amounts)
+
+####################################################################################################################################################
+
+
+
+
+        coord_binary = list({'move'} & binary_output_set)
+        coord_value = list({'coord', 'nodes'} & val_output_set)
+        if len(coord_value) == 0:
+            coord_value.append('auto_coord')
+        elif len(coord_value) == 2:
+            coord_value.append('compare_coord')
+
+        cargo_binary = list({'load_sep_unload','load_unload'} & binary_output_set)
+        cargo_value = list({'load_sep_unload','amount'} & val_output_set)
+        if len(cargo_value) == 0:
+            coord_value.append('auto_amount')
+
+        v_to_load = list({'v_and_single_v','v_and_multi_v'} & val_output_set)
+        v_cargo_binary = list({'v_load_sep_unload','v_load_unload'} & binary_output_set)
+        v_cargo_value = list({'v_load_sep_unload','v_amount'} & val_output_set)
+        if len(v_cargo_value) == 0:
+            coord_value.append('v_auto_amount')
+
+        self.func_dict = {}
+        for elem in list({'move','load_unload','v_load_unload'} & binary_output_set)
+            self.func_dict[elem] = self.binary_check
+        for elem in list({'load_sep_unload','v_load_sep_unload'} & binary_output_set)
+            self.func_dict[elem] = self.multi_binary_check
+        for elem in list({'load_sep_unload','v_load_sep_unload'} & val_output_set)
+            self.func_dict[elem] = self.single_amount
+
+
+    def binary_check(self)
+        self.finished = bool(self.cur_list[self.cur_index])
+
+    def multi_binary_check(self):
+        if self.cur_list[self.cur_index][0] + self.cur_list[self.cur_index][1] == 0:
+            self.finished = True
+        elif self.cur_list[self.cur_index][0] + self.cur_list[self.cur_index][1] == 2:
+            self.load_unload_mode = None
+        else:
+            self.load_unload_mode = np.argmax(self.cur_list[self.cur_index])
+
+    def multi_amount(self)
+
+
+
+    def decode_cargo(self):
+
+        self.load_unload_mode = None
+
+
+    def decode_coordinates(self, cur_list):
+
+        for elem in 
+
+        if move:
+
+            if coord and node:
+                compare_coord
+
+        self.cur_index = 0
+        self.cur_list  = cur_list
+
+
+        for key in coord_binary:
+            self.binary_check
+        
+
+
+        self.simulator.move(vehicle_i, coordinates)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        self.init_coord_functions(val_output_set, binary_output_set)
+        self.init_cargo_functions(val_output_set, binary_output_set)
+        self.init_v_transport_functions(val_output_set, binary_output_set)
+
+
+    def init_coord_index(self, val_output_set, binary_output_set):
+        '''
+        coordinates:
+        - no coordinates -> automate movement
+        - only coordinates
+        - only nodes
+        - both coordinates and nodes -> reward based on nearest node (option: move to node or move to coordinates?)
+        - additionaly move
+        '''
+
+        self.coord_funcs = []
+
+        # Binary addition:
+        if 'move' in binary_output_set:
+            self.coord_funcs.append(self.binary_check)
+
+        # both coordinates and nodes -> reward based on nearest node (option: move to node or move to coordinates?)
+        if 'coord' in val_output_set and 'node' in val_output_set:
+            self.coord_funcs.append(self.compare_coord)
+
+        # only coordinates:
+        elif 'coord' in val_output_set:
+            self.coord_funcs.append(self.to_coordinates)
+
+        # only nodes:
+        elif 'node' in val_output_set:
+            self.coord_funcs.append(self.to_node)
+
+        # automate:
+        else:
+            self.coord_funcs.append(self.auto_coordinates)
+
+    
+    def init_cargo_functions(self, val_output_set, binary_output_set):
+        '''
+        cargo:
+        - no outputs -> automate cargo
+        - only amount -> automate loading, unloading based on current location
+        - only load_sep_unload as value outputs -> no automation
+
+        - additions if 'amount' as value output:
+            - 'load_sep_unload' as TWO binary outputs -> no automation
+            - alternative 'load_unload' as ONE binary output -> automate loading/unloading
+
+        - additions if 'load_sep_unload' as value output:
+            - alternative 'load_unload' as ONE binary output -> no automation
+        '''
+
+        self.load_cargo_funcs = []
+        self.unload_cargo_funcs = []
+
+        # binary additions:
+        if 'load_sep_unload' in binary_output_set:
+            self.load_cargo_funcs.append(self.two_binary_check)
+            self.unload_cargo_funcs.append(self.two_binary_check)
+
+        elif 'load_unload' in binary_output_set:
+            self.load_cargo_funcs.append(self.binary_check)
+            self.unload_cargo_funcs.append(self.binary_check)
+
+
+        # only 'amount'
+        if 'amount' in val_output_set:
+            self.load_cargo_funcs.append(self.one_amount)
+            self.unload_cargo_funcs.append(self.one_amount)
+
+        # only 'load_sep_unload'
+        elif 'load_sep_unload' in val_output_set:
+            self.load_cargo_funcs.append(self.two_amounts)
+            self.unload_cargo_funcs.append(self.two_amounts)
+
+        # automate
+        else:
+            self.load_cargo_funcs.append(self.auto_amounts)
+            self.unload_cargo_funcs.append(self.auto_amounts)
+
+            
+    def init_v_transport_functions(self, val_output_set, binary_output_set):
+        '''
+        same as cargo but additionaly vehicle to load can be chosen:
+        - 'v_and_single_v' chooses single vehicle (one output)
+        - 'v_and_multi_v' chooses multiple vehicles (multi output contin, same outputs for discrete but not one hotted)
+        '''
+
+        v_load_cargo_funcs = []
+        v_unload_cargo_funcs = []
+
+        # specifying the vehicle to load/unload
+        if 'v_and_single_v' in val_output_set:
+            v_load_cargo_funcs.append(self.v_single_v)
+            v_unload_cargo_funcs.append(self.v_single_v)
+        
+        elif 'v_and_multi_v' in val_output_set:
+            v_load_cargo_funcs.append(self.v_multi_v)
+            v_unload_cargo_funcs.append(self.v_multi_v)
+
+
+        # binary additions:
+        if 'load_sep_unload' in binary_output_set:
+            v_load_cargo_funcs.append(self.two_binary_check)
+            v_unload_cargo_funcs.append(self.two_binary_check)
+
+        elif 'load_unload' in binary_output_set:
+            v_load_cargo_funcs.append(self.binary_check)
+            v_unload_cargo_funcs.append(self.binary_check)
+
+
+        # only 'v_amount'
+        if 'v_amount' in val_output_set:
+            v_load_cargo_funcs.append(self.one_amount)
+            v_unload_cargo_funcs.append(self.one_amount)
+
+        # only 'v_load_sep_unload'
+        elif 'v_load_sep_unload' in val_output_set:
+            v_load_cargo_funcs.append(self.two_amounts)
+            v_unload_cargo_funcs.append(self.two_amounts)
+
+        # automate
+        else:
+            v_load_cargo_funcs.append(self.auto_amounts)
+            v_unload_cargo_funcs.append(self.auto_amounts)
+
+
+    def binary_check(self, key):
+        if binary_dict[key] == 0:
+            val_dict[key] == None
+
+
+    def two_binary_check(self, key):
+        if binary_dict[key][0] == 0:
+            val_dict[key][0] == None
+        
+        if binary_dict[key][1] == 0:
+            val_dict[key][1] == None
+
+
+    def one_amount(self, key):
+
+
+    def two_amounts(self, key):
+
+    
+    def auto_amount(self, key):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Actions per Vehicle Parameter:
 # ----------------------------------------------------------------------------------------------------------------
 '''
@@ -85,13 +596,7 @@ def examples_define_action_parameter():
     contin_coord__no_transp_v = create_v_num_outputs(num_coord_outputs=2)
 
 
-def output_parameter(
-        contin_outputs   = ['coord','amount','v_amount'], # ['load', 'unload', v_load, v_unload]
-        discrete_outputs = ['nodes', 'v_to_load', 'move', 'load_unload', 'v_load_unload'],
-        discrete_dims    = 20,
-        combine          = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
-        ):
-    return
+
 
 # Action Interpretation:
 # ----------------------------------------------------------------------------------------------------------------
@@ -421,7 +926,7 @@ def create_load_cargo_functions(key_list, placeholder_dict, simulator):
 
 class BaseActionInterpreter:
 
-    def __init__(self, v_action_dict, action_prio_list,simulator, only_at_node_interactions=False):
+    def __init__(self, v_action_dict, action_prio_list, simulator, only_at_node_interactions=False):
 
         self.max_value_dict = max_value_dict
 

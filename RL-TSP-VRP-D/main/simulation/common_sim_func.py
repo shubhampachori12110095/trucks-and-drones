@@ -5,11 +5,16 @@ import numpy as np
 # Used for obj creation:
 # ----------------------------------------------------------------------------------------------------------------
 
-def param_interpret(variable):
-    if isinstance(variable, (list, tuple, np.ndarray)):
-        if len(variable) == 2:
-            return np.random.randint(variable[0],variable[1]+1)
-    return variable
+def param_interpret(var):
+    if isinstance(var, (list, tuple, np.ndarray)):
+        if len(var) == 2:
+            return np.random.randint(var[0],var[1]+1)
+    return var
+
+def max_param_val(var):
+    if isinstance(var, (list, tuple, np.ndarray)):
+        return np.max(var)
+    return var
 
 def random_coordinates(grid):
     return (np.random.randint(0,grid[0]+1), np.random.randint(0,grid[1]+1))

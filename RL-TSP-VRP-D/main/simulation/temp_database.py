@@ -196,8 +196,12 @@ class TempDatabase:
         append_to(self.status_dict, 'v_loadable', int(vehicle.v_loadable))
 
     
-    def add_node(self, node):
-        append_to(self.base_groups, 'nodes', node)
+    def add_depot(self, depot):
+        append_to(self.base_groups, 'nodes', depot)
+
+
+    def add_customer(self, customer):
+        append_to(self.base_groups, 'nodes', customer)
 
 
 
