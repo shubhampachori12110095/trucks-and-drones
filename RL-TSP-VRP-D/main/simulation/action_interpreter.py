@@ -285,12 +285,13 @@ class BaseActionInterpreter:
 
     def auto_coord(self, key):
         if self.check_dict[key+'_binary'] == True:
-            self.value_dict[key] = 
+            self.value_dict[key] = !!!!!!!!!!!!!!!!!!!!
         else:
             self.value_dict[key] = None
 
 
     def auto_amount(self, key):
+        !!!!!!!!!!!!!!!
 
 
     def decode_discrete(self, actions):
@@ -305,17 +306,23 @@ class BaseActionInterpreter:
 
 
     def take_actions(self, actions):
+        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
 
-        if len(self.discrete_max_val) != 0: self.actions = np.append(decode_discrete(actions[:len(self.discrete_max_val)]))
-        if len(self.contin_max_val) != 0: self.actions = np.append(decode_contin(actions[-len(self.contin_max_val):]))
+            if len(self.discrete_max_val) != 0: self.actions = decode_discrete(actions[:len(self.discrete_max_val)]).ravel()
+            if len(self.contin_max_val) != 0: self.actions = decode_contin(actions[-len(self.contin_max_val):]).ravel()
 
-        [self.func_dict[key](key) for key in self.func_dict.keys()]
+            [self.func_dict[key](key) for key in self.func_dict.keys()]
 
-        if self.value_dict['coord'] != None: self.simulator.move(self.temp_db.v_index, self.value_dict['coord'])
-        if self.value_dict['v_unload'] != None: self.simulator.unload_vehicles(self.temp_db.v_index, self.value_dict['v_unload'])
-        if self.value_dict['v_load'] != None: self.simulator.load_vehicles(self.temp_db.v_index, self.value_dict['v_load'])
-        if self.value_dict['unload'] != None: self.simulator.unload_cargo(self.temp_db.v_index, self.value_dict['unload'])
-        if self.value_dict['load'] != None: self.simulator.load_cargo(self.temp_db.v_index, self.value_dict['load'])
-        self.simulator.recharge_range(self.temp_db.v_index)
+            if self.value_dict['coord'] != None:    self.simulator.move(self.temp_db.v_index, self.value_dict['coord'])
+            if self.value_dict['unload'] != None:   self.simulator.unload_cargo(self.temp_db.v_index, self.value_dict['unload'])
+            if self.value_dict['load'] != None:     self.simulator.load_cargo(self.temp_db.v_index, self.value_dict['load'])
+            if self.value_dict['v_unload'] != None: self.simulator.unload_vehicles(self.temp_db.v_index, self.value_dict['v_unload'])
+            if self.value_dict['v_load'] != None:   self.simulator.load_vehicles(self.temp_db.v_index, self.value_dict['v_load'])
+            
+            self.simulator.recharge_range(self.temp_db.v_index)
+            self.temp_db.action_signal['v_free'][i] += 1
+
+        else:
+            self.temp_db.action_signal['v_free'][i] -= 1
 
 

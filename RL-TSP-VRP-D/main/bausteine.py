@@ -167,4 +167,34 @@ class DynamicCustomerClass(BaseCustomerClass):
         
         else:
             self.demand_base_obj.step(day_step)
-            
+
+
+'''
+def v_load_v(transporter_obj, to_load_obj_list, cargo_amount_list):
+    '''
+    '''
+
+    num_v_to_load = min(l_ignore_none([transporter_obj.cargo_obj.vehicle_per_step, len(to_load_obj_list)]))
+
+    loaded_list = []
+    for i in range(num_v_to_load):
+
+        weight = to_load_obj_list[i].weight
+
+        cargo_amount = min(
+            to_load_obj_list[i].cargo_obj.cargo_per_step.check_subtract_value(cargo_amount_list[i]),
+            to_load_obj_list[i].cargo_obj.standard_cargo.check_subtract_value(cargo_amount_list[i]),
+            transporter_obj.cargo_obj.cargo_per_step.check_subtract_value(cargo_amount_list[i]+weight),
+            transporter_obj.cargo_obj.standard_cargo.check_add_value(cargo_amount_list[i]+weight)
+            )
+
+        if cargo_amount >= to_load_obj_list[i].cargo_obj.standard_cargo.cur_value:
+            to_load_obj_list[i].cargo_obj.cargo_per_step.subtract_value(cargo_amount-weight),
+            to_load_obj_list[i].cargo_obj.standard_cargo.subtract_value(cargo_amount-weight),
+            transporter_obj.cargo_obj.cargo_per_step.subtract_value(cargo_amount),
+            transporter_obj.cargo_obj.standard_cargo.add_value(cargo_amount)
+
+            loaded_list.append(to_load_obj_list[i].name)
+
+    return loaded_list
+'''
