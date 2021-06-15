@@ -44,7 +44,7 @@ def simple_travel(vehicle_obj, coordinates):
 # ----------------------------------------------------------------------------------------------------------------
 
 
-def v_unload_v(transporter_obj,to_unload_obj_list, cargo_amount_list):
+def v_unload_v(transporter_obj, to_unload_obj_list):
     '''
     - only unload when cargo can be also unloaded
     - unload nevertheless (ergänzen)
@@ -57,12 +57,13 @@ def v_unload_v(transporter_obj,to_unload_obj_list, cargo_amount_list):
     for i in range(num_v_to_unload):
 
         weight = to_unload_obj_list[i].weight
+        cargo_amount = to_load_obj.to_unload_obj_list[i].standard_cargo.max_cargo
 
         cargo_amount = min(
-            to_unload_obj_list[i].cargo_obj.cargo_per_step.check_subtract_value(cargo_amount_list[i]),
-            to_unload_obj_list[i].cargo_obj.standard_cargo.check_add_value(cargo_amount_list[i]),
-            transporter_obj.cargo_obj.cargo_per_step.check_subtract_value(cargo_amount_list[i]+weight),
-            transporter_obj.cargo_obj.standard_cargo.check_subtract_value(cargo_amount_list[i]+weight)
+            to_unload_obj_list[i].cargo_obj.cargo_per_step.check_subtract_value(cargo_amount),
+            to_unload_obj_list[i].cargo_obj.standard_cargo.check_add_value(cargo_amount),
+            transporter_obj.cargo_obj.cargo_per_step.check_subtract_value(cargo_amount+weight),
+            transporter_obj.cargo_obj.standard_cargo.check_subtract_value(cargo_amount+weight)
             )
 
         if cargo_amount > 0:
@@ -79,11 +80,12 @@ def v_unload_v(transporter_obj,to_unload_obj_list, cargo_amount_list):
     return unloaded_list
 
 
-def v_load_v(transporter_obj, to_load_obj, cargo_amount):
+def v_load_v(transporter_obj, to_load_obj):
 
     if transporter_obj.cargo_obj.vehicle_per_step == None or transporter_obj.cargo_obj.vehicle_per_step >= 1:
 
         weight = to_load_obj.weight
+        cargo_amount = to_load_obj.cargo_obj.standard_cargo.cur_value
 
         cargo_amount = min(
             to_load_obj.cargo_obj.cargo_per_step.check_subtract_value(cargo_amount),
@@ -92,7 +94,7 @@ def v_load_v(transporter_obj, to_load_obj, cargo_amount):
             transporter_obj.cargo_obj.standard_cargo.check_add_value(cargo_amount_list[i]+weight)
             )
 
-        if cargo_amount == to_load_obj_list[i].cargo_obj.standard_cargo.cur_value:
+        if cargo_amount == to_load_obj.cargo_obj.standard_cargo.cur_value:
             to_load_obj.cargo_obj.cargo_per_step.subtract_value(cargo_amount-weight),
             to_load_obj.cargo_obj.standard_cargo.subtract_value(cargo_amount-weight),
             transporter_obj.cargo_obj.cargo_per_step.subtract_value(cargo_amount),
@@ -205,58 +207,51 @@ class BaseSimulator:
         self.temp_db.reset_db()
 
 
-
     def move(self, vehicle_i, coordinates):
+
+        if coordinates is None:
+            coordinates = self.temp_db.nearest_neighbour(vehicle_i, 'n_coord')
         
-        # Check if UV is moveable:
-        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
-            vehicle     = self.temp_db.base_groups['vehicles'][vehicle_i]
-            transp_list = self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)]
+        vehicle     = self.temp_db.base_groups['vehicles'][vehicle_i]
+        transp_list = self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)]
 
-            # Check if vehicle transports other vehicles
-            if any(transp_list):
-                transporter_travel(vehicle, lookup_db(self.temp_db.base_groups['vehicles'], transp_list), coordinates)
-            else:
-                simple_travel(vehicle, coordinates)
-
-            self.temp_db.action_signal['free_to_travel'][i] += 1
-
+        # Check if vehicle transports other vehicles
+        if any(transp_list):
+            transporter_travel(vehicle, lookup_db(self.temp_db.base_groups['vehicles'], transp_list), coordinates)
         else:
-            self.temp_db.action_signal['free_to_travel'][i] -= 1
-
+            simple_travel(vehicle, coordinates)
             
 
-    def unload_vehicles(self, vehicle_i, num_v, cargo_amount_list): 
+    def unload_vehicles(self, vehicle_i, num_v):
+
+        if num_v is None:
+            num_v = self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)]
+
+        # Get vehicles:
+        vehicle = self.temp_db.base_groups['vehicles'][vehicle_i]
+        UV_list = lookup_db(self.temp_db.base_groups['vehicles'], self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)])
+
+        # try to unload UVs from MV i
+        unloaded_list = v_unload_v(vehicle, UV_list, num_v, cargo_amount_list)
         
-        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
-            # Get vehicles:
-            vehicle = self.temp_db.base_groups['vehicles'][vehicle_i]
-            UV_list = lookup_db(self.temp_db.base_groups['vehicles'], self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)])
-
-            # try to unload UVs from MV i
-            unloaded_list = v_unload_v(vehicle, UV_list, num_v, cargo_amount_list)
-            
-            # Update Error Signal:
-            # - positve value: more actions were correct than incorrect
-            # - 0: equal number of good and bad actions
-            # - negative value: more actions were incorrect
-            self.temp_db.action_signal['unloading_v'][i] += (num_v - ((num_v-len(unloaded_list)) * 2))
-            
-            # Update Database:
-            for elem in unloaded_list:
-                self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)].remove(elem)
-                self.temp_db.status_dict['v_free'][elem.v_index] = 1
-
-            self.temp_db.action_signal['free_to_unload_v'][i] += 1
-
-        else:
-            self.temp_db.action_signal['free_to_unload_v'][i] -= 1
+        # Update Error Signal:
+        # - positve value: more actions were correct than incorrect
+        # - 0: equal number of good and bad actions
+        # - negative value: more actions were incorrect
+        self.temp_db.action_signal['unloading_v'][i] += (num_v - ((num_v-len(unloaded_list)) * 2))
+        
+        # Update Database:
+        for elem in unloaded_list:
+            self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)].remove(elem)
+            self.temp_db.status_dict['v_free'][elem.v_index] = 1
 
 
+    def load_vehicle(self, vehicle_i, vehicle_j):
 
-    def load_vehicle(self, vehicle_i, vehicle_j, cargo_amount):
+        if vehicle_j is None:
+            vehicle_j = self.temp_db.nearest_neighbour(vehicle_i, 'v_coord')
 
-        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
+        if self.temp_db.same_coord(vehicle_j, vehicle_i, 'v_coord'):
 
             v_to_load = self.temp_db.base_groups['vehicles'][vehicle_j]
             
@@ -270,32 +265,23 @@ class BaseSimulator:
             else:
                 self.temp_db.action_signal['free_to_be_loaded_v'][j] -= 1
 
-            self.temp_db.action_signal['free_to_load_v'][i] += 1
-
-        else:
-            self.temp_db.action_signal['free_to_load_v'][i] -= 1
-
 
     def unload_cargo(self, vehicle_i, customer_j, amount):
 
-        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
+        if customer_j is None:
+            customer_j = self.temp_db.nearest_neighbour(vehicle_i,'c_coord')
 
+        if self.temp_db.same_coord(vehicle_j, customer_j, 'c_coord'):
             real_amount = vehicle_at_customer(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['customers'][customer_j], amount)
-            self.temp_db.action_signal['free_to_unload_cargo'][i] += 1
-
-        else:
-            self.temp_db.action_signal['free_to_unload_cargo'][i] -= 1
 
 
     def load_cargo(self, vehicle_i, depot_j, amount):
-        
-        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
 
+        if depot_j is None:
+            depot_j = self.temp_db.nearest_neighbour(vehicle_i,'d_coord')
+    
+        if self.temp_db.same_coord(vehicle_j, depot_j, 'd_coord'):
             real_amount = vehicle_at_depot(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['depots'][depot_j], amount)
-            self.temp_db.action_signal['free_to_load_cargo'][i] += 1
-
-        else:
-            self.temp_db.action_signal['free_to_load_cargo'][i]update_signal -= 1
 
 
     def recharge_range(self, vehicle_i):
