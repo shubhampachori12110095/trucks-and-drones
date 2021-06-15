@@ -4,7 +4,7 @@
 import pygame
 
 
-def reward_parameter(
+def visual_parameter(
         grid_surface_dim    = [400, 400],
         grid_padding        = 10,
         info_surface_height = 120,
@@ -17,12 +17,12 @@ def reward_parameter(
         }
 
 
-class BaseVisualizor:
+class BaseVisualizer:
 
     def __init__(self, name, visual_param, simulator):
 
         # Initialize pygame
-        pygame.init()c
+        pygame.init()
 
         # Define parameter:
         self.name                = name
@@ -222,9 +222,9 @@ class BaseVisualizor:
     def visualize_step(self):
         ###### NONE ERGÄNZEN!!!!!!!!!
         self.reset_surfaces()
-        [self.draw_rect_marker(coordinates)            for coordinates in self.simulator.temp_db.cur_coord_nodes if coordinates not None]
-        [self.draw_circle_marker(coordinates[-1])      for coordinates in self.simulator.temp_db.cur_coord_transportable_v if coordinates not None]
-        [self.draw_triangle_marker(coordinates[-1])    for coordinates in self.simulator.temp_db.cur_coord_not_transportable_v if coordinates not None]
+        [self.draw_rect_marker(coordinates)            for coordinates in self.simulator.temp_db.cur_coord_nodes if coordinates is not None]
+        [self.draw_circle_marker(coordinates[-1])      for coordinates in self.simulator.temp_db.cur_coord_transportable_v if coordinates is not None]
+        [self.draw_triangle_marker(coordinates[-1])    for coordinates in self.simulator.temp_db.cur_coord_not_transportable_v if coordinates is not None]
 
         [self.draw_distance_traveled(coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_not_transportable_v]
         [self.draw_distance_traveled(coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_transportable_v]

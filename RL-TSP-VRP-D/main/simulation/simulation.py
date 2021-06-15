@@ -12,15 +12,13 @@ SoC: State of Charge
 unterscheidung ob dinge gleichzeitig oder nacheinander passieren können:
 - travel and unload/load
 - unload UV and unload cargo for UV
-
-
 '''
 import numpy as np
 
-from common_sim_func import param_interpret, random_coordinates, l_ignore_none
-from nodes import NodeCreator
-from vehicles import VehicleCreator
-from temp_database import TempDatabase, lookup_db
+from main.simulation.common_sim_func import param_interpret, l_ignore_none
+from main.simulation.nodes import NodeCreator
+from main.simulation.vehicles import VehicleCreator
+from main.simulation.temp_database import TempDatabase, lookup_db
 
 # gewinn - kosten oder nur -kosten?
 
@@ -195,9 +193,9 @@ class BaseSimulator:
     def set_destination(self, vehicle_i, coordinates):
 
         if coordinates is None:
-            coordinates = self.temp_db.nearest_neighbour(vehicle_i, 'n_coord')
+            coordinates = self.temp_db.nearest_neighbour(vehicle_i, ['c_coord','v_coord'])
         
-        self.temp_db.base_groups['vehicles'][vehicle_i].cur_destination = coordinates
+        self.temp_db.base_groups['vehicles'][vehicle_i].update_destination(coordinates)
 
 
     def unload_vehicles(self, vehicle_i, num_v):
@@ -270,9 +268,15 @@ class BaseSimulator:
             recharge_v(self.temp_db.base_groups[vehicle_i])
 
 
-    #def finish_step(self):
+    def finish_step(self):
 
-    def finish_episode(self):
+        next_step_time = min(self.temp_db.times_till_destination)
+        self.current_vehicle = argmin(self.temp_db.times_till_destination)
+
+        if next_step_time != 0:
+            [vehicle.travel_period]
+
+    #def finish_episode(self):
         # force return to depots for tsp
 
 

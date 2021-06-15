@@ -20,9 +20,9 @@ class MinToMaxRestriction:
 
 
     def add_value(self, cur_value, value):
-    '''
-    Adds a specified amount to the current value under the initialzied max restriction.
-    '''
+        '''
+        Adds a specified amount to the current value under the initialzied max restriction.
+        '''
         new_value = cur_value + new_value
         
         if new_value <= self.max_restr:
@@ -105,7 +105,7 @@ class DummyRestriction(MinToMaxRestriction):
         return cur_value, self.non_viol_signal
 
 
-def RestrValueObject:
+class RestrValueObject:
     '''
     Traces a the value of a variable that is restricted. Can also be used to trace unrestriced variabels, in which case a dummy restriction will be created (doesn't restrict anything).
     '''
@@ -139,7 +139,7 @@ def RestrValueObject:
         self.temp_db.status_dict[self.name][self.obj_index] = self.init_value
 
     def reset_signal(self):
-        self.temp_db.status_dict['signal_'self.name][self.obj_index] = 0
+        self.temp_db.status_dict['signal_'+self.name][self.obj_index] = 0
 
     def set_to_max(self):
         self.temp_db.status_dict[self.name][self.obj_index] = self.max_restr
@@ -150,10 +150,10 @@ def RestrValueObject:
 
     def update(self, new_value, restr_signal):
         self.temp_db.status_dict[self.name][self.obj_index]  = new_value
-        self.temp_db.status_dict['signal_'self.name][self.obj_index] = restr_signal
+        self.temp_db.status_dict['signal_'+self.name][self.obj_index] = restr_signal
 
     def update_signal(self, restr_signal):
-        self.temp_db.status_dict['signal_'self.name][self.obj_index] = restr_signal
+        self.temp_db.status_dict['signal_'+self.name][self.obj_index] = restr_signal
 
 
     def add_value(self, value):

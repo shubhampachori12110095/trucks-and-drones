@@ -1,5 +1,6 @@
 '''
 '''
+import random
 
 def lookup_db(db_dict, name_list):
     obj_list = []
@@ -11,6 +12,9 @@ def append_to(dict_var, key, value):
         dict_var[key].append(value)
     else:
         dict_var[key] = [value]
+
+def random_coordinates(grid):
+    return [np.random.randint(0,grid[0]+1), np.random.randint(0,grid[1]+1)]
 
 
 class TempDatabase:
@@ -38,8 +42,7 @@ class TempDatabase:
             'demand'       : [],
         }
 
-        # transporter name as key to look up list of loaded vehicles
-        self.v_transporting_v = {}
+        
 
         # List of vehicle names that aren't transported:
         self.free_vehicles = []
@@ -52,9 +55,6 @@ class TempDatabase:
 
         # Current NOT transportable vehicle Coordinates
         self.cur_coord_not_transportable_v = []
-
-        # Current times till vehicles reach their destination ##### ergänze bei vehicles
-        self.times_till_destination = []
 
 
         self.status_dict = {
@@ -178,14 +178,30 @@ class TempDatabase:
 
 
     def reset_db(self):
-        # Calculate number of vehicles
-        self.num_vehicles = len(self.base_groups['vehicles'])
-        self.visited = [[]]**self.num_vehicles
-        # Claculate number of nodes
-        self.num_nodes    = len(self.base_groups['nodes'])
-
+        # Calculate numbers
+        self.num_vehicles  = len(self.base_groups['vehicles'])
+        self.num_nodes     = len(self.base_groups['nodes'])
         self.num_customers = len(self.status_dict['demand'])
         self.num_depots    = len(self.status_dict['stock'])
+
+        # transporter name as key to look up list of loaded vehicles
+        self.v_transporting_v = [[]]**self.num_vehicles
+
+        # Current times till vehicles reach their destination
+        self.times_till_destination = [0]**self.num_vehicles
+        
+
+        self.visited = [[]]**self.num_vehicles
+
+        # sollte vlt bei erstellungsprozess lieber erfolgen?
+        self.status_dict['d_coord'] = [random_coordinates(self.grid) for i in range(self.num_depots)]
+        self.status_dict['c_coord'] = [random_coordinates(self.grid) for i in range(self.num_customers)]
+
+        trucks = [random.choice(self.status_dict['d_coord']) for i in range(num_vehicles) if self.status_dict['v_type'][i] == 1]
+        drones = [random.choice(trucks) for i in range(num_vehicles) if self.status_dict['v_type'][i] == 0]
+
+        self.status_dict = trucks+drones
+
 
         # Reset visited coordinates
         self.past_coord_not_transportable_v = [[] for v in self.base_groups['vehicles'] if not v.loadable] ##### ergänze bei vehicles
@@ -214,7 +230,7 @@ class TempDatabase:
 
         # create dict for restriction signals
         self.restriction_signals = {}
-        for key in self.base_groups_restr.keys()
+        for key in self.base_groups_restr.keys():
             self.restriction_signals[key] = [elem.cur_signal for elem in self.base_groups_restr[key]]
 
 
@@ -249,12 +265,23 @@ class TempDatabase:
     def nearest_neighbour(self, v_index, coord_key, exclude_visited=False):
 
         v_coord = self.status_dict['v_coord'][v_index]
+
+        if isinstance(coord_key, (list, tuple, np.ndarray)):
+            coord_list = []
+            for elem in coord_key:
+                coord_list += self.status_dict[elem]
+        else:
+            coord_list = self.status_dict[coord_key]
+
         if exclude_visited:
-            compared = [sum(abs(elem-v_coord)) for elem in self.status_dict[coord_key]]
+            compared = [sum(abs(elem-v_coord)) for elem in coord_list]
             for i in self.visited[v_index]:
                 compared[i] = 10000
             return np.argmin(compared)
-        return np.argmin([sum(abs(elem-v_coord)) for elem in self.status_dict[coord_key]])
+        return np.argmin([sum(abs(elem-v_coord)) for elem in coord_list])
+
+    def same_coord(self, v_index, coord_index, coord_key):
+        return self.status_dict['v_coord'][v_index] == self.status_dict[coord_key][coord_index]
 
 
 

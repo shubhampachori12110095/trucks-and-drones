@@ -1,20 +1,20 @@
 import gym
 from gym import spaces
 
-from simulation.simulation import BaseSimulator
-from simulation.action_interpreter import BaseActionInterpreter
-from simulation.state_interpreter import BaseStateInterpreter
-from reward_calculator import BaseRewardCalculator
-from visualizor import BaseVisualizer
+from main.simulation.simulation import BaseSimulator
+from main.simulation.action_interpreter import BaseActionInterpreter
+from main.simulation.state_interpreter import BaseStateInterpreter
+from main.reward_calculator import BaseRewardCalculator
+from main.visualizer import BaseVisualizer
 
-from logger import TrainingLogger, TestingLogger
+#from logger import TrainingLogger, TestingLogger
 
 '''
 überbegriff für travelling salesman und vehicle routing problem
 '''
 class CustomEnv(gym.Env):
-  """Custom Environment that follows gym interface"""
-  metadata = {
+    """Custom Environment that follows gym interface"""
+    metadata = {
     'render.modes': ['human'],
     }
 
@@ -23,10 +23,10 @@ class CustomEnv(gym.Env):
             all_parameter_list,
             simulation_param,
             visual_param,
-            v_action_dict, action_prio_list,
+            output_param,
             input_param,
             reward_param,
-            render_mode = ???,
+            #render_mode = ???,
             ):
 
         super(CustomEnv, self).__init__()
@@ -38,7 +38,7 @@ class CustomEnv(gym.Env):
         self.visualizor    = BaseVisualizer(name, visual_param, self.simulator)
         
         # Init state and action interpreter
-        self.action_interp = BaseActionInterpreter(v_action_dict, action_prio_list, self.simulator, only_at_node_interactions=False)
+        self.action_interp = BaseActionInterpreter(output_param, self.simulator, only_at_node_interactions=False)
         self.state_interp  = BaseStateInterpreter(input_param, self.visualizor, self.simulator, img_inputs=False)
         
         # Init reward calculator
@@ -57,11 +57,11 @@ class CustomEnv(gym.Env):
         self.count_episodes    = 0
         self.count_total_steps = 0
 
-    def step(self, action):
+    def step(self, actions):
         
         # take action:
         self.simulator.temp_db.init_step()
-        self.action_interp.take_actions(action)
+        self.action_interp.take_actions(actions)
         self.simulator.temp_db.finish_step()
 
         # new state:

@@ -2,9 +2,9 @@
 
 '''
 import numpy as np
-from restrictions import RestrValueObject
-from common_sim_func import param_interpret, random_coordinates
-from temp_database import lookup_db
+from main.simulation.restrictions import RestrValueObject
+from main.simulation.common_sim_func import param_interpret, random_coordinates
+from main.simulation.temp_database import lookup_db
 
 # Range
 # ----------------------------------------------------------------------------------------------------------------
@@ -199,6 +199,19 @@ class VehicleClass:
 
         self.cur_destination = None
 
+    def update_destination(self, coord):
+
+        self.cur_destination = coord
+        _, time = self.calc_travel()
+        self.temp_db.time_till_destination[self.v_index] = time + 1
+
+    def calc_travel(self, step_time=1):
+        direction        = self.cur_destination-self.cur_coordinates
+        abs_traveled     = self.travel_obj.travel(direction)
+        new_coordinates  = (direction/direction)*abs_traveled*step_time
+            
+        time_till_destination = sum(abs(self.cur_destination - new_coordinates)) * ((abs_traveled * step_time) / sum(abs(direction)))
+        return new_coordinates, time_till_destination
 
     def travel_period(self, step_time):
         '''
@@ -206,16 +219,16 @@ class VehicleClass:
         '''
         if self.cur_destination is not None and self.cur_destination != self.cur_coordinates:
 
-            direction             = self.cur_destination-self.cur_coordinates
-            abs_traveled          = self.travel_obj.travel(direction)
-            self.cur_coordinates  = (direction/direction)*abs_traveled*step_time
-            
-            self.temp_db.time_till_destination[self.v_index] = sum(abs(self.cur_destination-self.cur_coordinates)) * ((abs_traveled * step_time) / sum(abs(direction)))
+            self.cur_coordinates, self.temp_db.time_till_destination[self.v_index] = self.calc_travel(step_time)
 
-            loaded_v = self.temp_db.v_transporting_v['vehicle_'+str(self.v_index)]
+            self.temp_db.status_dict['v_coord'][self.v_index] = self.cur_coordinates
+            
+            loaded_v = self.temp_db.v_transporting_v[self.v_index]
             if any(loaded_v):
                 for v in lookup_db(self.temp_db.base_groups['vehicles'], loaded_v): v.cur_coordinates = self.cur_coordinates
 
+        if self.cur_destination is None:
+            self.temp_db.time_till_destination[self.v_index] = 0
 
 
 # Vehicle Creator
@@ -225,13 +238,13 @@ class VehicleCreator:
 
     def __init__(self, temp_db,
                  # Manned Vehicles:
-                 MV_cargo_param  = MV_cargo_parameter(), 
-                 MV_range_param  = range_parameter(), 
-                 MV_travel_param = travel_parameter(),
+                 MV_cargo_param, 
+                 MV_range_param, 
+                 MV_travel_param,
                  # Unmanned Vehicles:
-                 UV_cargo_param  = UV_cargo_parameter(), 
-                 UV_range_param  = battery_parameter(), 
-                 UV_travel_param = travel_parameter(travel_type='arial'),
+                 UV_cargo_param, 
+                 UV_range_param, 
+                 UV_travel_param,
                  ):
 
         self.temp_db         = temp_db

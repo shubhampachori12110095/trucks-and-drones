@@ -16,7 +16,7 @@ def reward_parameter(
 
 class RewardFunctions:
 
-    def __init__(self, reward_type, reward_modes, simulation):
+    def __init__(self, reward_param, simulation):
 
         self.temp_db = simulation.temp_db
 
@@ -83,7 +83,7 @@ class RewardFunctions:
 
 
 
-class BaseRewardCalcuator:
+class BaseRewardCalculator:
 
 
     def __init__(self, reward_param, simulation):

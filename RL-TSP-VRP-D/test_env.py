@@ -1,14 +1,14 @@
 
+from main.simulation.simulation import simulation_parameter
+from main.simulation.vehicles import battery_parameter, range_parameter, travel_parameter, cargo_parameter
+from main.simulation.nodes import customer_parameter, depot_parameter
+from main.simulation.action_interpreter import output_parameter
+from main.simulation.state_interpreter import input_parameter
+from main.reward_calculator import reward_parameter
+from main.visualizer import visual_parameter
+
 from main.environment import CustomEnv
-from simulation.simulation import simulation_parameter
-from simulation.vehicles import battery_parameter, range_parameter, travel_parameter, cargo_parameter
-from simulation.nodes import customer_parameter, depot_parameter
-from simulation.action_interpreter import BaseActionInterpreter
-from simulation.state_interpreter import BaseStateInterpreter
-from simulation.reward_calculator import BaseRewardCalculator
-
-from logger import TrainingLogger, TestingLogger
-
+from main.agents.core_agent import Agent
 
 # Vehicles Parameter:
 # ----------------------------------------------------------------------------------------------------------------
@@ -105,7 +105,7 @@ standard_simulation = simulation_parameter(
 # Visulation Prameter:
 # ----------------------------------------------------------------------------------------------------------------
 
-standard_visual = reward_parameter(
+standard_visual = visual_parameter(
     grid_surface_dim    = [400, 400],
     grid_padding        = 10,
     info_surface_height = 120,
@@ -148,3 +148,9 @@ standard_rewards = reward_parameter(
     restriction_rewards = ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],
     action_rewards      = ['compare_coord','free_to_travel','unloading_v','free_to_unload_v','free_to_be_loaded_v','free_to_load_v','free_to_unload_cargo','free_to_load_cargo'])
 
+
+# Init env:
+env = CustomEnv('test',all_parameter_list,standard_simulation,standard_visual,standard_actions,standard_states,standard_rewards)
+agent = Agent(env)
+
+agent.test_agent(1)

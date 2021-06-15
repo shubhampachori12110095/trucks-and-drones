@@ -12,8 +12,8 @@ Depot Möglichkeiten:
 - können rechargen
 
 '''
-from restrictions import RestrValueObject
-from common_sim_func import param_interpret, random_coordinates, max_param_val
+from main.simulation.restrictions import RestrValueObject
+from main.simulation.common_sim_func import param_interpret, random_coordinates, max_param_val
 
 
 # Parameter:

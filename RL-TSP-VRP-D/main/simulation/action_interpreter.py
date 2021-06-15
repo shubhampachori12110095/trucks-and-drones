@@ -13,9 +13,13 @@ def output_parameter(
         combine          = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
         ):
     return {
+        'mode': mode,
+        'flattened': flattened,
         'contin_outputs': contin_outputs,
         'discrete_outputs': discrete_outputs,
-        'discrete_dims': discrete_dims,
+        'binary_discrete': binary_discrete,
+        'binary_contin': binary_contin,
+        'discrete_bins': discrete_bins,
         'combine': combine,
     }
 
@@ -23,10 +27,12 @@ def output_parameter(
 
 class BaseActionInterpreter:
 
-    def __init__(self, v_action_dict, action_prio_list, simulator, only_at_node_interactions=False):
+    def __init__(self, output_param, simulator, only_at_node_interactions=False):
 
         self.temp_db = simulator.temp_db
         self.simulator = simulator
+
+        [setattr(self, k, v) for k, v in output_param.items()]
 
         all_outputs = ['coord', 'nodes','move', 'amount', 'v_amount', 'v_to_load', 'load_unload', 'v_load_unload', 'load', 'unload', 'v_load', 'v_unload', 'v_and_single_v', 'v_and_multi_v']
 
@@ -101,12 +107,12 @@ class BaseActionInterpreter:
 
         self.index_dict = {}
         all_keys = self.discrete_keys+self.contin_keys
-            for i in range(len(all_keys)):
-                if all_keys[i] is not None:
-                    if isinstance(all_keys[i], (list, tuple, np.ndarray)):
-                        for elem in all_keys[i]: self.index_dict[elem] = i
-                    else:
-                        self.index_dict[all_keys[i]] = i
+        for i in range(len(all_keys)):
+            if all_keys[i] is not None:
+                if isinstance(all_keys[i], (list, tuple, np.ndarray)):
+                    for elem in all_keys[i]: self.index_dict[elem] = i
+                else:
+                    self.index_dict[all_keys[i]] = i
 
 
 
@@ -238,6 +244,8 @@ class BaseActionInterpreter:
 
         if 'v_amount' in val_output_set:
             self.prep_action('v_amount', self.temp_db.outputs_max['v_unload'], 'v_unload', self.one_value)
+        else:
+            self.func_dict['v_unload'] = self.auto_value
         '''
         # only 'amount'
         if 'v_amount' in val_output_set:
@@ -251,8 +259,7 @@ class BaseActionInterpreter:
         '''
 
         # automate
-        else:
-            self.func_dict['v_unload'] = self.auto_value
+        
 
         # specifying the vehicle to load
         if 'v_to_load_index' in val_output_set:
@@ -318,7 +325,8 @@ class BaseActionInterpreter:
             if self.value_dict['v_unload_bool']: self.simulator.unload_vehicles(self.temp_db.v_index, self.value_dict['v_unload'])
             if self.value_dict['v_load_bool']:   self.simulator.load_vehicles(self.temp_db.v_index, self.value_dict['v_load'])
             
-            self.simulator.recharge_range(self.temp_db.v_index)
+            #self.simulator.recharge_range(self.temp_db.v_index)
+            
             self.temp_db.action_signal['v_free'][i] += 1
 
         else:
