@@ -97,6 +97,10 @@ class BaseStateInterpreter:
         max_value = self.temp_db.max_values_dict[key]
         min_value = self.temp_db.min_values_dict[key]
         value_list = self.temp_db.status_dict[key]
+        
+        if max_value is None:
+            return np.one((len(value_list)))
+        
         return (np.array(value_list) - min_value) // (max_value - min_value)
 
 
@@ -131,8 +135,11 @@ class BaseStateInterpreter:
 
         max_value = self.temp_db.max_values_dict[key]
         min_value = self.temp_db.min_values_dict[key]
-
-        values = (np.array(value_list) - min_value) // (max_value - min_value) * (self.discrete_dims - 1)
+        
+        if max_value is None:
+            values = np.one((len(value_list))) * (self.discrete_dims - 1)
+        else:
+            values = (np.array(value_list) - min_value) // (max_value - min_value) * (self.discrete_dims - 1)
 
         array_value[np.arange(len(value_list)), values] = 1
 
@@ -194,7 +201,7 @@ class BaseStateInterpreter:
             all_inputs = [self.combined_flatten(elem) for elem in all_inputs]
 
         for key in self.image_input:
-            image_array = self.visualizor.convert_to_img_array().transpose([1, 0, 2]) / 255
+            image_array = 1 - (self.visualizor.convert_to_img_array().transpose([1, 0, 2]) / 255)
             if self.flatten_images:
                 image_array = self.combined_flatten(image_array)
             all_inputs  = [image_array] + all_inputs

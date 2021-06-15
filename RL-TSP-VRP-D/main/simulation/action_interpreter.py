@@ -195,13 +195,14 @@ class BaseActionInterpreter:
 
         # only 'amount'
         if 'amount' in val_output_set:
-            self.prep_action('amount', !!!!!!!, ['load','unload'], self.one_value)
+            max_val = max(self.temp_db.outputs_max['load'], self.temp_db.outputs_max['unload'])
+            self.prep_action('amount', max_val, ['load','unload'], self.one_value)
 
 
         # only 'load_sep_unload'
         elif 'load_sep_unload' in val_output_set:
-            self.prep_action('load_sep_unload', !!!!!!!, 'load', self.one_value)
-            self.prep_action('load_sep_unload', !!!!!!!, 'unload', self.one_value)
+            self.prep_action('load_sep_unload', self.temp_db.outputs_max['load'], 'load', self.one_value)
+            self.prep_action('load_sep_unload', self.temp_db.outputs_max['unload'], 'unload', self.one_value)
 
 
         # automate
@@ -236,7 +237,7 @@ class BaseActionInterpreter:
 
 
         if 'v_amount' in val_output_set:
-            self.prep_action('v_amount', !!!!!!!, 'v_unload', self.one_value)
+            self.prep_action('v_amount', self.temp_db.outputs_max['v_unload'], 'v_unload', self.one_value)
         '''
         # only 'amount'
         if 'v_amount' in val_output_set:
@@ -255,7 +256,7 @@ class BaseActionInterpreter:
 
         # specifying the vehicle to load
         if 'v_to_load_index' in val_output_set:
-            self.prep_action('v_to_load_index', !!!!!!!, 'v_load', self.one_value)
+            self.prep_action('v_to_load_index', self.temp_db.outputs_max['v_load'], 'v_load', self.one_value)
         else:
             self.func_dict['v_load'] = self.auto_value
 
@@ -311,7 +312,7 @@ class BaseActionInterpreter:
 
             [self.func_dict[key](key) for key in self.func_dict.keys()]
 
-            if self.value_dict['coord_bool']:    self.simulator.move(self.temp_db.v_index, self.value_dict['coord'])
+            if self.value_dict['coord_bool']:    self.simulator.set_destination(self.temp_db.v_index, self.value_dict['coord'])
             if self.value_dict['unload_bool']:   self.simulator.unload_cargo(self.temp_db.v_index, None, self.value_dict['unload'])
             if self.value_dict['load_bool']:     self.simulator.load_cargo(self.temp_db.v_index, None, self.value_dict['load'])
             if self.value_dict['v_unload_bool']: self.simulator.unload_vehicles(self.temp_db.v_index, self.value_dict['v_unload'])

@@ -24,7 +24,7 @@ class TempDatabase:
         self.base_groups = {
             'vehicles': [],
             'nodes'   : [],
-            }
+        }
 
         # Dict with current values of restriction objects
         self.restr_dict = {
@@ -36,7 +36,7 @@ class TempDatabase:
             'cargo_UV_rate': [],
             'stock'        : [],
             'demand'       : [],
-            }
+        }
 
         # transporter name as key to look up list of loaded vehicles
         self.v_transporting_v = {}
@@ -119,8 +119,52 @@ class TempDatabase:
             'signal_cargo_v_rate': [],
             'signal_stock'       : [],
             'signal_demand'      : [],
-            }
+        }
 
+        self.max_values_dict = {
+            'battery': 100,
+            'range': None,
+            'cargo': 10,
+            'cargo_rate': 1,
+            'cargo_UV': 1,
+            'cargo_UV_rate': 1,
+            'stock': None,
+            'demand': 10,
+            'v_free': 1,
+            'v_stuck': 1,
+            'v_loaded': 1,
+            'v_type': 1,
+            'v_loadable': 1,
+            'speed'      : 1,
+            'travel_type': 1,
+            'range_type' : 1,
+        }
+
+        self.min_values_dict = {
+            'battery': 0,
+            'range': 0,
+            'cargo': 0,
+            'cargo_rate': 0,
+            'cargo_UV': 0,
+            'cargo_UV_rate': 0,
+            'stock': 0,
+            'demand': 0,
+            'v_free': 0,
+            'v_stuck': 0,
+            'v_loaded': 0,
+            'v_type': 0,
+            'v_loadable': 0,
+            'speed'      : 0,
+            'travel_type': 0,
+            'range_type' : 0,
+        }
+
+        self.outputs_max = {
+            'load': 10,
+            'unload': 10,
+            'v_load': 1,
+            'v_unload': 1,
+        }
 
         self.key_groups_dict = {
             'coordinates' : ['v_coord','c_coord','d_coord'],
@@ -130,20 +174,18 @@ class TempDatabase:
             'customers'   : ['c_coord','demand'],
             'depots'      : ['d_coord','stock'],
             'restrictions': ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand']
-            }
+        }
 
-    def free_vehicles(self):
-
-        return []
 
     def reset_db(self):
         # Calculate number of vehicles
         self.num_vehicles = len(self.base_groups['vehicles'])
+        self.visited = [[]]**self.num_vehicles
         # Claculate number of nodes
         self.num_nodes    = len(self.base_groups['nodes'])
 
-        self.num_customers =
-        self.num_depots    =
+        self.num_customers = len(self.status_dict['demand'])
+        self.num_depots    = len(self.status_dict['stock'])
 
         # Reset visited coordinates
         self.past_coord_not_transportable_v = [[] for v in self.base_groups['vehicles'] if not v.loadable] ##### ergänze bei vehicles
@@ -202,6 +244,17 @@ class TempDatabase:
 
     def add_customer(self, customer):
         append_to(self.base_groups, 'nodes', customer)
+
+
+    def nearest_neighbour(self, v_index, coord_key, exclude_visited=False):
+
+        v_coord = self.status_dict['v_coord'][v_index]
+        if exclude_visited:
+            compared = [sum(abs(elem-v_coord)) for elem in self.status_dict[coord_key]]
+            for i in self.visited[v_index]:
+                compared[i] = 10000
+            return np.argmin(compared)
+        return np.argmin([sum(abs(elem-v_coord)) for elem in self.status_dict[coord_key]])
 
 
 

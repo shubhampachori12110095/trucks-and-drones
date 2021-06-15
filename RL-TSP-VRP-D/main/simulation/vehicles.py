@@ -4,7 +4,7 @@
 import numpy as np
 from restrictions import RestrValueObject
 from common_sim_func import param_interpret, random_coordinates
-
+from temp_database import lookup_db
 
 # Range
 # ----------------------------------------------------------------------------------------------------------------
@@ -133,7 +133,6 @@ def cargo_parameter(
         cargo_type         = 'standard+extra',
         max_cargo          = 10,
         max_cargo_UV       = 1,
-        cargo_weigth_UV    = 1,
         cargo_per_step     = 1,
         cargo_UV_per_step  = 1,
         init_value         = 0,
@@ -186,8 +185,9 @@ class VehicleClass:
     Cargo loading/ unloading is restricted either by possibles actions or automatic management through heuristics.
     Travel is based on taking a direction.
     '''
-    def __init__(self, v_index, v_type, v_loadable, cargo_obj, travel_obj, weight=0):
+    def __init__(self, temp_db, v_index, v_type, v_loadable, cargo_obj, travel_obj, weight=0):
 
+        self.temp_db = temp_db
         self.v_index = v_index
         self.v_type = v_type
         self.v_loadable = v_loadable
@@ -197,20 +197,24 @@ class VehicleClass:
         self.cargo_obj  = cargo_obj
         self.travel_obj = travel_obj
 
+        self.cur_destination = None
 
-    def travel_to(self,destination):
+
+    def travel_period(self, step_time):
         '''
         Travel from current coordinates in direction of passed coordinates based on initialized speed.
         '''
+        if self.cur_destination is not None and self.cur_destination != self.cur_coordinates:
 
-        # Calculate coordinates that can be travelled in one step.
-        # New coordinates will be in the direction of the coordinates by the agent.
-        direction       = coordinates-self.cur_coordinates
-        abs_traveled    = self.travel_obj.travel(direction)
-        new_coordinates = (direction/direction)*abs_traveled
-        
-        self.cur_coordinates = new_coordinates
-        return new_coordinates
+            direction             = self.cur_destination-self.cur_coordinates
+            abs_traveled          = self.travel_obj.travel(direction)
+            self.cur_coordinates  = (direction/direction)*abs_traveled*step_time
+            
+            self.temp_db.time_till_destination[self.v_index] = sum(abs(self.cur_destination-self.cur_coordinates)) * ((abs_traveled * step_time) / sum(abs(direction)))
+
+            loaded_v = self.temp_db.v_transporting_v['vehicle_'+str(self.v_index)]
+            if any(loaded_v):
+                for v in lookup_db(self.temp_db.base_groups['vehicles'], loaded_v): v.cur_coordinates = self.cur_coordinates
 
 
 
@@ -242,7 +246,7 @@ class VehicleCreator:
         self.UV_travel_param = UV_travel_param
 
 
-    def create_vehicles(self, num_transporter=2, num_loadable=4):
+    def create_vehicles(self, num_transporter=2, num_loadable=4, weight_loadable=1):
 
         #### LOADABLE ergänzen######
     
@@ -256,11 +260,11 @@ class VehicleCreator:
             v_index += 1
 
         for i in range(num_loadable):
-            vehicle = self.create_vehicle(v_index, False, True, self.MV_cargo_param, self.MV_range_param, self.MV_travel_param)
+            vehicle = self.create_vehicle(v_index, False, True, self.MV_cargo_param, self.MV_range_param, self.MV_travel_param, weight_loadable)
             v_index += 1
 
 
-    def create_vehicle(self, v_index, can_load_v, loadable, cargo_param, range_param, travel_param):
+    def create_vehicle(self, v_index, can_load_v, loadable, cargo_param, range_param, travel_param, weight=0):
 
 
         cargo_obj = CargoClass(v_index, self.temp_db, cargo_param)
@@ -288,7 +292,7 @@ class VehicleCreator:
         else:
             raise Exception("travel_type was set to '{}', but has to be: 'street', 'arial'".format(travel_type))
 
-        vehicle = VehicleClass(v_index, can_load_v, loadable, cargo_obj, travel_obj)
+        vehicle = VehicleClass(self.temp_db, v_index, can_load_v, loadable, cargo_obj, travel_obj, weight)
         self.temp_db.add_vehicle(
             vehicle, travel_param['travel_type'], range_param['range_type'], travel_obj.speed)
 

@@ -25,21 +25,6 @@ from temp_database import TempDatabase, lookup_db
 # gewinn - kosten oder nur -kosten?
 
 
-
-# Vehicle Travel
-# ----------------------------------------------------------------------------------------------------------------
-
-
-def transporter_travel(transporter_obj, loaded_v_obj_list, coordinates):
-    new_coordinates = transporter_obj.travel_to(coordinates)
-    [v.set_coordinates(new_coordinates) for v in loaded_v_obj_list]
-
-
-def simple_travel(vehicle_obj, coordinates):
-    vehicle_obj.travel_to(coordinates)
-
-
-
 # Vehicle with vehicle interactions:
 # ----------------------------------------------------------------------------------------------------------------
 
@@ -207,20 +192,13 @@ class BaseSimulator:
         self.temp_db.reset_db()
 
 
-    def move(self, vehicle_i, coordinates):
+    def set_destination(self, vehicle_i, coordinates):
 
         if coordinates is None:
             coordinates = self.temp_db.nearest_neighbour(vehicle_i, 'n_coord')
         
-        vehicle     = self.temp_db.base_groups['vehicles'][vehicle_i]
-        transp_list = self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)]
+        self.temp_db.base_groups['vehicles'][vehicle_i].cur_destination = coordinates
 
-        # Check if vehicle transports other vehicles
-        if any(transp_list):
-            transporter_travel(vehicle, lookup_db(self.temp_db.base_groups['vehicles'], transp_list), coordinates)
-        else:
-            simple_travel(vehicle, coordinates)
-            
 
     def unload_vehicles(self, vehicle_i, num_v):
 
@@ -286,6 +264,8 @@ class BaseSimulator:
 
     def recharge_range(self, vehicle_i):
 
+        #charge_station = 
+
         if any(self.temp_db.status_dict['v_coord'][vehicle_i] for elem in recharge_coord):
             recharge_v(self.temp_db.base_groups[vehicle_i])
 
@@ -294,10 +274,6 @@ class BaseSimulator:
 
     def finish_episode(self):
         # force return to depots for tsp
-
-
-
-
 
 
 
