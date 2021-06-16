@@ -96,9 +96,9 @@ standard_simulation = simulation_parameter(
     locked_travel   = False,
     num_MV          = 2,
     num_UV_per_MV   = 2,
-    prio_v          = 'UV', # 'MV'
-    same_step_cargo = True,
-    same_step_v     = True
+    #prio_v          = 'UV', # 'MV'
+    #same_step_cargo = True,
+    #same_step_v     = True
     )
 
 
@@ -106,22 +106,32 @@ standard_simulation = simulation_parameter(
 # ----------------------------------------------------------------------------------------------------------------
 
 standard_visual = visual_parameter(
-    grid_surface_dim    = [400, 400],
-    grid_padding        = 10,
-    info_surface_height = 120,
-    marker_size         = 6)
+    grid_surface_dim    = [700, 700],
+    grid_padding        = 20,
+    info_surface_height = 240,
+    marker_size         = 20)
 
 
 # Action Interpreter Prameter:
 # ----------------------------------------------------------------------------------------------------------------
 
 standard_actions = output_parameter(
-    contin_outputs   = ['coord','amount','v_amount'], # ['load', 'unload', v_load, v_unload]
-    discrete_outputs = ['nodes', 'v_to_load', 'move', 'load_unload', 'v_load_unload'],
-    discrete_dims    = 20,
+    mode             = 'single_vehicle', # 'multi_vehicle'
+    flattened        = 'per_output', #'per_vehicle', #'all'
+    contin_outputs   = ['coord','amount','v_amount'],
+    discrete_outputs = ['nodes', 'v_to_load'],
+    binary_discrete  = ['move', 'load_unload', 'v_load_unload'],
+    binary_contin    = [],
+    discrete_bins    = 20,
     combine          = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
     )
 
+dummy_actions = output_parameter(
+    contin_outputs   = [],
+    discrete_outputs = [],
+    binary_discrete  = [],
+    binary_contin    = [],
+    )
 
 # State Interpreter Prameter:
 # ----------------------------------------------------------------------------------------------------------------
@@ -150,7 +160,13 @@ standard_rewards = reward_parameter(
 
 
 # Init env:
-env = CustomEnv('test',all_parameter_list,standard_simulation,standard_visual,standard_actions,standard_states,standard_rewards)
+env = CustomEnv(
+    'test', all_parameter_list, standard_simulation,
+    standard_visual,
+    dummy_actions, standard_states, 
+    standard_rewards
+)
+
 agent = Agent(env)
 
 agent.test_agent(1)

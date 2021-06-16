@@ -104,7 +104,7 @@ class StreetTravel:
         self.speed     = speed
         self.type      = 'street'
 
-    def travel(self,direction):
+    def travel(self, direction):
         distance = np.sum(np.abs(direction))
         distance = self.range_obj.travel_step(distance)
         return distance*self.speed
@@ -248,7 +248,6 @@ class VehicleCreator:
                  ):
 
         self.temp_db         = temp_db
-        self.nodes_obj       = nodes_obj
 
         self.MV_cargo_param  = MV_cargo_param
         self.MV_range_param  = MV_range_param
@@ -297,10 +296,10 @@ class VehicleCreator:
         # Initilize Travel
         # Travel by street:
         if travel_param['travel_type'] == 'street':
-            travel_obj = StreetTravel(v_index, self.temp_db, range_obj, travel_param)
+            travel_obj = StreetTravel(range_obj, travel_param['speed'])
         # Travel by air:
         elif travel_param['travel_type'] == 'arial':
-            travel_obj = ArialTravel(v_index, self.temp_db, range_obj, travel_param)
+            travel_obj = ArialTravel(range_obj, travel_param['speed'])
         # Exception:
         else:
             raise Exception("travel_type was set to '{}', but has to be: 'street', 'arial'".format(travel_type))

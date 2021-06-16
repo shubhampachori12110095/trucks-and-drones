@@ -9,8 +9,10 @@ def None_to_empty_list(variable):
     elif isinstance(variable, str):
         return [variable]
     else:
-        raise Exception(variable+" wasn't a list, tuple, ndarray, string or None")
+        return variable
 
+def flatten_list(list_of_lists):
+    return [val for sublist in list_of_lists for val in sublist]
 
 def input_parameter(
         image_input       = ['grid'],
@@ -49,37 +51,67 @@ class BaseStateInterpreter:
 
         
         # Init dicts:
-        self.dict_of_inputs = {
-            'contin_dict'   :{},
-            'discrete_dict' :{}
-            }
+        self.contin_dict = {}
+        self.discrete_dict = {}
+
+        for i in range(len(self.contin_inputs)):
+            if self.contin_inputs[i] == 'coordinates':
+                self.contin_inputs[i] = self.temp_db.key_groups_dict['coordinates']
+            elif self.contin_inputs[i] == 'vehicles':
+                self.contin_inputs[i] = self.temp_db.key_groups_dict['vehicles']
+            elif self.contin_inputs[i] == 'customers':
+                self.contin_inputs[i] = self.temp_db.key_groups_dict['customers']
+            elif self.contin_inputs[i] == 'depots':
+                self.contin_inputs[i] = self.temp_db.key_groups_dict['depots']
+            elif self.contin_inputs[i] == 'binary':
+                self.contin_inputs[i] = self.temp_db.key_groups_dict['binary']
+            elif self.contin_inputs[i] == 'restrictions':
+                self.contin_inputs[i] = self.temp_db.key_groups_dict['restrictions']
+            elif self.contin_inputs[i] == 'values':
+                self.contin_inputs[i] = self.temp_db.key_groups_dict['values']
+
+        for i in range(len(self.discrete_inputs)):
+            if self.discrete_inputs[i] == 'coordinates':
+                self.discrete_inputs[i] = self.temp_db.key_groups_dict['coordinates']
+            elif self.discrete_inputs[i] == 'vehicles':
+                self.discrete_inputs[i] = self.temp_db.key_groups_dict['vehicles']
+            elif self.discrete_inputs[i] == 'customers':
+                self.discrete_inputs[i] = self.temp_db.key_groups_dict['customers']
+            elif self.discrete_inputs[i] == 'depots':
+                self.discrete_inputs[i] = self.temp_db.key_groups_dict['depots']
+            elif self.discrete_inputs[i] == 'binary':
+                self.discrete_inputs[i] = self.temp_db.key_groups_dict['binary']
+            elif self.discrete_inputs[i] == 'restrictions':
+                self.discrete_inputs[i] = self.temp_db.key_groups_dict['restrictions']
+            elif self.discrete_inputs[i] == 'values':
+                self.discrete_inputs[i] = self.temp_db.key_groups_dict['values']
 
         # Prepare Inputs to use:
-        self.all_inputs = self.discrete_inputs + self.contin_inputs
+        self.all_inputs = flatten_list(self.discrete_inputs) + flatten_list(self.contin_inputs)
 
-        self.discrete_coord  = list(set(self.discrete_inputs) & set(self.temp_db.key_groups_dict['coordinates']))
-        self.discrete_binary = list(set(self.discrete_inputs) & set(self.temp_db.key_groups_dict['binary']))
-        self.discrete_value  = list(set(self.discrete_inputs) & set(self.temp_db.key_groups_dict['values']))
+        self.discrete_coord  = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['coordinates']))
+        self.discrete_binary = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['binary']))
+        self.discrete_value  = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['values']))
 
-        self.contin_coord  = list(set(self.discrete_inputs) & set(self.temp_db.key_groups_dict['coordinates']))
-        self.contin_binary = list(set(self.discrete_inputs) & set(self.temp_db.key_groups_dict['binary']))
-        self.contin_value  = list(set(self.discrete_inputs) & set(self.temp_db.key_groups_dict['values']))
+        self.contin_coord  = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['coordinates']))
+        self.contin_binary = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['binary']))
+        self.contin_value  = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['values']))
 
 
         # Prepare input combinations to use
-        for elem in self.combine_per_index:
-            if elem == 'per_vehicle':
-                elem = list(set(self.all_inputs) & set(self.temp_db.key_groups_dict['vehicles']))
-            elif elem == 'per_customer':
-                elem = list(set(self.all_inputs) & set(self.temp_db.key_groups_dict['customers']))
-            elif elem == 'per_depot':
-                elem = list(set(self.all_inputs) & set(self.temp_db.key_groups_dict['depots']))
-        
+        for i in range(len(self.combine_per_index)):
+            if self.combine_per_index[i] == 'per_vehicle':
+                self.combine_per_index[i] = list(set(self.all_inputs) & set(self.temp_db.key_groups_dict['vehicles']))
+            elif self.combine_per_index[i] == 'per_customer':
+                self.combine_per_index[i] = list(set(self.all_inputs) & set(self.temp_db.key_groups_dict['customers']))
+            elif self.combine_per_index[i] == 'per_depot':
+                self.combine_per_index[i] = list(set(self.all_inputs) & set(self.temp_db.key_groups_dict['depots']))
 
-        all_combined_input_keys = sum(self.combine_per_index + self.combine_per_type)
-        self.uncombined_elem    = np.setdiff1d(self.all_inputs, all_combined_input_keys)
 
-        self.combine_per_type += self.uncombined_elem
+        all_combined_input_keys = flatten_list(self.combine_per_index) + flatten_list(self.combine_per_type)
+        self.uncombined_elem    = list(np.setdiff1d(self.all_inputs, all_combined_input_keys))
+
+        self.combine_per_type = self.combine_per_type + self.uncombined_elem
 
 
     def coord_to_contin(self, key):
@@ -88,6 +120,9 @@ class BaseStateInterpreter:
 
         array_x = np.array([elem[0]/self.temp_db.grid[0] for elem in coord_list])
         array_y = np.array([elem[1]/self.temp_db.grid[1] for elem in coord_list])
+
+        print('coord')
+        print(array_x, array_y)
 
         return np.concatenate((array_x, array_y), axis=1)
 
@@ -101,7 +136,7 @@ class BaseStateInterpreter:
         if max_value is None:
             return np.one((len(value_list)))
         
-        return (np.array(value_list) - min_value) // (max_value - min_value)
+        return (np.array(value_list) - min_value) / (max_value - min_value)
 
 
     def coord_to_discrete(self, key):
@@ -150,26 +185,31 @@ class BaseStateInterpreter:
         ''' Creates a list of inputs for each index (e.g. vehicles, customers or depots).
         Note that each element of inputs_list needs to be the same lenght.'''
 
-        inputs_list =  [self.dict_of_dicts['contin_dict'][key]   for key in keys_list]
-        inputs_list += [self.dict_of_dicts['discrete_dict'][key] for key in keys_list]
+        inputs_list =  [self.contin_dict[key]   for key in keys_list if key in set(self.contin_dict.keys())]
+        inputs_list += [self.discrete_dict[key] for key in keys_list if key in set(self.discrete_dict.keys())]
         
-        list_of_arrays = [np.array([])]**len(inputs_list[0])
-        
-        for input_array in inputs_list:
-            for i in range(len(input_array)):
-                list_of_arrays[i] = np.append(list_of_arrays[i], input_array[i])
+        if len(inputs_list) > 0:
+            print(inputs_list)
+            print(keys_list)
+            print(self.temp_db.status_dict)
+            list_of_arrays = [np.array([]) for i in range(len(inputs_list[0]))]
+            
+            for input_array in inputs_list:
+                for i in range(len(input_array)):
+                    list_of_arrays[i] = np.append(list_of_arrays[i], input_array[i])
 
-        return list_of_arrays
+            return list_of_arrays
 
 
     def combine_type(self, keys_list):
 
-        inputs_list =  [self.dict_of_dicts['contin_dict'][key]   for key in keys_list]
-        inputs_list += [self.dict_of_dicts['discrete_dict'][key] for key in keys_list]
+        inputs_list =  [self.contin_dict[key]   for key in keys_list if key in set(self.contin_dict.keys())]
+        inputs_list += [self.discrete_dict[key] for key in keys_list if key in set(self.discrete_dict.keys())]
         
-        list_of_arrays = [np.array([])]**len(inputs_list[0])
-
-        return inputs_list
+        
+        if len(inputs_list) > 0:
+            #list_of_arrays = [np.array([]) for i in range(len(inputs_list[0]))]
+            return inputs_list
 
 
     def combined_flatten(self, to_combine):
@@ -183,14 +223,13 @@ class BaseStateInterpreter:
 
     def observe_state(self):
 
-        for key in self.contin_coord : self.dict_of_dicts['contin_dict'][key] = self.coord_to_contin(key)
-        for key in self.contin_binary: self.dict_of_dicts['contin_dict'][key] = np.array(self.temp_db.status_dict[key])
-        for key in self.contin_value : self.dict_of_dicts['contin_dict'][key] = self.value_to_contin(key)
+        for key in self.contin_coord : self.contin_dict[key] = self.coord_to_contin(key)
+        for key in self.contin_binary: self.contin_dict[key] = np.array(self.temp_db.status_dict[key])
+        for key in self.contin_value : self.contin_dict[key] = self.value_to_contin(key)
 
-        for key in self.discrete_coord : self.dict_of_dicts['discrete_dict'][key] = self.coord_to_discrete(key)
-        for key in self.discrete_binary: self.dict_of_dicts['discrete_dict'][key] = self.binary_to_discrete(key)
-        for key in self.discrete_value : self.dict_of_dicts['discrete_dict'][key] = self.value_to_discrete(key)
-
+        for key in self.discrete_coord : self.discrete_dict[key] = self.coord_to_discrete(key)
+        for key in self.discrete_binary: self.discrete_dict[key] = self.binary_to_discrete(key)
+        for key in self.discrete_value : self.discrete_dict[key] = self.value_to_discrete(key)
 
         inputs_by_indeces = [self.combine_index(keys_list) for keys_list in self.combine_per_index]
         inputs_by_types   = [self.combine_type(keys_list) for keys_list in self.combine_per_type]

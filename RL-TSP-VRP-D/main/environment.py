@@ -39,7 +39,7 @@ class CustomEnv(gym.Env):
         
         # Init state and action interpreter
         self.action_interp = BaseActionInterpreter(output_param, self.simulator, only_at_node_interactions=False)
-        self.state_interp  = BaseStateInterpreter(input_param, self.visualizor, self.simulator, img_inputs=False)
+        self.state_interp  = BaseStateInterpreter(input_param, self.visualizor, self.simulator)
         
         # Init reward calculator
         self.reward_calc   = BaseRewardCalculator(reward_param, self.simulator)
@@ -50,14 +50,16 @@ class CustomEnv(gym.Env):
 
         # Init gym spaces:
         self.reset()
-        self.action_space      = self.action_interp.action_space()
-        self.observation_space = self.state_interp.obs_space()
+        #self.action_space      = self.action_interp.action_space()
+        #self.observation_space = self.state_interp.obs_space()
 
         # Init Counter:
         self.count_episodes    = 0
         self.count_total_steps = 0
 
     def step(self, actions):
+
+        done = False #######################################################################
         
         # take action:
         self.simulator.temp_db.init_step()
@@ -65,7 +67,7 @@ class CustomEnv(gym.Env):
         self.simulator.temp_db.finish_step()
 
         # new state:
-        observation, done = self.state_interp.observe_state()
+        observation = self.state_interp.observe_state()
 
         # reward:
         reward = self.reward_calc.reward_function()
@@ -87,7 +89,7 @@ class CustomEnv(gym.Env):
         self.simulator.reset_simulation()
 
         # Init first state:
-        observation, self.done = self.state_interp.observe_state()
+        observation = self.state_interp.observe_state()
 
         return observation
         

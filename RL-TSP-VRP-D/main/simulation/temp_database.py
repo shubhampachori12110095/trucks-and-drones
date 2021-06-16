@@ -1,6 +1,7 @@
 '''
 '''
 import random
+import numpy as np
 
 def lookup_db(db_dict, name_list):
     obj_list = []
@@ -22,7 +23,78 @@ class TempDatabase:
     def __init__(self, grid):
 
         # Grid by x and y size
-        self.grid = grid
+        self.grid = grid        
+
+        # List of vehicle names that aren't transported:
+        #self.free_vehicles = []
+
+        # Current Node Coordinates
+        #self.cur_coord_nodes = []
+
+        # Current transportable vehicle Coordinates
+        #self.cur_coord_transportable_v = []
+
+        # Current NOT transportable vehicle Coordinates
+        self.cur_coord_not_transportable_v = []
+
+
+        self.max_values_dict = {
+            'battery': 100,
+            'range': None,
+            'cargo': 10,
+            'cargo_rate': 1,
+            'cargo_UV': 1,
+            'cargo_UV_rate': 1,
+            'stock': None,
+            'demand': 10,
+            'v_free': 1,
+            'v_stuck': 1,
+            'v_loaded': 1,
+            'v_type': 1,
+            'v_loadable': 1,
+            'speed'      : 1,
+            'travel_type': 1,
+            'range_type' : 1,
+        }
+
+        self.min_values_dict = {
+            'battery': 0,
+            'range': 0,
+            'cargo': 0,
+            'cargo_rate': 0,
+            'cargo_UV': 0,
+            'cargo_UV_rate': 0,
+            'stock': 0,
+            'demand': 0,
+            'v_free': 0,
+            'v_stuck': 0,
+            'v_loaded': 0,
+            'v_type': 0,
+            'v_loadable': 0,
+            'speed'      : 0,
+            'travel_type': 0,
+            'range_type' : 0,
+        }
+
+        self.outputs_max = {
+            'load': 10,
+            'unload': 10,
+            'v_load': 1,
+            'v_unload': 1,
+        }
+
+        self.key_groups_dict = {
+            'coordinates' : ['v_coord','c_coord','d_coord'],
+            'binary'      : ['v_free','v_stuck','v_loaded','v_type','v_loadable'],
+            'values'      : ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],
+            'vehicles'    : ['v_coord','battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','v_free','v_stuck','v_loaded','v_type','v_loadable'],
+            'customers'   : ['c_coord','demand'],
+            'depots'      : ['d_coord','stock'],
+            'restrictions': ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand']
+        }
+
+
+    def init_db(self):
 
         # Dict where vehicle and node objects live
         self.base_groups = {
@@ -41,22 +113,7 @@ class TempDatabase:
             'stock'        : [],
             'demand'       : [],
         }
-
         
-
-        # List of vehicle names that aren't transported:
-        self.free_vehicles = []
-
-        # Current Node Coordinates
-        self.cur_coord_nodes = []
-
-        # Current transportable vehicle Coordinates
-        self.cur_coord_transportable_v = []
-
-        # Current NOT transportable vehicle Coordinates
-        self.cur_coord_not_transportable_v = []
-
-
         self.status_dict = {
             # Vehicles:
             'v_coord'   : [], # list of current vehicle coordinates
@@ -121,63 +178,8 @@ class TempDatabase:
             'signal_demand'      : [],
         }
 
-        self.max_values_dict = {
-            'battery': 100,
-            'range': None,
-            'cargo': 10,
-            'cargo_rate': 1,
-            'cargo_UV': 1,
-            'cargo_UV_rate': 1,
-            'stock': None,
-            'demand': 10,
-            'v_free': 1,
-            'v_stuck': 1,
-            'v_loaded': 1,
-            'v_type': 1,
-            'v_loadable': 1,
-            'speed'      : 1,
-            'travel_type': 1,
-            'range_type' : 1,
-        }
+    def reset_db(self):    
 
-        self.min_values_dict = {
-            'battery': 0,
-            'range': 0,
-            'cargo': 0,
-            'cargo_rate': 0,
-            'cargo_UV': 0,
-            'cargo_UV_rate': 0,
-            'stock': 0,
-            'demand': 0,
-            'v_free': 0,
-            'v_stuck': 0,
-            'v_loaded': 0,
-            'v_type': 0,
-            'v_loadable': 0,
-            'speed'      : 0,
-            'travel_type': 0,
-            'range_type' : 0,
-        }
-
-        self.outputs_max = {
-            'load': 10,
-            'unload': 10,
-            'v_load': 1,
-            'v_unload': 1,
-        }
-
-        self.key_groups_dict = {
-            'coordinates' : ['v_coord','c_coord','d_coord'],
-            'binary'      : ['v_free','v_stuck','v_loaded','v_type','v_loadable'],
-            'values'      : ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],
-            'vehicles'    : ['v_coord','battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','v_free','v_stuck','v_loaded','v_type','v_loadable'],
-            'customers'   : ['c_coord','demand'],
-            'depots'      : ['d_coord','stock'],
-            'restrictions': ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand']
-        }
-
-
-    def reset_db(self):
         # Calculate numbers
         self.num_vehicles  = len(self.base_groups['vehicles'])
         self.num_nodes     = len(self.base_groups['nodes'])
@@ -185,27 +187,34 @@ class TempDatabase:
         self.num_depots    = len(self.status_dict['stock'])
 
         # transporter name as key to look up list of loaded vehicles
-        self.v_transporting_v = [[]]**self.num_vehicles
+        self.v_transporting_v = [[] for i in range(self.num_vehicles)]
 
         # Current times till vehicles reach their destination
-        self.times_till_destination = [0]**self.num_vehicles
+        self.times_till_destination = [0  for i in range(self.num_vehicles)]
         
 
-        self.visited = [[]]**self.num_vehicles
+        self.visited = [[] for i in range(self.num_vehicles)]
 
         # sollte vlt bei erstellungsprozess lieber erfolgen?
         self.status_dict['d_coord'] = [random_coordinates(self.grid) for i in range(self.num_depots)]
         self.status_dict['c_coord'] = [random_coordinates(self.grid) for i in range(self.num_customers)]
 
-        trucks = [random.choice(self.status_dict['d_coord']) for i in range(num_vehicles) if self.status_dict['v_type'][i] == 1]
-        drones = [random.choice(trucks) for i in range(num_vehicles) if self.status_dict['v_type'][i] == 0]
+        trucks = [random.choice(self.status_dict['d_coord']) for i in range(self.num_vehicles) if self.status_dict['v_type'][i] == 1]
+        drones = [random.choice(trucks) for i in range(self.num_vehicles) if self.status_dict['v_type'][i] == 0]
 
-        self.status_dict = trucks+drones
+        self.status_dict['v_coord'] = trucks+drones
 
 
         # Reset visited coordinates
-        self.past_coord_not_transportable_v = [[] for v in self.base_groups['vehicles'] if not v.loadable] ##### ergänze bei vehicles
-        self.past_coord_transportable_v     = [[] for v in self.base_groups['vehicles'] if v.loadable]     ##### ergänze bei vehicles
+        self.past_coord_not_transportable_v = [[] for v in self.base_groups['vehicles'] if not v.v_loadable] ##### ergänze bei vehicles
+        self.past_coord_transportable_v     = [[] for v in self.base_groups['vehicles'] if v.v_loadable]     ##### ergänze bei vehicles
+
+        ############################### QUICK FIX !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        for key in self.status_dict.keys():
+            if self.status_dict[key]==[]:
+                self.status_dict[key] = [0  for i in range(self.num_vehicles)]
+
+        self.cur_v_index = 0
 
 
     def init_step(self):
@@ -235,10 +244,10 @@ class TempDatabase:
 
 
     def add_restriction(self, name, max_restr, min_restr, init_value):
-        append_to(self.status_dict, name, init_restr)
+        append_to(self.status_dict, name, init_value)
         append_to(self.status_dict, 'max_'+name, max_restr)
         append_to(self.status_dict, 'min_'+name, min_restr)
-        append_to(self.status_dict, 'init_'+name, init_restr)
+        append_to(self.status_dict, 'init_'+name, init_value)
         append_to(self.status_dict, 'signal_'+name, 0)
 
 

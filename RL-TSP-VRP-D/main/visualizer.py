@@ -2,10 +2,11 @@
 
 """
 import pygame
+from pygame import Surface
 
 
 def visual_parameter(
-        grid_surface_dim    = [400, 400],
+        grid_surface_dim    = [800, 800],
         grid_padding        = 10,
         info_surface_height = 120,
         marker_size         = 6):
@@ -25,8 +26,9 @@ class BaseVisualizer:
         pygame.init()
 
         # Define parameter:
-        self.name                = name
-        self.simulator           = simulator
+        self.name      = name
+        self.simulator = simulator
+        self.temp_db   = simulator.temp_db
         [setattr(self, k, v) for k, v in visual_param.items()]
 
         # Define some colors
@@ -34,7 +36,7 @@ class BaseVisualizer:
         self.grey     = (128, 128, 128)
         self.white    = (255, 255, 255)
         self.transp_h = (255, 255, 255, 125)
-        self.transp_f = (255, 255, 255, 0)
+        self.transp_f = (255, 255, 255, 125)
         self.red      = (255, 0, 0)
         self.green    = (0, 255, 0)
         self.blue     = (0, 0, 255)
@@ -43,39 +45,39 @@ class BaseVisualizer:
         #self.y_lenght = self.simulator.grid[1]
 
         # for resizing coordinates to grid window:
-        self.x_mulipl = grid_surface_dim[0] // self.simulator.grid[0]
-        self.y_mulipl = grid_surface_dim[1] // self.simulator.grid[1]
+        self.x_mulipl = self.grid_surface_dim[0] // self.simulator.grid[0]
+        self.y_mulipl = self.grid_surface_dim[1] // self.simulator.grid[1]
 
         # init grid surface:
         # the grid surface will display only markers without text
         # this surface will be used as image input for a conv net,
         # if the agent uses images as observations (states)
-        self.grid_surface = Surface(grid_surface_dim)
+        self.grid_surface = Surface(self.grid_surface_dim)
 
         # init info grid surface:
         # this surface will put the grid coordinates to a marker
         # will also add more information, for example the cargo, stock, demand, if this is defined by the parameters
         # if this is defined by the parameter
-        self.grid_info_surface = Surface(grid_surface_dim)
+        self.grid_info_surface = Surface(self.grid_surface_dim)
 
         # travel surface:
-        self.travel_surface = Surface(grid_surface_dim)
+        self.travel_surface = Surface(self.grid_surface_dim)
 
         # init info surface:
         # creates an additional surface that will be displayed under the grid
         # this surface displays imformation about name, current episode and episode-step
         # can also diyplay more information via the add_info_dict, if this is defined by the parameters
-        self.info_surface = Surface(grid_surface_dim[0], info_surface_height)
+        self.info_surface = Surface([self.grid_surface_dim[0], self.info_surface_height])
 
         # init window
-        window_width  = grid_surface_dim[0] + 2 * grid_padding
-        window_height = grid_surface_dim[0] + 2 * grid_padding + info_surface_height
+        window_width  = self.grid_surface_dim[0] + 2 * self.grid_padding
+        window_height = self.grid_surface_dim[0] + 2 * self.grid_padding + self.info_surface_height
         self.screen   = pygame.display.set_mode([window_width, window_height])
 
         # init fonts:
-        self.big_font    = pygame.font.SysFont('Arial', 12, bold=True)
-        self.medium_font = pygame.font.SysFont('Arial', 10, bold=False)
-        self.small_font  = pygame.font.SysFont('Arial', 6,  bold=False)
+        self.big_font    = pygame.font.SysFont('Arial', 12*2, bold=True)
+        self.medium_font = pygame.font.SysFont('Arial', 10*2, bold=False)
+        self.small_font  = pygame.font.SysFont('Arial', 6*2,  bold=False)
 
         # Set title of screen
         pygame.display.set_caption(self.name)
@@ -96,7 +98,7 @@ class BaseVisualizer:
         self.screen.fill(self.white)
 
 
-    def draw_circle_marker(self, coordinates, color=(255, 0, 0), add_info=None):
+    def draw_circle_marker(self, coordinates, add_info=None, color=(255, 0, 0)):
         '''
         Draws a marker to the grid surface with a circle shape to specific location based on grid coordinates.
         Will also call draw_marker_info(), so additinal information can be drawn to the info grid surface.
@@ -118,7 +120,7 @@ class BaseVisualizer:
         self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
 
-    def draw_rect_marker(self, coordinates, color=(0, 255, 0), add_info=None):
+    def draw_rect_marker(self, coordinates, add_info=None, color=(0, 255, 0)):
         '''
         Draws a marker to the grid surface with a rectangle shape to specific location based on grid coordinates.
         Will also call draw_marker_info(), so additinal information can be drawn to the info grid surface.
@@ -138,10 +140,10 @@ class BaseVisualizer:
         pygame.draw.rect(self.grid_surface, color, (x, y, self.marker_size, self.marker_size))
 
         # info:
-        self.draw_marker_info(coordinates, add_info)
+        self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
 
-    def draw_triangle_marker(self, coordinates, color=(0, 0, 255), add_info=None):
+    def draw_triangle_marker(self, coordinates, add_info=None, color=(0, 0, 255)):
         '''
         Draws a marker to the grid surface with a traingle shape to specific location based on grid coordinates.
         Will also call draw_marker_info(), so additinal information can be drawn to the info grid surface.
@@ -149,6 +151,7 @@ class BaseVisualizer:
 
         #resize grid coordinates to surface coordinates:
         surface_coordinates = [coordinates[0]*self.x_mulipl, coordinates[1]*self.y_mulipl]
+        print(surface_coordinates)
 
         # get relevant points:
         # A tringle is drawn by giving a polygon three points.
@@ -157,10 +160,13 @@ class BaseVisualizer:
         # for the other one we add a half.
         x_1 = surface_coordinates[0] + (self.marker_size // 2)
         x_2 = surface_coordinates[0] - (self.marker_size // 2)
+        x_y = surface_coordinates[1] 
         y   = surface_coordinates[1] + (self.marker_size // 2)
+        y_x = surface_coordinates[0]
 
+        print([x_1, x_y], [x_2, x_y], [y, y_x])
         # draw traingle:
-        pygame.draw.polygon(self.grid_surface, color, (x_1, x_2, y))
+        pygame.draw.polygon(self.grid_surface, color, ([x_1, x_y], [y_x, y], [x_2, x_y]))
 
         # info:
         self.draw_marker_info(surface_coordinates, coordinates, add_info)
@@ -190,11 +196,11 @@ class BaseVisualizer:
         Draws some general information to the info surface.
         '''
         text_name  = self.big_font.render('Agent: '+self.name, True, self.black)
-        text_episode = self.medium_font.render('episode: '+str(episode), True, self.black)
+        text_episode = self.medium_font.render('Episode: '+str(episode), True, self.black)
         text_step  = self.medium_font.render('Step: '+str(step), True, self.black)
 
-        big_height    = text.get_height()
-        medium_height = text.get_height()
+        big_height    = text_name.get_height()
+        medium_height = text_episode.get_height()
 
         self.info_surface.blit(text_name,  (5, 5))
         self.info_surface.blit(text_episode, (5, 5 + big_height + 3))
@@ -216,27 +222,31 @@ class BaseVisualizer:
         street travel: append start_coord, start_coord+[end_coord[0],0], end_coord
         '''
         surface_coordinates_list = [(elem[0]*self.x_mulipl, elem[1]*self.y_mulipl) for elem in coordinates_list]
-        pygame.draw.lines(self.travel_surface, color, False, surface_coordinates_list)
+        if len(surface_coordinates_list) > 1:
+            pygame.draw.lines(self.travel_surface, color, False, surface_coordinates_list)
 
 
-    def visualize_step(self):
-        ###### NONE ERGÄNZEN!!!!!!!!!
+    def visualize_step(self, episode, step):
+
         self.reset_surfaces()
-        [self.draw_rect_marker(coordinates)            for coordinates in self.simulator.temp_db.cur_coord_nodes if coordinates is not None]
-        [self.draw_circle_marker(coordinates[-1])      for coordinates in self.simulator.temp_db.cur_coord_transportable_v if coordinates is not None]
-        [self.draw_triangle_marker(coordinates[-1])    for coordinates in self.simulator.temp_db.cur_coord_not_transportable_v if coordinates is not None]
+        [self.draw_rect_marker(self.temp_db.status_dict['d_coord'][i], self.temp_db.status_dict['stock'][i]) for i in range(len(self.temp_db.status_dict['d_coord']))]
+        [self.draw_rect_marker(self.temp_db.status_dict['c_coord'][i], self.temp_db.status_dict['demand'][i], color=(0, 255, 255)) for i in range(len(self.temp_db.status_dict['c_coord']))]
+        [self.draw_circle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['cargo'][i]) for i in range(len(self.temp_db.status_dict['v_coord'])) if self.temp_db.status_dict['v_type'][i] == 1]
+        [self.draw_triangle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['cargo'][i]) for i in range(len(self.temp_db.status_dict['v_coord'])) if self.temp_db.status_dict['v_type'][i] == 0]
 
-        [self.draw_distance_traveled(coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_not_transportable_v]
-        [self.draw_distance_traveled(coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_transportable_v]
+        [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_not_transportable_v]
+        [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_transportable_v]
 
         self.draw_env_info(episode, step)
 
         self.screen.blit(self.grid_surface,      (self.grid_padding, self.grid_padding))
-        self.screen.blit(self.grid_info_surface, (self.grid_padding, self.grid_padding))
-        self.screen.blit(self.travel_surface,    (self.grid_padding, self.grid_padding))
+        #self.screen.blit(self.grid_info_surface, (self.grid_padding, self.grid_padding))
+        #self.screen.blit(self.travel_surface,    (self.grid_padding, self.grid_padding))
         self.screen.blit(self.info_surface,      (self.grid_padding, self.grid_padding + self.grid_surface_dim[1]))
 
         pygame.display.flip()
+
+        wait = input()
 
 
     def convert_to_img_array(self):

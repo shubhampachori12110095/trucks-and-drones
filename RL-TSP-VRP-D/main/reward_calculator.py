@@ -16,9 +16,9 @@ def reward_parameter(
 
 class RewardFunctions:
 
-    def __init__(self, reward_param, simulation):
+    def __init__(self, reward_type, reward_modes, temp_db):
 
-        self.temp_db = simulation.temp_db
+        self.temp_db = temp_db
 
         if reward_type == 'single_vehicle':
             self.function_list = [self.reward_of_vehicle]
@@ -29,7 +29,7 @@ class RewardFunctions:
         else:
             raise Exception("reward_type was set to {}, but needs to be: 'single_vehicle', 'multi_vehicle' or 'sum_vehicle'")
         
-        if isistance(reward_modes, (list, tuple, np.ndarray)):
+        if isinstance(reward_modes, (list, tuple, np.ndarray)):
             
             if any('normalized' in elem for elem in reward_modes):
                 
@@ -88,12 +88,10 @@ class BaseRewardCalculator:
 
     def __init__(self, reward_param, simulation):
 
-        self.simulation = simulation
-
         # init reward parameter
         [setattr(self, k, v) for k, v in reward_param.items()]
 
-        self.reward_functions = RewardFunctions(self.reward_type, self.reward_modes)
+        self.reward_functions = RewardFunctions(self.reward_type, self.reward_modes, simulation.temp_db)
 
 
     def reward_function(self):

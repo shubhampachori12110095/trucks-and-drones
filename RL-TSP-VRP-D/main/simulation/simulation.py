@@ -164,9 +164,9 @@ class BaseSimulator:
 
     def __init__(self, all_parameter_list, sim_param):
 
-        self.temp_db = TempDatabase(self.grid)
-
         [setattr(self, k, v) for k, v in sim_param.items()]
+
+        self.temp_db = TempDatabase(self.grid)
 
         all_param_dict = create_param_name(all_parameter_list)
 
@@ -183,6 +183,8 @@ class BaseSimulator:
 
 
     def reset_simulation(self):
+
+        self.temp_db.init_db()
 
         self.vehicle_creator.create_vehicles(param_interpret(self.num_MV ),param_interpret(self.num_UV_per_MV))
         self.node_creator.create_nodes()
@@ -271,7 +273,7 @@ class BaseSimulator:
     def finish_step(self):
 
         next_step_time = min(self.temp_db.times_till_destination)
-        self.current_vehicle = argmin(self.temp_db.times_till_destination)
+        self.temp_db.cur_v_index = argmin(self.temp_db.times_till_destination)
 
         if next_step_time != 0:
             [vehicle.travel_period]

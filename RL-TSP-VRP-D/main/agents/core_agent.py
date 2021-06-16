@@ -11,13 +11,13 @@ class Agent:
 
         actions = []
 
-        for e in num_episodes:
+        for e in range(num_episodes):
 
-            state = env.reset()
+            state = self.env.reset()
             done = False
 
             while not done:
-                state, reward, done, _ = env.step(actions)
+                state, reward, done, _ = self.env.step(actions)
 
 
 
@@ -25,12 +25,15 @@ class Agent:
 
         actions = []
 
-        for e in num_episodes:
+        for e in range(num_episodes):
 
-            state = env.reset()
+            state = self.env.reset()
             done = False
 
             while not done:
-                state, reward, done, _ = env.step(actions)
+                self.env.render()
+                wait = input()
+                state, reward, done, _ = self.env.step(actions)
+
 
 

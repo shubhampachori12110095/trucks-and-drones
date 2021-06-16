@@ -28,6 +28,7 @@ def depot_parameter(
         signal_list      = [1,1,-1],
         ):
     return {
+        'num_depots': num_depots,
         'max_stock': max_stock,
         'resupply_rate': resupply_rate,
         'unlimited_supply': unlimited_supply,
@@ -49,10 +50,11 @@ def customer_parameter(
     return {
         'customer_type': customer_type,
         'num_customers': num_customers,
-        'init_demand': init_demand,
         'first_demand_step': first_demand_step,
         'demand_after_steps': demand_after_steps,
         'demand_add': demand_add,
+        'max_demand': max_demand,
+        'init_value': init_value,
         'signal_list': signal_list,
         }
 
@@ -73,12 +75,12 @@ class NodeCreator:
         self.num_customers      = customer_parameter['num_customers']
         del self.customer_parameter['num_customers']
 
-        self.temp_db.init_nodes(max_param_val(self.num_depots)+max_param_val(self.num_customers))
-
+        # für max vals!
+        #self.temp_db.init_nodes(max_param_val(self.num_depots)+max_param_val(self.num_customers))
 
     def create_depot(self, n_index):
         coordinates  = random_coordinates(self.temp_db.grid)
-        customer_obj = BaseCustomer(n_index, self.temp_db, self.customer_parameter, coordinates)
+        customer_obj = BaseDepot(n_index, self.temp_db, self.depot_parameter, coordinates)
         self.temp_db.add_customer(customer_obj)
 
 
@@ -87,37 +89,31 @@ class NodeCreator:
         customer_obj = BaseCustomer(n_index, self.temp_db, self.customer_parameter, coordinates)
         self.temp_db.add_customer(customer_obj)
 
-    
-    def create_depot(self, n_index):
-        coordinates  = random_coordinates(self.temp_db.grid)
-        customer_obj = BaseCustomer(n_index, self.temp_db, self.depot_parameter, coordinates)
-        self.temp_db.add_customer(customer_obj)
-
 
     def create_nodes(self):
 
-        n_index = 0
+        #n_index = 0
         for i in range(param_interpret(self.num_depots)):
-            self.create_depot(n_index)
-            n_index += 1
+            self.create_depot(i)
+            #n_index += 1
 
         for i in range(param_interpret(self.num_customers)):
-            self.create_customer(n_index)
-            n_index += 1
+            self.create_customer(i)
+            #n_index += 1
 
 # Depots:
 # ----------------------------------------------------------------------------------------------------------------
 
 class BaseDepot:
 
-    def __init__(self, n_index, temp_db, d_param, coordinates):
+    def __init__(self, d_index, temp_db, d_param, coordinates):
 
-        self.node_index  = node_index
+        self.d_index     = d_index
         self.coordinates = coordinates
 
-        [setattr(self, k, v) for k, v in d_param.items()]
+        [setattr(self, k, param_interpret(v)) for k, v in d_param.items()]
 
-        self.stock = RestrValueObject('stock', n_index, temp_db, self.max_stock, 0, self.init_demand, self.signal_list)
+        self.stock = RestrValueObject('stock', d_index, temp_db, self.max_stock, 0, self.init_value, self.signal_list)
 
 
 # Customers:
@@ -125,13 +121,13 @@ class BaseDepot:
 
 class BaseCustomer:
 
-    def __init__(self, n_index, temp_db, c_param, coordinates):
+    def __init__(self, c_index, temp_db, c_param, coordinates):
 
-        self.node_index  = node_index
+        self.c_index     = c_index
         self.coordinates = coordinates
 
-        [setattr(self, k, v) for k, v in c_param.items()]
+        [setattr(self, k, param_interpret(v)) for k, v in c_param.items()]
 
-        self.demand = RestrValueObject('demand', n_index, temp_db, self.max_demand, 0, self.init_value, self.signal_list)
+        self.demand = RestrValueObject('demand', c_index, temp_db, self.max_demand, 0, self.init_value, self.signal_list)
 
 

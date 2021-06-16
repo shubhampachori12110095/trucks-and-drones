@@ -62,11 +62,11 @@ class BaseActionInterpreter:
 
         for elem in list(val_output_set):
             if elem not in set(value_outputs):
-                raise Exception(elem+' is not accepted as value output, use any of: '+value_outputs)
+                raise Exception('{} is not accepted as value output, use any of: {}'.format(elem, value_outputs))
 
-        for elem in list(inary_output_set):
+        for elem in list(binary_output_set):
             if elem not in set(binary_outputs):
-                raise Exception(elem+' is not accepted as binary output, use any of: '+binary_outputs)
+                raise Exception('{} is not accepted as value output, use any of: {}'.format(elem, binary_outputs))
 
         if 'load_sep_unload' in binary_output_set  and 'load_unload' in binary_output_set:
             raise Exception("'load_sep_unload' and 'load_unload' can't be both binary outputs")
@@ -106,7 +106,7 @@ class BaseActionInterpreter:
         self.init_v_transport_act(val_output_set, binary_output_set)
 
         self.index_dict = {}
-        all_keys = self.discrete_keys+self.contin_keys
+        all_keys = list(self.discrete_set) + list(self.contin_set)
         for i in range(len(all_keys)):
             if all_keys[i] is not None:
                 if isinstance(all_keys[i], (list, tuple, np.ndarray)):
@@ -312,24 +312,24 @@ class BaseActionInterpreter:
 
 
     def take_actions(self, actions):
-        if self.temp_db.status_dict['v_free'][vehicle_i] == 1:
+        if self.temp_db.status_dict['v_free'][self.temp_db.cur_v_index] == 1:
 
             if len(self.discrete_max_val) != 0: self.actions = decode_discrete(actions[:len(self.discrete_max_val)]).ravel()
             if len(self.contin_max_val) != 0: self.actions = decode_contin(actions[-len(self.contin_max_val):]).ravel()
 
             [self.func_dict[key](key) for key in self.func_dict.keys()]
 
-            if self.value_dict['coord_bool']:    self.simulator.set_destination(self.temp_db.v_index, self.value_dict['coord'])
-            if self.value_dict['unload_bool']:   self.simulator.unload_cargo(self.temp_db.v_index, None, self.value_dict['unload'])
-            if self.value_dict['load_bool']:     self.simulator.load_cargo(self.temp_db.v_index, None, self.value_dict['load'])
-            if self.value_dict['v_unload_bool']: self.simulator.unload_vehicles(self.temp_db.v_index, self.value_dict['v_unload'])
-            if self.value_dict['v_load_bool']:   self.simulator.load_vehicles(self.temp_db.v_index, self.value_dict['v_load'])
+            if self.check_dict['coord_bool']:    self.simulator.set_destination(self.temp_db.cur_v_index, self.value_dict['coord'])
+            if self.check_dict['unload_bool']:   self.simulator.unload_cargo(self.temp_db.cur_v_index, None, self.value_dict['unload'])
+            if self.check_dict['load_bool']:     self.simulator.load_cargo(self.temp_db.cur_v_index, None, self.value_dict['load'])
+            if self.check_dict['v_unload_bool']: self.simulator.unload_vehicles(self.temp_db.cur_v_index, self.value_dict['v_unload'])
+            if self.check_dict['v_load_bool']:   self.simulator.load_vehicles(self.temp_db.cur_v_index, self.value_dict['v_load'])
             
             #self.simulator.recharge_range(self.temp_db.v_index)
             
-            self.temp_db.action_signal['v_free'][i] += 1
+            self.temp_db.action_signal['v_free'][self.temp_db.cur_v_index] += 1
 
         else:
-            self.temp_db.action_signal['v_free'][i] -= 1
+            self.temp_db.action_signal['v_free'][self.temp_db.cur_v_index] -= 1
 
 
