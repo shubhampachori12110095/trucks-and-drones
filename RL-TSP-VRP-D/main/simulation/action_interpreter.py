@@ -323,7 +323,7 @@ class BaseActionInterpreter:
             if self.check_dict['unload_bool']:   self.simulator.unload_cargo(self.temp_db.cur_v_index, None, self.value_dict['unload'])
             if self.check_dict['load_bool']:     self.simulator.load_cargo(self.temp_db.cur_v_index, None, self.value_dict['load'])
             if self.check_dict['v_unload_bool']: self.simulator.unload_vehicles(self.temp_db.cur_v_index, self.value_dict['v_unload'])
-            if self.check_dict['v_load_bool']:   self.simulator.load_vehicles(self.temp_db.cur_v_index, self.value_dict['v_load'])
+            if self.check_dict['v_load_bool']:   self.simulator.load_vehicle(self.temp_db.cur_v_index, self.value_dict['v_load'])
             
             #self.simulator.recharge_range(self.temp_db.v_index)
             

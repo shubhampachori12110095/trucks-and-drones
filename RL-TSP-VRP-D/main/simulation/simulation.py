@@ -34,7 +34,7 @@ def v_unload_v(transporter_obj, to_unload_obj_list):
     '''
 
     # first check how many UV can be unloaded:
-    num_v_to_unload = min(l_ignore_none([transporter_obj.cargo_obj.vehicle_per_step, len(to_unload_obj_list)]))
+    num_v_to_unload = min(l_ignore_none([transporter_obj.cargo_obj.cargo_UV_per_step.cur_value(), len(to_unload_obj_list)]))
 
     unloaded_list = []
     for i in range(num_v_to_unload):
@@ -65,10 +65,10 @@ def v_unload_v(transporter_obj, to_unload_obj_list):
 
 def v_load_v(transporter_obj, to_load_obj):
 
-    if transporter_obj.cargo_obj.vehicle_per_step == None or transporter_obj.cargo_obj.vehicle_per_step >= 1:
+    if transporter_obj.cargo_obj.cargo_UV_per_step == None or transporter_obj.cargo_obj.cargo_UV_per_step >= 1:
 
         weight = to_load_obj.weight
-        cargo_amount = to_load_obj.cargo_obj.standard_cargo.cur_value
+        cargo_amount = to_load_obj.cargo_obj.standard_cargo.cur_value()
 
         cargo_amount = min(
             to_load_obj.cargo_obj.cargo_per_step.check_subtract_value(cargo_amount),
@@ -77,7 +77,7 @@ def v_load_v(transporter_obj, to_load_obj):
             transporter_obj.cargo_obj.standard_cargo.check_add_value(cargo_amount_list[i]+weight)
             )
 
-        if cargo_amount == to_load_obj.cargo_obj.standard_cargo.cur_value:
+        if cargo_amount == to_load_obj.cargo_obj.standard_cargo.cur_value():
             to_load_obj.cargo_obj.cargo_per_step.subtract_value(cargo_amount-weight),
             to_load_obj.cargo_obj.standard_cargo.subtract_value(cargo_amount-weight),
             transporter_obj.cargo_obj.cargo_per_step.subtract_value(cargo_amount),
@@ -94,11 +94,18 @@ def v_load_v(transporter_obj, to_load_obj):
 
 def vehicle_at_customer(vehicle_obj, customer_obj, amount):
 
-    amount = min(
-        vehicle_obj.cargo_obj.cargo_per_step.check_subtract_value(amount), 
-        vehicle_obj.cargo_obj.standard_cargo.check_subtract_value(amount), 
-        customer_obj.demand.cur_value
+    if amount is None:
+        amount = min(
+            vehicle_obj.cargo_obj.cargo_per_step.cur_value(), 
+            vehicle_obj.cargo_obj.standard_cargo.cur_value(), 
+            customer_obj.demand.cur_value()
         )
+    else:
+        amount = min(
+            vehicle_obj.cargo_obj.cargo_per_step.check_subtract_value(amount), 
+            vehicle_obj.cargo_obj.standard_cargo.check_subtract_value(amount), 
+            customer_obj.demand.cur_value()
+            )
 
     vehicle_obj.cargo_obj.standard_cargo.subtract_value(amount)
     vehicle_obj.cargo_obj.cargo_per_step.subtract_value(amount)
@@ -108,11 +115,21 @@ def vehicle_at_customer(vehicle_obj, customer_obj, amount):
 
 def vehicle_at_depot(vehicle_obj, depot_obj, amount):
 
-    amount = min(
-        vehicle_obj.cargo_obj.cargo_per_step.check_subtract_value(amount), 
-        vehicle_obj.cargo_obj.standard_cargo.check_add_value(amount), 
-        depot_obj.stock.cur_value
+    if amount is None:
+        amount = min(
+            vehicle_obj.cargo_obj.cargo_per_step.cur_value(), 
+            vehicle_obj.cargo_obj.standard_cargo.max_restr - vehicle_obj.cargo_obj.standard_cargo.cur_value(), 
+            depot_obj.stock.cur_value()
         )
+
+    else:
+        amount = min(
+            vehicle_obj.cargo_obj.cargo_per_step.check_subtract_value(amount), 
+            vehicle_obj.cargo_obj.standard_cargo.check_add_value(amount), 
+            depot_obj.stock.cur_value()
+            )
+
+    
 
     vehicle_obj.cargo_obj.standard_cargo.add_value(amount)
     vehicle_obj.cargo_obj.cargo_per_step.subtract_value(amount)
@@ -203,45 +220,46 @@ class BaseSimulator:
     def unload_vehicles(self, vehicle_i, num_v):
 
         if num_v is None:
-            num_v = self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)]
+            num_v = len(self.temp_db.v_transporting_v[vehicle_i])
 
         # Get vehicles:
         vehicle = self.temp_db.base_groups['vehicles'][vehicle_i]
-        UV_list = lookup_db(self.temp_db.base_groups['vehicles'], self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)])
+        UV_list = lookup_db(self.temp_db.base_groups['vehicles'], self.temp_db.v_transporting_v[vehicle_i])
 
         # try to unload UVs from MV i
-        unloaded_list = v_unload_v(vehicle, UV_list, num_v, cargo_amount_list)
+        unloaded_list = v_unload_v(vehicle, UV_list)
         
         # Update Error Signal:
         # - positve value: more actions were correct than incorrect
         # - 0: equal number of good and bad actions
         # - negative value: more actions were incorrect
-        self.temp_db.action_signal['unloading_v'][i] += (num_v - ((num_v-len(unloaded_list)) * 2))
+        self.temp_db.action_signal['unloading_v'][vehicle_i] += (num_v - ((num_v-len(unloaded_list)) * 2))
         
         # Update Database:
         for elem in unloaded_list:
-            self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)].remove(elem)
-            self.temp_db.status_dict['v_free'][elem.v_index] = 1
+            self.temp_db.v_transporting_v[vehicle_i].remove(elem)
+            self.free_after_step.append(elem.v_index)
 
 
     def load_vehicle(self, vehicle_i, vehicle_j):
 
         if vehicle_j is None:
-            vehicle_j = self.temp_db.nearest_neighbour(vehicle_i, 'v_coord')
+            vehicle_j = self.temp_db.nearest_neighbour(vehicle_i, 'v_coord', v_type=0, v_free=1)
 
-        if self.temp_db.same_coord(vehicle_j, vehicle_i, 'v_coord'):
+        if self.temp_db.same_coord(vehicle_i, vehicle_j, 'v_coord'):
 
             v_to_load = self.temp_db.base_groups['vehicles'][vehicle_j]
             
-            if v_to_load.loadable:
+            loaded = False
+            if v_to_load.v_loadable:
                 loaded = v_load_v(self.temp_db.base_groups['vehicles'][vehicle_i], v_to_load, cargo_amount)
 
-            if loaded and v_to_load.loadable:
+            if loaded and v_to_load.v_loadable:
                 self.temp_db.status_dict['v_free'][vehicle_j] = 0
-                self.temp_db.v_transporting_v['vehicle_'+str(vehicle_i)].append('vehicle_'+str(vehicle_j))
-                self.temp_db.action_signal['free_to_be_loaded_v'][j] += 1
+                self.temp_db.v_transporting_v[vehicle_i].append('vehicle_'+str(vehicle_j))
+                self.temp_db.action_signal['free_to_be_loaded_v'][vehicle_j] += 1
             else:
-                self.temp_db.action_signal['free_to_be_loaded_v'][j] -= 1
+                self.temp_db.action_signal['free_to_be_loaded_v'][vehicle_j] -= 1
 
 
     def unload_cargo(self, vehicle_i, customer_j, amount):
@@ -249,7 +267,7 @@ class BaseSimulator:
         if customer_j is None:
             customer_j = self.temp_db.nearest_neighbour(vehicle_i,'c_coord')
 
-        if self.temp_db.same_coord(vehicle_j, customer_j, 'c_coord'):
+        if self.temp_db.same_coord(vehicle_i, customer_j, 'c_coord'):
             real_amount = vehicle_at_customer(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['customers'][customer_j], amount)
 
 
@@ -258,7 +276,7 @@ class BaseSimulator:
         if depot_j is None:
             depot_j = self.temp_db.nearest_neighbour(vehicle_i,'d_coord')
     
-        if self.temp_db.same_coord(vehicle_j, depot_j, 'd_coord'):
+        if self.temp_db.same_coord(vehicle_i, depot_j, 'd_coord'):
             real_amount = vehicle_at_depot(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['depots'][depot_j], amount)
 
 
@@ -272,11 +290,17 @@ class BaseSimulator:
 
     def finish_step(self):
 
-        next_step_time = min(self.temp_db.times_till_destination)
-        self.temp_db.cur_v_index = argmin(self.temp_db.times_till_destination)
+        if any(self.free_after_step):
+            self.temp_db.status_dict['v_free'][self.free_after_step[0]] = 1
+            self.temp_db.cur_v_index = self.free_after_step[0]
+            self.free_after_step.pop(0)
+        
+        else:
+            next_step_time = min(self.temp_db.times_till_destination)
+            self.temp_db.cur_v_index = argmin(self.temp_db.times_till_destination)
 
-        if next_step_time != 0:
-            [vehicle.travel_period]
+            if next_step_time != 0:
+                [vehicle.travel_period(next_step_time) for v in self.temp_db.base_groups['vehicles'] if self.temp_db.status_dict['v_free'][v.v_index] == 1]
 
     #def finish_episode(self):
         # force return to depots for tsp

@@ -39,7 +39,7 @@ class StandardBattery:
         self.SoC = RestrValueObject('battery',v_index, temp_db, self.max_charge, 0, self.init_value, self.signal_list)
 
 
-    def travel_step(self,distance):
+    def travel_step(self, distance):
         real_discharge = self.SoC.subtract_value(distance*self.discharge_per_step)
         distance = real_discharge/self.discharge_per_step
         return distance
@@ -72,8 +72,8 @@ class StandardRange:
         
         self.range_dist = RestrValueObject('range', v_index, temp_db, self.max_range,0,self.init_value,self.signal_list)
 
-    def travel_step(self,distance):
-        distance = self.range_dist.subtract_value()
+    def travel_step(self, distance):
+        distance = self.range_dist.add_value(distance)
         return distance
 
     def charge_travelling(self):
@@ -201,17 +201,19 @@ class VehicleClass:
 
     def update_destination(self, coord):
 
-        self.cur_destination = coord
+        self.cur_destination = np.array(coord)
         _, time = self.calc_travel()
-        self.temp_db.time_till_destination[self.v_index] = time + 1
+        self.temp_db.times_till_destination[self.v_index] = time + 1
 
     def calc_travel(self, step_time=1):
+
+        self.cur_coordinates = np.array(self.temp_db.status_dict['v_coord'][self.v_index])
         direction        = self.cur_destination-self.cur_coordinates
         abs_traveled     = self.travel_obj.travel(direction)
         new_coordinates  = (direction/direction)*abs_traveled*step_time
             
-        time_till_destination = sum(abs(self.cur_destination - new_coordinates)) * ((abs_traveled * step_time) / sum(abs(direction)))
-        return new_coordinates, time_till_destination
+        times_till_destination = np.sum(np.abs(self.cur_destination - new_coordinates)) * ((abs_traveled * step_time) / sum(abs(direction)))
+        return new_coordinates, times_till_destination
 
     def travel_period(self, step_time):
         '''
@@ -219,7 +221,7 @@ class VehicleClass:
         '''
         if self.cur_destination is not None and self.cur_destination != self.cur_coordinates:
 
-            self.cur_coordinates, self.temp_db.time_till_destination[self.v_index] = self.calc_travel(step_time)
+            self.cur_coordinates, self.temp_db.times_till_destination[self.v_index] = self.calc_travel(step_time)
 
             self.temp_db.status_dict['v_coord'][self.v_index] = self.cur_coordinates
             
@@ -228,7 +230,7 @@ class VehicleClass:
                 for v in lookup_db(self.temp_db.base_groups['vehicles'], loaded_v): v.cur_coordinates = self.cur_coordinates
 
         if self.cur_destination is None:
-            self.temp_db.time_till_destination[self.v_index] = 0
+            self.temp_db.times_till_destination[self.v_index] = 0
 
 
 # Vehicle Creator

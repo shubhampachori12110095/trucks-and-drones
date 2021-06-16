@@ -32,7 +32,7 @@ class Agent:
 
             while not done:
                 self.env.render()
-                wait = input()
+                #wait = input()
                 state, reward, done, _ = self.env.step(actions)
 
 

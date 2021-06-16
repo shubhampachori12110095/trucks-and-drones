@@ -98,8 +98,10 @@ class TempDatabase:
 
         # Dict where vehicle and node objects live
         self.base_groups = {
-            'vehicles': [],
-            'nodes'   : [],
+            'vehicles' : [],
+            'nodes'    : [],
+            'depots'   : [],
+            'customers': [],
         }
 
         # Dict with current values of restriction objects
@@ -221,6 +223,7 @@ class TempDatabase:
 
         zero_list_v = [0 for i in range(self.num_vehicles)]
         self.action_signal = {
+            'v_free'               : zero_list_v,
             'compare_coord'        : zero_list_v, # Deviation of chosen coordinates and coordinates of chosen nodes
             'free_to_travel'       : zero_list_v, # Indicates if chosen vehicle was able to move (or is currently transported)
             'unloading_v'          : zero_list_v, # Deviation of chosen number of vehicles to unload vs the actual vehicles that could be unloaded
@@ -239,8 +242,8 @@ class TempDatabase:
 
         # create dict for restriction signals
         self.restriction_signals = {}
-        for key in self.base_groups_restr.keys():
-            self.restriction_signals[key] = [elem.cur_signal for elem in self.base_groups_restr[key]]
+        for key in self.restr_dict.keys():
+            self.restriction_signals[key] = [elem.cur_signal for elem in self.restr_dict[key]]
 
 
     def add_restriction(self, name, max_restr, min_restr, init_value):
@@ -264,14 +267,16 @@ class TempDatabase:
 
     
     def add_depot(self, depot):
+        append_to(self.base_groups, 'depots', depot)
         append_to(self.base_groups, 'nodes', depot)
 
 
     def add_customer(self, customer):
+        append_to(self.base_groups, 'customers', customer)
         append_to(self.base_groups, 'nodes', customer)
 
 
-    def nearest_neighbour(self, v_index, coord_key, exclude_visited=False):
+    def nearest_neighbour(self, v_index, coord_key, exclude_visited=False, v_type=None, v_free=None):
 
         v_coord = self.status_dict['v_coord'][v_index]
 
@@ -283,11 +288,22 @@ class TempDatabase:
             coord_list = self.status_dict[coord_key]
 
         if exclude_visited:
-            compared = [sum(abs(elem-v_coord)) for elem in coord_list]
+            compared = [np.sum(np.abs(np.array(elem)-np.array(v_coord))) for elem in coord_list]
             for i in self.visited[v_index]:
                 compared[i] = 10000
             return np.argmin(compared)
-        return np.argmin([sum(abs(elem-v_coord)) for elem in coord_list])
+
+        if v_type is not None:
+            for i in range(len(coord_list)):
+                if self.status_dict['v_type'][i] != v_type:
+                    coord_list[i] = [10000,10000]
+
+        if v_free is not None:
+            for i in range(len(coord_list)):
+                if self.status_dict['v_free'][i] != v_free:
+                    coord_list[i] = [10000,10000]
+
+        return np.argmin([np.sum(np.abs(np.array(elem)-np.array(v_coord))) for elem in coord_list])
 
     def same_coord(self, v_index, coord_index, coord_key):
         return self.status_dict['v_coord'][v_index] == self.status_dict[coord_key][coord_index]

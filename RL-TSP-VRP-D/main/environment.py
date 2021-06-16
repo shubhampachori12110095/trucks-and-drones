@@ -70,7 +70,8 @@ class CustomEnv(gym.Env):
         observation = self.state_interp.observe_state()
 
         # reward:
-        reward = self.reward_calc.reward_function()
+        #reward = self.reward_calc.reward_function()
+        reward = 0
 
         self.count_steps_of_episode += 1
         self.count_total_steps      += 1

@@ -121,9 +121,6 @@ class BaseStateInterpreter:
         array_x = np.array([elem[0]/self.temp_db.grid[0] for elem in coord_list])
         array_y = np.array([elem[1]/self.temp_db.grid[1] for elem in coord_list])
 
-        print('coord')
-        print(array_x, array_y)
-
         return np.concatenate((array_x, array_y), axis=1)
 
 
@@ -189,9 +186,7 @@ class BaseStateInterpreter:
         inputs_list += [self.discrete_dict[key] for key in keys_list if key in set(self.discrete_dict.keys())]
         
         if len(inputs_list) > 0:
-            print(inputs_list)
-            print(keys_list)
-            print(self.temp_db.status_dict)
+
             list_of_arrays = [np.array([]) for i in range(len(inputs_list[0]))]
             
             for input_array in inputs_list:

@@ -23,7 +23,7 @@ class MinToMaxRestriction:
         '''
         Adds a specified amount to the current value under the initialzied max restriction.
         '''
-        new_value = cur_value + new_value
+        new_value = cur_value + value
         
         if new_value <= self.max_restr:
             cur_value = new_value
@@ -40,7 +40,7 @@ class MinToMaxRestriction:
         '''
         Subtracts a specified amount from the current value under the initialzied min restriction.
         '''
-        new_value = cur_value - new_value
+        new_value = cur_value - value
         
         if new_value >= self.min_restr:
             cur_value = new_value
@@ -134,6 +134,8 @@ class RestrValueObject:
         else:
             self.restriction = MinToMaxRestriction(max_restr,min_restr,signal_list)
 
+    def cur_value(self):
+        return self.temp_db.status_dict[self.name][self.obj_index]
 
     def reset(self):
         self.temp_db.status_dict[self.name][self.obj_index] = self.init_value
@@ -159,10 +161,12 @@ class RestrValueObject:
     def add_value(self, value):
         new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index],value)
         self.update(new_value,restr_signal)
+        return new_value
 
     def subtract_value(self, value):
         new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index],value)
         self.update(new_value,restr_signal)
+        return new_value
 
 
     def check_add_value(self,value):

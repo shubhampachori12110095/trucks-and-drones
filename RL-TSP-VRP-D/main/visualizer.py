@@ -29,6 +29,7 @@ class BaseVisualizer:
         self.name      = name
         self.simulator = simulator
         self.temp_db   = simulator.temp_db
+        self.grid      = simulator.grid
         [setattr(self, k, v) for k, v in visual_param.items()]
 
         # Define some colors
@@ -48,7 +49,14 @@ class BaseVisualizer:
         self.x_mulipl = int(round(self.grid_surface_dim[0] / (self.simulator.grid[0])))
         self.y_mulipl = int(round(self.grid_surface_dim[1] / (self.simulator.grid[1])))
 
-        self.grid_surface_dim = [self.grid_surface_dim[0]+self.marker_size*4, self.grid_surface_dim[1]+self.marker_size*4]
+        self.axis_size = 20
+
+        self.inner_grid_padding = self.marker_size * 2
+        
+        self.grid_surface_dim = [
+            self.grid_surface_dim[0] + (self.marker_size * 4),
+            self.grid_surface_dim[1] + (self.marker_size * 4)]
+        
         # init grid surface:
         # the grid surface will display only markers without text
         # this surface will be used as image input for a conv net,
@@ -59,7 +67,10 @@ class BaseVisualizer:
         # this surface will put the grid coordinates to a marker
         # will also add more information, for example the cargo, stock, demand, if this is defined by the parameters
         # if this is defined by the parameter
-        self.grid_info_surface = Surface(self.grid_surface_dim, pygame.SRCALPHA)
+        self.grid_info_surface = Surface(
+            [self.grid_surface_dim[0]+ self.axis_size,
+            self.grid_surface_dim[0] + self.axis_size]
+            , pygame.SRCALPHA)
 
         # travel surface:
         self.travel_surface = Surface(self.grid_surface_dim, pygame.SRCALPHA)
@@ -71,8 +82,8 @@ class BaseVisualizer:
         self.info_surface = Surface([self.grid_surface_dim[0], self.info_surface_height], pygame.SRCALPHA)
 
         # init window
-        window_width  = self.grid_surface_dim[0] + 2 * self.grid_padding
-        window_height = self.grid_surface_dim[0] + 2 * self.grid_padding + self.info_surface_height
+        window_width  = self.grid_surface_dim[0] + 2 * self.grid_padding + self.axis_size
+        window_height = self.grid_surface_dim[0] + 2 * self.grid_padding + self.info_surface_height + self.axis_size
         self.screen   = pygame.display.set_mode([window_width, window_height])
 
         # init fonts:
@@ -98,6 +109,25 @@ class BaseVisualizer:
         self.info_surface.fill(self.transp_f)
         self.screen.fill(self.white)
 
+        for i in range(self.simulator.grid[0]+1):
+            x_coord = self.small_font.render(str(i), True, self.black)
+            width = int(round(x_coord.get_width()/2))
+            self.grid_info_surface.blit(x_coord, (
+                -width+self.axis_size + int(round(self.marker_size/2)) + int(round(self.marker_size*2)) + i * self.x_mulipl,
+                int(round(self.axis_size/2))+(self.simulator.grid[1]+1)*self.x_mulipl
+                )
+            )
+
+        for i in range(self.simulator.grid[1]+1):
+            y_coord = self.small_font.render(str(self.simulator.grid[0]-i), True, self.black)
+            height = int(round(y_coord.get_width()/2))
+            self.grid_info_surface.blit(y_coord, (
+                int(round(self.axis_size/2)),
+                height-int(round(self.marker_size/2)) + int(round(self.marker_size*2)) + i*self.y_mulipl,
+                )
+            )
+
+
 
     def draw_circle_marker(self, coordinates, add_info=None, color=(255, 0, 0)):
         '''
@@ -108,7 +138,7 @@ class BaseVisualizer:
         #resize grid coordinates to surface coordinates:
         surface_coordinates = [
             coordinates[0]*self.x_mulipl + int(round(self.marker_size*2)),
-            coordinates[1]*self.y_mulipl + int(round(self.marker_size*2))]
+            (self.grid[1] - coordinates[1])*self.y_mulipl + int(round(self.marker_size*2))]
 
         # get relevant points:
         # A circle will be created from the middle of given coord,
@@ -132,7 +162,7 @@ class BaseVisualizer:
         #resize grid coordinates to surface coordinates:
         surface_coordinates = [
             coordinates[0]*self.x_mulipl + int(round(self.marker_size*2)),
-            coordinates[1]*self.y_mulipl + int(round(self.marker_size*2))]
+            (self.grid[1] - coordinates[1])*self.y_mulipl + int(round(self.marker_size*2))]
         
         # get relevant points:
         # A rectangle is drawn from the 'top' of given coordinates.
@@ -157,10 +187,7 @@ class BaseVisualizer:
         #resize grid coordinates to surface coordinates:
         surface_coordinates = [
             coordinates[0]*self.x_mulipl + int(round(self.marker_size*2)),
-            coordinates[1]*self.y_mulipl + int(round(self.marker_size*2))]
-        print(surface_coordinates)
-
-        surface_coordinates
+            (self.grid[1] - coordinates[1])*self.y_mulipl + int(round(self.marker_size*2))]
 
         # get relevant points:
         # A tringle is drawn by giving a polygon three points.
@@ -173,7 +200,6 @@ class BaseVisualizer:
         y   = surface_coordinates[1] + int(round(self.marker_size / 2))
         y_x = surface_coordinates[0]
 
-        print([x_1, x_y], [x_2, x_y], [y, y_x])
         # draw traingle:
         pygame.draw.polygon(self.grid_surface, color, ([x_1, x_y], [y_x, y], [x_2, x_y]))
 
@@ -249,15 +275,15 @@ class BaseVisualizer:
         self.draw_env_info(episode, step)
 
         self.screen.blits((
-            (self.grid_surface, (self.grid_padding, self.grid_padding)),
-            (self.grid_info_surface, (self.grid_padding, self.grid_padding)),
+            (self.grid_surface, (self.grid_padding+self.axis_size, self.grid_padding)),
+            (self.grid_info_surface, (self.grid_padding - int(round(self.marker_size/2)), self.grid_padding)),
             #(self.travel_surface, (self.grid_padding, self.grid_padding))
         ))
-        self.screen.blit(self.info_surface,(self.grid_padding, self.grid_padding + self.grid_surface_dim[1]))
+        self.screen.blit(self.info_surface,(self.grid_padding, self.grid_padding + self.grid_surface_dim[1]+self.axis_size))
 
         pygame.display.flip()
 
-        wait = input()
+        #wait = input()
 
 
     def convert_to_img_array(self):

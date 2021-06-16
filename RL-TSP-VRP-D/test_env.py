@@ -17,7 +17,7 @@ standard_battery = battery_parameter(
     max_charge         = 100,
     charge_per_step    = 50,
     discharge_per_step = 10,
-    init_value         = 0,
+    init_value         = 100,
     signal_list        = [1,1,-1])
 
 
@@ -62,7 +62,7 @@ standard_UV_cargo = cargo_parameter(
 
 standard_customers = customer_parameter(
     customer_type      = 'static',
-    num_customers      = [5,10],
+    num_customers      = 20,
     first_demand_step  = [0,0],
     demand_after_steps = None,
     demand_add         = 1,
@@ -72,7 +72,7 @@ standard_customers = customer_parameter(
 
 
 standard_depots = depot_parameter(
-    num_depots       = 1,
+    num_depots       = 2,
     max_stock        = None,
     resupply_rate    = 1,
     unlimited_supply = True,
@@ -94,7 +94,7 @@ standard_simulation = simulation_parameter(
     grid            = [10,10],
     coord_type      = 'exact',
     locked_travel   = False,
-    num_MV          = 2,
+    num_MV          = 5,
     num_UV_per_MV   = 2,
     #prio_v          = 'UV', # 'MV'
     #same_step_cargo = True,
@@ -106,7 +106,7 @@ standard_simulation = simulation_parameter(
 # ----------------------------------------------------------------------------------------------------------------
 
 standard_visual = visual_parameter(
-    grid_surface_dim    = [700, 700],
+    grid_surface_dim    = [600, 600],
     grid_padding        = 20,
     info_surface_height = 240,
     marker_size         = 20)

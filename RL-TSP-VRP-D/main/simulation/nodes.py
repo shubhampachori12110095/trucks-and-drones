@@ -81,7 +81,7 @@ class NodeCreator:
     def create_depot(self, n_index):
         coordinates  = random_coordinates(self.temp_db.grid)
         customer_obj = BaseDepot(n_index, self.temp_db, self.depot_parameter, coordinates)
-        self.temp_db.add_customer(customer_obj)
+        self.temp_db.add_depot(customer_obj)
 
 
     def create_customer(self, n_index):
