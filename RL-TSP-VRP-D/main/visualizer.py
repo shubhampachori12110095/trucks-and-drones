@@ -133,8 +133,8 @@ class BaseVisualizer:
         # A rectangle is drawn from the 'top' of given coordinates.
         # Note that the top coordinates are the lowest,
         # so we need to add a half of the marker size for x and y to be in the middle.
-        x = surface_coordinates[0] + (self.marker_size // 2)
-        y = surface_coordinates[1] + (self.marker_size // 2)
+        x = surface_coordinates[0] - (self.marker_size // 2)
+        y = surface_coordinates[1] - (self.marker_size // 2)
 
         # draw rectangle_
         pygame.draw.rect(self.grid_surface, color, (x, y, self.marker_size, self.marker_size))
