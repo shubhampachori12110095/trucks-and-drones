@@ -171,9 +171,9 @@ class RestrValueObject:
 
     def check_add_value(self,value):
         new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index],value)
-        return new_value - self.cur_value
+        return new_value - self.temp_db.status_dict[self.name][self.obj_index]
 
     def check_subtract_value(self,value):
         new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index],value)
-        return self.cur_value - new_value
+        return self.temp_db.status_dict[self.name][self.obj_index] - new_value
 

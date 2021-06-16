@@ -326,6 +326,7 @@ class BaseActionInterpreter:
             if self.check_dict['v_load_bool']:   self.simulator.load_vehicle(self.temp_db.cur_v_index, self.value_dict['v_load'])
             
             #self.simulator.recharge_range(self.temp_db.v_index)
+            self.simulator.finish_step()
             
             self.temp_db.action_signal['v_free'][self.temp_db.cur_v_index] += 1
 

@@ -18,7 +18,7 @@ import numpy as np
 from main.simulation.common_sim_func import param_interpret, l_ignore_none
 from main.simulation.nodes import NodeCreator
 from main.simulation.vehicles import VehicleCreator
-from main.simulation.temp_database import TempDatabase, lookup_db
+from main.simulation.temp_database import TempDatabase
 
 # gewinn - kosten oder nur -kosten?
 
@@ -34,25 +34,25 @@ def v_unload_v(transporter_obj, to_unload_obj_list):
     '''
 
     # first check how many UV can be unloaded:
-    num_v_to_unload = min(l_ignore_none([transporter_obj.cargo_obj.cargo_UV_per_step.cur_value(), len(to_unload_obj_list)]))
+    num_v_to_unload = min(l_ignore_none([transporter_obj.cargo_obj.cargo_UV_rate.cur_value(), len(to_unload_obj_list)]))
 
     unloaded_list = []
     for i in range(num_v_to_unload):
 
         weight = to_unload_obj_list[i].weight
-        cargo_amount = to_load_obj.to_unload_obj_list[i].standard_cargo.max_cargo
+        cargo_amount = to_unload_obj_list[i].cargo_obj.standard_cargo.max_restr
 
         cargo_amount = min(
-            to_unload_obj_list[i].cargo_obj.cargo_per_step.check_subtract_value(cargo_amount),
+            to_unload_obj_list[i].cargo_obj.cargo_rate.check_subtract_value(cargo_amount),
             to_unload_obj_list[i].cargo_obj.standard_cargo.check_add_value(cargo_amount),
-            transporter_obj.cargo_obj.cargo_per_step.check_subtract_value(cargo_amount+weight),
+            transporter_obj.cargo_obj.cargo_rate.check_subtract_value(cargo_amount+weight),
             transporter_obj.cargo_obj.standard_cargo.check_subtract_value(cargo_amount+weight)
             )
 
         if cargo_amount > 0:
-            to_unload_obj_list[i].cargo_obj.cargo_per_step.subtract_value(cargo_amount-weight),
+            to_unload_obj_list[i].cargo_obj.cargo_rate.subtract_value(cargo_amount-weight),
             to_unload_obj_list[i].cargo_obj.standard_cargo.add_value(cargo_amount-weight),
-            transporter_obj.cargo_obj.cargo_per_step.subtract_value(cargo_amount),
+            transporter_obj.cargo_obj.cargo_rate.subtract_value(cargo_amount),
             transporter_obj.cargo_obj.standard_cargo.subtract_value(cargo_amount)
 
             unloaded_list.append(to_unload_obj_list[i].name)
@@ -65,22 +65,22 @@ def v_unload_v(transporter_obj, to_unload_obj_list):
 
 def v_load_v(transporter_obj, to_load_obj):
 
-    if transporter_obj.cargo_obj.cargo_UV_per_step == None or transporter_obj.cargo_obj.cargo_UV_per_step >= 1:
+    if transporter_obj.cargo_obj.cargo_UV_rate == None or transporter_obj.cargo_obj.cargo_UV_rate.cur_value() >= 1:
 
         weight = to_load_obj.weight
         cargo_amount = to_load_obj.cargo_obj.standard_cargo.cur_value()
 
         cargo_amount = min(
-            to_load_obj.cargo_obj.cargo_per_step.check_subtract_value(cargo_amount),
+            to_load_obj.cargo_obj.cargo_rate.check_subtract_value(cargo_amount),
             to_load_obj.cargo_obj.standard_cargo.check_subtract_value(cargo_amount),
-            transporter_obj.cargo_obj.cargo_per_step.check_subtract_value(cargo_amount+weight),
-            transporter_obj.cargo_obj.standard_cargo.check_add_value(cargo_amount_list[i]+weight)
+            transporter_obj.cargo_obj.cargo_rate.check_subtract_value(cargo_amount+weight),
+            transporter_obj.cargo_obj.standard_cargo.check_add_value(cargo_amount+weight)
             )
 
         if cargo_amount == to_load_obj.cargo_obj.standard_cargo.cur_value():
-            to_load_obj.cargo_obj.cargo_per_step.subtract_value(cargo_amount-weight),
+            to_load_obj.cargo_obj.cargo_rate.subtract_value(cargo_amount-weight),
             to_load_obj.cargo_obj.standard_cargo.subtract_value(cargo_amount-weight),
-            transporter_obj.cargo_obj.cargo_per_step.subtract_value(cargo_amount),
+            transporter_obj.cargo_obj.cargo_rate.subtract_value(cargo_amount),
             transporter_obj.cargo_obj.standard_cargo.add_value(cargo_amount)
             return True
 
@@ -96,19 +96,19 @@ def vehicle_at_customer(vehicle_obj, customer_obj, amount):
 
     if amount is None:
         amount = min(
-            vehicle_obj.cargo_obj.cargo_per_step.cur_value(), 
+            vehicle_obj.cargo_obj.cargo_rate.cur_value(), 
             vehicle_obj.cargo_obj.standard_cargo.cur_value(), 
             customer_obj.demand.cur_value()
         )
     else:
         amount = min(
-            vehicle_obj.cargo_obj.cargo_per_step.check_subtract_value(amount), 
+            vehicle_obj.cargo_obj.cargo_rate.check_subtract_value(amount), 
             vehicle_obj.cargo_obj.standard_cargo.check_subtract_value(amount), 
             customer_obj.demand.cur_value()
             )
 
     vehicle_obj.cargo_obj.standard_cargo.subtract_value(amount)
-    vehicle_obj.cargo_obj.cargo_per_step.subtract_value(amount)
+    vehicle_obj.cargo_obj.cargo_rate.subtract_value(amount)
     customer_obj.demand.subtract_value(amount)
     return amount
 
@@ -117,14 +117,14 @@ def vehicle_at_depot(vehicle_obj, depot_obj, amount):
 
     if amount is None:
         amount = min(
-            vehicle_obj.cargo_obj.cargo_per_step.cur_value(), 
+            vehicle_obj.cargo_obj.cargo_rate.cur_value(), 
             vehicle_obj.cargo_obj.standard_cargo.max_restr - vehicle_obj.cargo_obj.standard_cargo.cur_value(), 
             depot_obj.stock.cur_value()
         )
 
     else:
         amount = min(
-            vehicle_obj.cargo_obj.cargo_per_step.check_subtract_value(amount), 
+            vehicle_obj.cargo_obj.cargo_rate.check_subtract_value(amount), 
             vehicle_obj.cargo_obj.standard_cargo.check_add_value(amount), 
             depot_obj.stock.cur_value()
             )
@@ -132,7 +132,7 @@ def vehicle_at_depot(vehicle_obj, depot_obj, amount):
     
 
     vehicle_obj.cargo_obj.standard_cargo.add_value(amount)
-    vehicle_obj.cargo_obj.cargo_per_step.subtract_value(amount)
+    vehicle_obj.cargo_obj.cargo_rate.subtract_value(amount)
     depot_obj.stock.subtract_value(amount)
     return amount
  
@@ -198,6 +198,7 @@ class BaseSimulator:
 
         self.node_creator = NodeCreator(self.temp_db, all_param_dict['customer_param'], all_param_dict['depot_param'])
 
+        self.free_after_step = []
 
     def reset_simulation(self):
 
@@ -212,9 +213,16 @@ class BaseSimulator:
     def set_destination(self, vehicle_i, coordinates):
 
         if coordinates is None:
-            coordinates = self.temp_db.nearest_neighbour(vehicle_i, ['c_coord','v_coord'])
-        
+            if self.temp_db.base_groups['vehicles'][vehicle_i].cargo_obj.standard_cargo.cur_value() > 0:
+                coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['c_coord'])
+                coordinates = self.temp_db.status_dict['c_coord'][coord_index]
+            else:
+                coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['d_coord'])
+                coordinates = self.temp_db.status_dict['d_coord'][coord_index]
+
         self.temp_db.base_groups['vehicles'][vehicle_i].update_destination(coordinates)
+
+        print('new_destination:',coordinates,'for',vehicle_i)
 
 
     def unload_vehicles(self, vehicle_i, num_v):
@@ -224,7 +232,7 @@ class BaseSimulator:
 
         # Get vehicles:
         vehicle = self.temp_db.base_groups['vehicles'][vehicle_i]
-        UV_list = lookup_db(self.temp_db.base_groups['vehicles'], self.temp_db.v_transporting_v[vehicle_i])
+        UV_list = [self.temp_db.base_groups['vehicles'][i] for i in self.temp_db.v_transporting_v[vehicle_i]]
 
         # try to unload UVs from MV i
         unloaded_list = v_unload_v(vehicle, UV_list)
@@ -239,6 +247,9 @@ class BaseSimulator:
         for elem in unloaded_list:
             self.temp_db.v_transporting_v[vehicle_i].remove(elem)
             self.free_after_step.append(elem.v_index)
+            self.tempd_db.status_dict['time_to_dest'][elem.v_index] = 0
+
+            print('unloaded v',elem.v_index,'from',vehicle_i)
 
 
     def load_vehicle(self, vehicle_i, vehicle_j):
@@ -252,12 +263,13 @@ class BaseSimulator:
             
             loaded = False
             if v_to_load.v_loadable:
-                loaded = v_load_v(self.temp_db.base_groups['vehicles'][vehicle_i], v_to_load, cargo_amount)
+                loaded = v_load_v(self.temp_db.base_groups['vehicles'][vehicle_i], v_to_load)
 
             if loaded and v_to_load.v_loadable:
                 self.temp_db.status_dict['v_free'][vehicle_j] = 0
-                self.temp_db.v_transporting_v[vehicle_i].append('vehicle_'+str(vehicle_j))
+                self.temp_db.v_transporting_v[vehicle_i].append(vehicle_j)
                 self.temp_db.action_signal['free_to_be_loaded_v'][vehicle_j] += 1
+                print('loaded v',v_to_load.v_index,'to',vehicle_i)
             else:
                 self.temp_db.action_signal['free_to_be_loaded_v'][vehicle_j] -= 1
 
@@ -270,6 +282,7 @@ class BaseSimulator:
         if self.temp_db.same_coord(vehicle_i, customer_j, 'c_coord'):
             real_amount = vehicle_at_customer(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['customers'][customer_j], amount)
 
+            print('unloaded cargo',real_amount,'from',vehicle_i)
 
     def load_cargo(self, vehicle_i, depot_j, amount):
 
@@ -279,6 +292,7 @@ class BaseSimulator:
         if self.temp_db.same_coord(vehicle_i, depot_j, 'd_coord'):
             real_amount = vehicle_at_depot(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['depots'][depot_j], amount)
 
+            print('loaded cargo',real_amount,'to',vehicle_i)
 
     def recharge_range(self, vehicle_i):
 
@@ -290,17 +304,27 @@ class BaseSimulator:
 
     def finish_step(self):
 
+        print('free_after_step', self.free_after_step)
+        print('cur_v_index', self.temp_db.cur_v_index)
+        print('time_to_dest', self.temp_db.status_dict['time_to_dest'])
+
         if any(self.free_after_step):
             self.temp_db.status_dict['v_free'][self.free_after_step[0]] = 1
             self.temp_db.cur_v_index = self.free_after_step[0]
             self.free_after_step.pop(0)
         
         else:
-            next_step_time = min(self.temp_db.times_till_destination)
-            self.temp_db.cur_v_index = argmin(self.temp_db.times_till_destination)
+            for v_index in range(self.temp_db.num_vehicles):
+                if self.temp_db.status_dict['v_free'][v_index] == 0:
+                    self.temp_db.status_dict['time_to_dest'][v_index] = 10000
+
+            next_step_time = min(self.temp_db.status_dict['time_to_dest'])
+            self.temp_db.cur_v_index = np.argmin(self.temp_db.status_dict['time_to_dest'])
+
+            print('next_step_time',next_step_time)
 
             if next_step_time != 0:
-                [vehicle.travel_period(next_step_time) for v in self.temp_db.base_groups['vehicles'] if self.temp_db.status_dict['v_free'][v.v_index] == 1]
+                [v.travel_period(next_step_time) for v in self.temp_db.base_groups['vehicles'] if self.temp_db.status_dict['v_free'][v.v_index] == 1]
 
     #def finish_episode(self):
         # force return to depots for tsp

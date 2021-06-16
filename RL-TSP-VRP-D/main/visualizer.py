@@ -1,6 +1,7 @@
 """
 
 """
+import sys
 import pygame
 from pygame import Surface
 
@@ -95,7 +96,7 @@ class BaseVisualizer:
         pygame.display.set_caption(self.name)
 
         # Block all events
-        pygame.event.set_blocked(None)
+        #pygame.event.set_blocked(None)
 
 
     def reset_surfaces(self):
@@ -283,8 +284,18 @@ class BaseVisualizer:
 
         pygame.display.flip()
 
-        #wait = input()
+        event_happened = False
+        while not event_happened:
+            event = pygame.event.wait()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                #print(self.temp_db.status_dict)
+                event_happened = True#
+            elif event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
 
+        #wait = input()
+        
 
     def convert_to_img_array(self):
         return pygame.surfarray.array3d(self.grid_surface)

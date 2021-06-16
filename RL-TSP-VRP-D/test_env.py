@@ -76,7 +76,7 @@ standard_depots = depot_parameter(
     max_stock        = None,
     resupply_rate    = 1,
     unlimited_supply = True,
-    init_value       = 30,
+    init_value       = 3000,
     signal_list      = [1,1,-1])
 
 

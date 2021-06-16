@@ -3,10 +3,11 @@
 import random
 import numpy as np
 
+'''
 def lookup_db(db_dict, name_list):
     obj_list = []
-    return [obj_list.append(db_dict[startswith(name)]) for name in name_list]
-
+    return [obj_list.append(db_dict[i]) for name in name_list]
+'''
 
 def append_to(dict_var, key, value):
     if any(key in elem for elem in dict_var):
@@ -125,6 +126,8 @@ class TempDatabase:
             'v_type'    : [], # list of zeros and ones to indicate if vehicle is a transporter
             'v_loadable': [], # list of zeros and ones to indicate if vehicle can be transported
 
+            'time_to_dest': [],
+
             'speed'      : [],
             'travel_type': [],
             'range_type' : [],
@@ -234,8 +237,8 @@ class TempDatabase:
             'free_to_load_cargo'   : zero_list_v, # Indicates if chosen vehicle was able to load cargo (or is currently transported)
             }
 
-        [vehicle_obj.cargo_obj.cargo_per_step.reset() for vehicle_obj in self.base_groups['vehicles']]
-        [vehicle_obj.cargo_obj.cargo_UV_per_step.reset() for vehicle_obj in self.base_groups['vehicles']]
+        [vehicle_obj.cargo_obj.cargo_rate.reset() for vehicle_obj in self.base_groups['vehicles']]
+        [vehicle_obj.cargo_obj.cargo_UV_rate.reset() for vehicle_obj in self.base_groups['vehicles']]
 
 
     def finish_step(self):
@@ -287,26 +290,26 @@ class TempDatabase:
         else:
             coord_list = self.status_dict[coord_key]
 
+        compared = [np.sum(np.abs(np.array(elem)-np.array(v_coord))) for elem in coord_list]
+
         if exclude_visited:
-            compared = [np.sum(np.abs(np.array(elem)-np.array(v_coord))) for elem in coord_list]
             for i in self.visited[v_index]:
                 compared[i] = 10000
-            return np.argmin(compared)
 
         if v_type is not None:
-            for i in range(len(coord_list)):
+            for i in range(len(compared)):
                 if self.status_dict['v_type'][i] != v_type:
-                    coord_list[i] = [10000,10000]
+                    compared[i] = 10000
 
         if v_free is not None:
-            for i in range(len(coord_list)):
+            for i in range(len(compared)):
                 if self.status_dict['v_free'][i] != v_free:
-                    coord_list[i] = [10000,10000]
+                    compared[i] = 10000
 
-        return np.argmin([np.sum(np.abs(np.array(elem)-np.array(v_coord))) for elem in coord_list])
+        return np.argmin(compared)
 
     def same_coord(self, v_index, coord_index, coord_key):
-        return self.status_dict['v_coord'][v_index] == self.status_dict[coord_key][coord_index]
+        return np.sum(np.array(self.status_dict['v_coord'][v_index]) - np.array(self.status_dict[coord_key][coord_index])) == 0
 
 
 
