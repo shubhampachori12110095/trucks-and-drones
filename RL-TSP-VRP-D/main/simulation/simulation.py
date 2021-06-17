@@ -267,6 +267,7 @@ class BaseSimulator:
 
             if loaded and v_to_load.v_loadable:
                 self.temp_db.status_dict['v_free'][vehicle_j] = 0
+                self.temp_db.status_dict['time_to_dest'][vehicle_j] = 10000
                 self.temp_db.v_transporting_v[vehicle_i].append(vehicle_j)
                 self.temp_db.action_signal['free_to_be_loaded_v'][vehicle_j] += 1
                 print('loaded v',v_to_load.v_index,'to',vehicle_i)
@@ -282,7 +283,7 @@ class BaseSimulator:
         if self.temp_db.same_coord(vehicle_i, customer_j, 'c_coord'):
             real_amount = vehicle_at_customer(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['customers'][customer_j], amount)
 
-            print('unloaded cargo',real_amount,'from',vehicle_i)
+            print('unloaded cargo',real_amount,'from',vehicle_i,'to customer',customer_j)
 
     def load_cargo(self, vehicle_i, depot_j, amount):
 
@@ -292,7 +293,7 @@ class BaseSimulator:
         if self.temp_db.same_coord(vehicle_i, depot_j, 'd_coord'):
             real_amount = vehicle_at_depot(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['depots'][depot_j], amount)
 
-            print('loaded cargo',real_amount,'to',vehicle_i)
+            print('loaded cargo',real_amount,'to',vehicle_i, 'from depot', depot_j)
 
     def recharge_range(self, vehicle_i):
 
@@ -314,9 +315,6 @@ class BaseSimulator:
             self.free_after_step.pop(0)
         
         else:
-            for v_index in range(self.temp_db.num_vehicles):
-                if self.temp_db.status_dict['v_free'][v_index] == 0:
-                    self.temp_db.status_dict['time_to_dest'][v_index] = 10000
 
             next_step_time = min(self.temp_db.status_dict['time_to_dest'])
             self.temp_db.cur_v_index = np.argmin(self.temp_db.status_dict['time_to_dest'])

@@ -309,7 +309,9 @@ class TempDatabase:
         return np.argmin(compared)
 
     def same_coord(self, v_index, coord_index, coord_key):
-        return np.sum(np.array(self.status_dict['v_coord'][v_index]) - np.array(self.status_dict[coord_key][coord_index])) == 0
-
+        print(self.status_dict['v_coord'][v_index], self.status_dict[coord_key][coord_index])
+        check = np.sum(np.array(self.status_dict['v_coord'][v_index]) - np.array(self.status_dict[coord_key][coord_index])) == 0
+        print(check)
+        return check
 
 

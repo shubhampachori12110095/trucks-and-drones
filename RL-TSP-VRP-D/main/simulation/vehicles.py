@@ -5,6 +5,56 @@ import numpy as np
 from main.simulation.restrictions import RestrValueObject
 from main.simulation.common_sim_func import param_interpret, random_coordinates
 
+# Cargo
+# ----------------------------------------------------------------------------------------------------------------
+
+
+def cargo_parameter(
+        cargo_type         = 'standard+extra',
+        max_cargo          = 10,
+        max_cargo_UV       = 1,
+        cargo_per_step     = 1,
+        cargo_UV_per_step  = 1,
+        init_value         = 0,
+        signal_list        = [1,1,-1],
+       ):
+    return {
+            'cargo_type': cargo_type,
+            'max_cargo': max_cargo,
+            'max_cargo_UV': max_cargo_UV,
+            'cargo_per_step': cargo_per_step,
+            'cargo_UV_per_step': cargo_UV_per_step,
+            'init_value': init_value,
+            'signal_list': signal_list,
+            }
+
+
+class CargoClass:
+    '''
+    Has normal cargo space for standard customer products and extra cargo space for UV. 
+    '''
+    def __init__(self, v_index, temp_db, cargo_param):
+
+        [setattr(self, k, param_interpret(v)) for k, v in cargo_param.items()]
+
+        self.cargo_rate    = RestrValueObject('cargo_rate', v_index, temp_db, self.cargo_per_step, 0, self.cargo_per_step, self.signal_list)
+        self.cargo_UV_rate = RestrValueObject('cargo_UV_rate', v_index, temp_db, self.cargo_UV_per_step, 0, self.cargo_UV_per_step, self.signal_list)
+
+        if self.cargo_type == 'standard+extra':
+            self.standard_cargo = RestrValueObject('cargo', v_index, temp_db, self.max_cargo, 0, self.init_value, self.signal_list)
+            self.UV_cargo       = RestrValueObject('cargo_v', v_index, temp_db, self.max_cargo_UV, 0, self.init_value, self.signal_list)
+            
+        elif self.cargo_type == 'standard+including':
+            self.standard_cargo = RestrValueObject('cargo', v_index, temp_db, self.max_cargo, 0, self.init_value, self.signal_list)
+            self.UV_cargo       = self.standard_cargo
+
+        elif self.cargo_type == 'standard':
+            self.standard_cargo = RestrValueObject('cargo', v_index, temp_db, self.max_cargo, 0, self.init_value, sself.ignal_list)
+
+        else:
+            raise Exception("cargo_type was set to '{}', but has to be: 'standard+extra', 'standard+including', 'only_standard'".format(self.cargo_type))
+
+
 # Range
 # ----------------------------------------------------------------------------------------------------------------
 
@@ -105,10 +155,18 @@ class StreetTravel:
         self.speed     = speed
         self.type      = 'street'
 
-    def travel(self, direction):
+    def travel(self, direction, time):
         distance = np.sum(np.abs(direction))
-        distance = self.range_obj.travel_step(distance)
-        return distance*self.speed
+
+        if distance != 0:
+            in_time_distance = (self.speed / distance) * time
+            # ERGÄNZE VEHICLE STUCK
+            real_distance = self.range_obj.travel_step(in_time_distance)
+            
+            #      new direction vector,                   # time till destination is reached
+            return direction * (distance / real_distance), (distance-in_time_distance) / self.speed
+        else:
+            return np.zeros((2)), 0
 
 
 class ArialTravel:
@@ -120,60 +178,18 @@ class ArialTravel:
         self.speed     = speed
         self.type      = 'arial'
 
-    def travel(self,direction):
+    def travel(self, direction, time):
         distance = np.linalg.norm(direction)
-        distance = self.range_obj.travel_step(distance)
-        return distance*self.speed
-
-
-# Cargo
-# ----------------------------------------------------------------------------------------------------------------
-
-
-def cargo_parameter(
-        cargo_type         = 'standard+extra',
-        max_cargo          = 10,
-        max_cargo_UV       = 1,
-        cargo_per_step     = 1,
-        cargo_UV_per_step  = 1,
-        init_value         = 0,
-        signal_list        = [1,1,-1],
-       ):
-    return {
-            'cargo_type': cargo_type,
-            'max_cargo': max_cargo,
-            'max_cargo_UV': max_cargo_UV,
-            'cargo_per_step': cargo_per_step,
-            'cargo_UV_per_step': cargo_UV_per_step,
-            'init_value': init_value,
-            'signal_list': signal_list,
-            }
-
-
-class CargoClass:
-    '''
-    Has normal cargo space for standard customer products and extra cargo space for UV. 
-    '''
-    def __init__(self, v_index, temp_db, cargo_param):
-
-        [setattr(self, k, param_interpret(v)) for k, v in cargo_param.items()]
-
-        self.cargo_rate    = RestrValueObject('cargo_rate', v_index, temp_db, self.cargo_per_step, 0, self.cargo_per_step, self.signal_list)
-        self.cargo_UV_rate = RestrValueObject('cargo_UV_rate', v_index, temp_db, self.cargo_UV_per_step, 0, self.cargo_UV_per_step, self.signal_list)
-
-        if self.cargo_type == 'standard+extra':
-            self.standard_cargo = RestrValueObject('cargo', v_index, temp_db, self.max_cargo, 0, self.init_value, self.signal_list)
-            self.UV_cargo       = RestrValueObject('cargo_v', v_index, temp_db, self.max_cargo_UV, 0, self.init_value, self.signal_list)
+        
+        if distance != 0:
+            in_time_distance = (self.speed / distance) * time
+            # ERGÄNZE VEHICLE STUCK
+            real_distance = self.range_obj.travel_step(in_time_distance)
             
-        elif self.cargo_type == 'standard+including':
-            self.standard_cargo = RestrValueObject('cargo', v_index, temp_db, self.max_cargo, 0, self.init_value, self.signal_list)
-            self.UV_cargo       = self.standard_cargo
-
-        elif self.cargo_type == 'standard':
-            self.standard_cargo = RestrValueObject('cargo', v_index, temp_db, self.max_cargo, 0, self.init_value, sself.ignal_list)
-
+            #      new direction vector,                   # time till destination is reached
+            return direction * (distance / real_distance), (distance-in_time_distance) / self.speed
         else:
-            raise Exception("cargo_type was set to '{}', but has to be: 'standard+extra', 'standard+including', 'only_standard'".format(self.cargo_type))
+            return np.zeros((2)), 0
 
 
 
@@ -212,19 +228,16 @@ class VehicleClass:
     def calc_travel(self, step_time=1):
 
         self.cur_coordinates = np.array(self.temp_db.status_dict['v_coord'][self.v_index])
-        direction        = self.cur_destination-self.cur_coordinates
-        abs_traveled     = self.travel_obj.travel(direction)
-        new_coordinates  = (direction/direction)*abs_traveled*step_time
+        
+        abs_traveled, times_till_dest = self.travel_obj.travel(self.cur_destination - self.cur_coordinates, step_time)
+        new_coordinates = self.cur_coordinates + abs_traveled
 
-        print('direction', direction)
+        print('cur_coordinates', self.cur_coordinates)
         print('abs_traveled', abs_traveled)
         print('new_coordinates', new_coordinates)
-
-        if np.sum(np.abs(self.cur_destination - new_coordinates)) == 0:
-            return new_coordinates, 0
+        print('times_till_dest', times_till_dest)
             
-        times_till_destination = np.sum(np.abs(self.cur_destination - new_coordinates)) * ((np.abs(abs_traveled) * step_time) / np.sum(np.abs(direction)))
-        return new_coordinates, times_till_destination
+        return new_coordinates, times_till_dest
 
     def travel_period(self, step_time):
         '''
