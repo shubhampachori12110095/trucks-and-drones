@@ -204,8 +204,9 @@ class BaseSimulator:
 
         self.temp_db.init_db()
 
-        self.vehicle_creator.create_vehicles(param_interpret(self.num_MV ),param_interpret(self.num_UV_per_MV))
         self.node_creator.create_nodes()
+        self.vehicle_creator.create_vehicles(param_interpret(self.num_MV ),param_interpret(self.num_UV_per_MV))
+        
 
         self.temp_db.reset_db()
 
@@ -308,7 +309,7 @@ class BaseSimulator:
 
         print('free_after_step', self.free_after_step)
         print('cur_v_index', self.temp_db.cur_v_index)
-        print('time_to_dest', self.temp_db.status_dict['time_to_dest'])
+        print('v_transporting_v', self.temp_db.v_transporting_v)
 
         if any(self.free_after_step):
             self.temp_db.status_dict['v_free'][self.free_after_step[0]] = 1

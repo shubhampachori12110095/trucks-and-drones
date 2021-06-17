@@ -159,7 +159,7 @@ class BaseVisualizer:
         pygame.draw.circle(self.grid_surface, color, (x, y), int(round(self.marker_size / 2)))
 
         # info:
-        self.draw_marker_info(surface_coordinates, coordinates, add_info)
+        #self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
 
     def draw_rect_marker(self, coordinates, add_info=None, color=(0, 255, 0)):
@@ -213,7 +213,7 @@ class BaseVisualizer:
         pygame.draw.polygon(self.grid_surface, color, ([x_1, x_y], [y_x, y], [x_2, x_y]))
 
         # info:
-        self.draw_marker_info(surface_coordinates, coordinates, add_info)
+        #self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
 
     def draw_marker_info(self, surface_coordinates, coordinates, add_info):

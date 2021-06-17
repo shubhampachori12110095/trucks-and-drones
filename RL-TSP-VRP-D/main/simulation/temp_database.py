@@ -16,7 +16,7 @@ def append_to(dict_var, key, value):
         dict_var[key] = [value]
 
 def random_coordinates(grid):
-    return [np.random.randint(0,grid[0]+1), np.random.randint(0,grid[1]+1)]
+    return np.array([np.random.randint(0,grid[0]+1), np.random.randint(0,grid[1]+1)])
 
 
 class TempDatabase:
@@ -120,13 +120,13 @@ class TempDatabase:
         self.status_dict = {
             # Vehicles:
             'v_coord'   : [], # list of current vehicle coordinates
+            'v_dest': [],
+            'time_to_dest': [],
             'v_free'    : [], # list of zeros and ones to indicate if vehicle is free to move
             'v_stuck'   : [], # list of zeros and ones to indicate if vehicle range is depleted (and not at depot or transporter)
             'v_loaded'  : [], # list of zeros and ones to indicate if vehicle is currently transported
             'v_type'    : [], # list of zeros and ones to indicate if vehicle is a transporter
             'v_loadable': [], # list of zeros and ones to indicate if vehicle can be transported
-
-            'time_to_dest': [],
 
             'speed'      : [],
             'travel_type': [],
@@ -202,13 +202,13 @@ class TempDatabase:
         self.visited = [[] for i in range(self.num_vehicles)]
 
         # sollte vlt bei erstellungsprozess lieber erfolgen?
-        self.status_dict['d_coord'] = [random_coordinates(self.grid) for i in range(self.num_depots)]
-        self.status_dict['c_coord'] = [random_coordinates(self.grid) for i in range(self.num_customers)]
+        #self.status_dict['d_coord'] = [random_coordinates(self.grid) for i in range(self.num_depots)]
+        #self.status_dict['c_coord'] = [random_coordinates(self.grid) for i in range(self.num_customers)]
 
-        trucks = [random.choice(self.status_dict['d_coord']) for i in range(self.num_vehicles) if self.status_dict['v_type'][i] == 1]
-        drones = [random.choice(trucks) for i in range(self.num_vehicles) if self.status_dict['v_type'][i] == 0]
+        #trucks = [random.choice(self.status_dict['d_coord']) for i in range(self.num_vehicles) if self.status_dict['v_type'][i] == 1]
+        #drones = [random.choice(trucks) for i in range(self.num_vehicles) if self.status_dict['v_type'][i] == 0]
 
-        self.status_dict['v_coord'] = trucks+drones
+        #self.status_dict['v_coord'] = trucks+drones
 
 
         # Reset visited coordinates
@@ -217,7 +217,7 @@ class TempDatabase:
 
         ############################### QUICK FIX !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         self.status_dict['c_waiting'] = [0  for i in range(self.num_customers)]
-        
+
         for key in self.status_dict.keys():
             if self.status_dict[key]==[]:
                 self.status_dict[key] = [0  for i in range(self.num_vehicles)]
@@ -271,15 +271,22 @@ class TempDatabase:
         append_to(self.status_dict, 'v_type', int(vehicle.v_type))
         append_to(self.status_dict, 'v_loadable', int(vehicle.v_loadable))
 
+        append_to(self.status_dict, 'v_coord', random.choice(self.status_dict['d_coord']))
+
+
     
     def add_depot(self, depot):
         append_to(self.base_groups, 'depots', depot)
         append_to(self.base_groups, 'nodes', depot)
 
+        append_to(self.status_dict, 'd_coord', random_coordinates(self.grid))
+
 
     def add_customer(self, customer):
         append_to(self.base_groups, 'customers', customer)
         append_to(self.base_groups, 'nodes', customer)
+
+        append_to(self.status_dict, 'c_coord', random_coordinates(self.grid))
 
 
     def nearest_neighbour(self, v_index, coord_key, exclude=None):

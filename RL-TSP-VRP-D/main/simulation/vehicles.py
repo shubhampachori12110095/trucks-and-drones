@@ -157,14 +157,23 @@ class StreetTravel:
 
     def travel(self, direction, time):
         distance = np.sum(np.abs(direction))
+        in_time_distance = self.speed * time
 
-        if distance != 0:
-            in_time_distance = (self.speed / distance) * time
-            # ERGÄNZE VEHICLE STUCK
-            real_distance = self.range_obj.travel_step(in_time_distance)
+        if distance != 0 and in_time_distance != 0:
             
+            if in_time_distance < distance:
+                # ERGÄNZE VEHICLE STUCK
+                real_distance = self.range_obj.travel_step(in_time_distance)
+            else:
+                real_distance = self.range_obj.travel_step(distance)
+
+            if distance - real_distance == 0:
+                time_till_dest = 0
+            else:
+                time_till_dest = (distance-real_distance) / self.speed
+
             #      new direction vector,                   # time till destination is reached
-            return direction * (distance / real_distance), (distance-in_time_distance) / self.speed
+            return direction * (distance / real_distance), time_till_dest
         else:
             return np.zeros((2)), 0
 
@@ -214,17 +223,59 @@ class VehicleClass:
         self.cargo_obj  = cargo_obj
         self.travel_obj = travel_obj
 
-        self.cur_destination = None
+        self.speed = travel_obj.speed
+
+        if self.travel_obj.type == 'street':
+            self.calc_distance = self.street_distance
+        elif self.travel_obj.type == 'arial':
+            self.calc_distance = self.arial_distance
+
+    def calc_direction(self):
+        return self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
+
+    def street_distance(self, direction):
+        return np.sum(np.abs(direction))
+
+    def arial_distance(self, direction):
+        return np.linalg.norm(direction)
+
+    def set_time_till_dest(self, distance):
+        if distance == 0:
+            self.temp_db.status_dict['time_to_dest'][self.v_index] = 0
+        else:
+            self.temp_db.status_dict['time_to_dest'][self.v_index] = distance / self.speed
+
 
     def update_destination(self, coord):
+        self.temp_db.status_dict['v_dest'][self.v_index] = np.array(coord)
+        self.set_time_till_dest(self.calc_distance(self.calc_direction()))
 
-        self.cur_coordinates = np.array(self.temp_db.status_dict['v_coord'][self.v_index])
-        self.cur_destination = np.array(coord)
-        if np.sum(self.cur_destination-self.cur_coordinates) != 0:
-            _, time = self.calc_travel()
-            print('time',time)
-            self.temp_db.status_dict['time_to_dest'][self.v_index] = time + 1
+        
+    def travel_period(self, time):
 
+        direction = self.calc_direction()
+        distance = self.calc_distance(direction)
+
+        in_time_distance = self.speed * time
+
+        if distance != 0 and in_time_distance != 0:
+            
+            if in_time_distance < distance:
+                # ERGÄNZE VEHICLE STUCK
+                real_distance = self.travel_obj.range_obj.travel_step(in_time_distance)
+            else:
+                real_distance = self.travel_obj.range_obj.travel_step(distance)
+
+            self.temp_db.status_dict['v_coord'][self.v_index] = direction * (real_distance/distance) + self.temp_db.status_dict['v_coord'][self.v_index]
+        
+        self.set_time_till_dest(self.calc_distance(self.calc_direction()))
+
+        loaded_v = self.temp_db.v_transporting_v[self.v_index]
+        if any(loaded_v):
+            for i in self.temp_db.v_transporting_v[self.v_index]:
+                self.temp_db.status_dict['v_coord'][i] = self.temp_db.status_dict['v_coord'][self.v_index]
+
+    '''
     def calc_travel(self, step_time=1):
 
         self.cur_coordinates = np.array(self.temp_db.status_dict['v_coord'][self.v_index])
@@ -240,9 +291,7 @@ class VehicleClass:
         return new_coordinates, times_till_dest
 
     def travel_period(self, step_time):
-        '''
-        Travel from current coordinates in direction of passed coordinates based on initialized speed.
-        '''
+
         if self.cur_destination is not None and np.sum(self.cur_destination-self.cur_coordinates) != 0:
 
             self.cur_coordinates, self.temp_db.status_dict['time_to_dest'][self.v_index] = self.calc_travel(step_time)
@@ -256,7 +305,7 @@ class VehicleClass:
 
         if self.cur_destination is None:
             self.temp_db.status_dict['time_to_dest'][self.v_index] = 0
-
+    '''
 
 # Vehicle Creator
 # ----------------------------------------------------------------------------------------------------------------
