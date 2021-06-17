@@ -136,6 +136,8 @@ class TempDatabase:
             'c_coord': [], # list of current customer coordinates
             'd_coord': [], # list of current depot coordinates
             'c_waiting': [],
+            'v_to_n': [],
+            'v_to_n_index': [],
 
             # Restrictions
             'battery'     : [],

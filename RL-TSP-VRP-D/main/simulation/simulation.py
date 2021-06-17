@@ -218,9 +218,15 @@ class BaseSimulator:
                 coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['c_coord'], exclude=[['demand',0], ['c_waiting',1]])
                 coordinates = self.temp_db.status_dict['c_coord'][coord_index]
                 self.temp_db.status_dict['c_waiting'][coord_index] = 1
+                self.temp_db.status_dict['v_to_n'][vehicle_i] = 1
+                self.temp_db.status_dict['v_to_n_index'][vehicle_i] = coord_index
             else:
                 coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['d_coord'], exclude=[['stock',0]])
                 coordinates = self.temp_db.status_dict['d_coord'][coord_index]
+                if self.temp_db.status_dict['v_to_n'][vehicle_i] == 1:
+                    self.temp_db.status_dict['c_waiting'][self.temp_db.status_dict['v_to_n_index'][vehicle_i]] = 0
+                self.temp_db.status_dict['v_to_n'][vehicle_i] = 0
+                self.temp_db.status_dict['v_to_n_index'][vehicle_i] = coord_index
 
         self.temp_db.base_groups['vehicles'][vehicle_i].update_destination(coordinates)
 
