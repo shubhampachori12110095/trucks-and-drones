@@ -82,8 +82,15 @@ class BaseVisualizer:
         # can also diyplay more information via the add_info_dict, if this is defined by the parameters
         self.info_surface = Surface([self.grid_surface_dim[0], self.info_surface_height], pygame.SRCALPHA)
 
+        # status surface:
+        self.status_surface = Surface([
+                500,
+                self.grid_surface_dim[0] + 2 * self.grid_padding + self.info_surface_height + self.axis_size
+            ], pygame.SRCALPHA
+        )
+
         # init window
-        window_width  = self.grid_surface_dim[0] + 2 * self.grid_padding + self.axis_size
+        window_width  = self.grid_surface_dim[0] + 2 * self.grid_padding + self.axis_size + 510
         window_height = self.grid_surface_dim[0] + 2 * self.grid_padding + self.info_surface_height + self.axis_size
         self.screen   = pygame.display.set_mode([window_width, window_height])
 
@@ -108,6 +115,7 @@ class BaseVisualizer:
         self.grid_info_surface.fill(self.transp_f)
         self.travel_surface.fill(self.transp_f)
         self.info_surface.fill(self.transp_f)
+        self.status_surface.fill(self.transp_f)
         self.screen.fill(self.white)
 
         for i in range(self.simulator.grid[0]+1):
@@ -262,6 +270,15 @@ class BaseVisualizer:
             pygame.draw.lines(self.travel_surface, color, False, surface_coordinates_list)
 
 
+    def draw_status_dict(self):
+
+        i = 0
+        for key in self.temp_db.status_dict.keys():
+            text = self.small_font.render(key+': '+str(self.temp_db.status_dict[key]), True, self.black)
+            self.status_surface.blit(text,  (5, 5+i*15))
+            i += 1
+
+
     def visualize_step(self, episode, step):
 
         self.reset_surfaces()
@@ -274,13 +291,17 @@ class BaseVisualizer:
         [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_transportable_v]
 
         self.draw_env_info(episode, step)
+        self.draw_status_dict()
 
         self.screen.blits((
             (self.grid_surface, (self.grid_padding+self.axis_size, self.grid_padding)),
             (self.grid_info_surface, (self.grid_padding - int(round(self.marker_size/2)), self.grid_padding)),
             #(self.travel_surface, (self.grid_padding, self.grid_padding))
         ))
+        
         self.screen.blit(self.info_surface,(self.grid_padding, self.grid_padding + self.grid_surface_dim[1]+self.axis_size))
+        
+        self.screen.blit(self.status_surface,(self.grid_padding+self.axis_size+self.grid_surface_dim[0], self.grid_padding))
 
         pygame.display.flip()
 

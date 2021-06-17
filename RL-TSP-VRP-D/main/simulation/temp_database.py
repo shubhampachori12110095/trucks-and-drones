@@ -135,6 +135,7 @@ class TempDatabase:
             # Nodes
             'c_coord': [], # list of current customer coordinates
             'd_coord': [], # list of current depot coordinates
+            'c_waiting': [],
 
             # Restrictions
             'battery'     : [],
@@ -215,6 +216,8 @@ class TempDatabase:
         self.past_coord_transportable_v     = [[] for v in self.base_groups['vehicles'] if v.v_loadable]     ##### ergänze bei vehicles
 
         ############################### QUICK FIX !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.status_dict['c_waiting'] = [0  for i in range(self.num_customers)]
+        
         for key in self.status_dict.keys():
             if self.status_dict[key]==[]:
                 self.status_dict[key] = [0  for i in range(self.num_vehicles)]
@@ -279,7 +282,7 @@ class TempDatabase:
         append_to(self.base_groups, 'nodes', customer)
 
 
-    def nearest_neighbour(self, v_index, coord_key, exclude_visited=False, v_type=None, v_free=None):
+    def nearest_neighbour(self, v_index, coord_key, exclude=None):
 
         v_coord = self.status_dict['v_coord'][v_index]
 
@@ -292,19 +295,11 @@ class TempDatabase:
 
         compared = [np.sum(np.abs(np.array(elem)-np.array(v_coord))) for elem in coord_list]
 
-        if exclude_visited:
-            for i in self.visited[v_index]:
-                compared[i] = 10000
-
-        if v_type is not None:
+        if exclude is not None:
             for i in range(len(compared)):
-                if self.status_dict['v_type'][i] != v_type:
-                    compared[i] = 10000
-
-        if v_free is not None:
-            for i in range(len(compared)):
-                if self.status_dict['v_free'][i] != v_free:
-                    compared[i] = 10000
+                for elem in exclude:
+                    if self.status_dict[elem[0]][i] == elem[1]:
+                        compared[i] = 10000
 
         return np.argmin(compared)
 

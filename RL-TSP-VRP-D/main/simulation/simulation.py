@@ -214,10 +214,11 @@ class BaseSimulator:
 
         if coordinates is None:
             if self.temp_db.base_groups['vehicles'][vehicle_i].cargo_obj.standard_cargo.cur_value() > 0:
-                coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['c_coord'])
+                coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['c_coord'], exclude=[['demand',0], ['c_waiting',1]])
                 coordinates = self.temp_db.status_dict['c_coord'][coord_index]
+                self.temp_db.status_dict['c_waiting'][coord_index] = 1
             else:
-                coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['d_coord'])
+                coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['d_coord'], exclude=[['stock',0]])
                 coordinates = self.temp_db.status_dict['d_coord'][coord_index]
 
         self.temp_db.base_groups['vehicles'][vehicle_i].update_destination(coordinates)
@@ -255,7 +256,7 @@ class BaseSimulator:
     def load_vehicle(self, vehicle_i, vehicle_j):
 
         if vehicle_j is None:
-            vehicle_j = self.temp_db.nearest_neighbour(vehicle_i, 'v_coord', v_type=0, v_free=1)
+            vehicle_j = self.temp_db.nearest_neighbour(vehicle_i, 'v_coord', exclude=[['v_type',1], ['v_free',0]])
 
         if self.temp_db.same_coord(vehicle_i, vehicle_j, 'v_coord'):
 
@@ -278,7 +279,7 @@ class BaseSimulator:
     def unload_cargo(self, vehicle_i, customer_j, amount):
 
         if customer_j is None:
-            customer_j = self.temp_db.nearest_neighbour(vehicle_i,'c_coord')
+            customer_j = self.temp_db.nearest_neighbour(vehicle_i, 'c_coord', exclude=[['demand',0]])
 
         if self.temp_db.same_coord(vehicle_i, customer_j, 'c_coord'):
             real_amount = vehicle_at_customer(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['customers'][customer_j], amount)
@@ -288,7 +289,7 @@ class BaseSimulator:
     def load_cargo(self, vehicle_i, depot_j, amount):
 
         if depot_j is None:
-            depot_j = self.temp_db.nearest_neighbour(vehicle_i,'d_coord')
+            depot_j = self.temp_db.nearest_neighbour(vehicle_i,'d_coord', exclude=[['stock',0]])
     
         if self.temp_db.same_coord(vehicle_i, depot_j, 'd_coord'):
             real_amount = vehicle_at_depot(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['depots'][depot_j], amount)
