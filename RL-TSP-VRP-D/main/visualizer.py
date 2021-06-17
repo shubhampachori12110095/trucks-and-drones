@@ -305,6 +305,7 @@ class BaseVisualizer:
 
         pygame.display.flip()
 
+        '''
         event_happened = False
         while not event_happened:
             event = pygame.event.wait()
@@ -314,6 +315,7 @@ class BaseVisualizer:
             elif event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+        '''
 
         #wait = input()
         

@@ -214,7 +214,7 @@ class BaseSimulator:
     def set_destination(self, vehicle_i, coordinates):
 
         if coordinates is None:
-            if self.temp_db.base_groups['vehicles'][vehicle_i].cargo_obj.standard_cargo.cur_value() > 0:
+            if self.temp_db.base_groups['vehicles'][vehicle_i].cargo_obj.standard_cargo.cur_value() > 0 and 0 in self.temp_db.status_dict['c_waiting']:
                 coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['c_coord'], exclude=[['demand',0], ['c_waiting',1]])
                 coordinates = self.temp_db.status_dict['c_coord'][coord_index]
                 self.temp_db.status_dict['c_waiting'][coord_index] = 1
@@ -252,6 +252,7 @@ class BaseSimulator:
             self.tempd_db.status_dict['time_to_dest'][elem.v_index] = 0
 
             print('unloaded v',elem.v_index,'from',vehicle_i)
+            self.v_did_sth = True
 
 
     def load_vehicle(self, vehicle_i, vehicle_j):
@@ -273,6 +274,7 @@ class BaseSimulator:
                 self.temp_db.v_transporting_v[vehicle_i].append(vehicle_j)
                 self.temp_db.action_signal['free_to_be_loaded_v'][vehicle_j] += 1
                 print('loaded v',v_to_load.v_index,'to',vehicle_i)
+                self.v_did_sth = True
             else:
                 self.temp_db.action_signal['free_to_be_loaded_v'][vehicle_j] -= 1
 
@@ -286,6 +288,8 @@ class BaseSimulator:
             real_amount = vehicle_at_customer(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['customers'][customer_j], amount)
 
             print('unloaded cargo',real_amount,'from',vehicle_i,'to customer',customer_j)
+            if real_amount > 0:
+                self.v_did_sth = True
 
     def load_cargo(self, vehicle_i, depot_j, amount):
 
@@ -296,6 +300,8 @@ class BaseSimulator:
             real_amount = vehicle_at_depot(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['depots'][depot_j], amount)
 
             print('loaded cargo',real_amount,'to',vehicle_i, 'from depot', depot_j)
+            if real_amount > 0:
+                self.v_did_sth = True
 
     def recharge_range(self, vehicle_i):
 
@@ -318,13 +324,34 @@ class BaseSimulator:
         
         else:
 
+            print('v did sth', self.v_did_sth)
+
             next_step_time = min(self.temp_db.status_dict['time_to_dest'])
-            self.temp_db.cur_v_index = np.argmin(self.temp_db.status_dict['time_to_dest'])
+            new_v_index = np.argmin(self.temp_db.status_dict['time_to_dest'])
 
             print('next_step_time',next_step_time)
 
+            if next_step_time == 0 and sum(self.temp_db.status_dict['demand']) == 0:
+                masked_array = np.ma.masked_where(np.array(self.temp_db.status_dict['time_to_dest'])==0, np.array(self.temp_db.status_dict['time_to_dest']))
+                next_step_time = np.min(masked_array)
+                new_v_index = np.argmin(masked_array)
+
+            if next_step_time == 0 and self.v_did_sth == False:
+                print(self.temp_db.cur_v_index)
+                new_v_index = self.temp_db.cur_v_index + 1
+                print(new_v_index)
+
+                if new_v_index >= self.temp_db.num_vehicles:
+                    new_v_index = 0
+                next_step_time = self.temp_db.status_dict['time_to_dest'][self.temp_db.cur_v_index]
+
             if next_step_time != 0:
                 [v.travel_period(next_step_time) for v in self.temp_db.base_groups['vehicles'] if self.temp_db.status_dict['v_free'][v.v_index] == 1]
+
+        self.temp_db.cur_v_index = new_v_index
+        self.v_did_sth = False
+        print(np.sum(np.array(self.temp_db.status_dict['v_free'])-1)*10000)
+        return sum(self.temp_db.status_dict['demand']) + sum(self.temp_db.status_dict['time_to_dest']) == np.sum(np.array(self.temp_db.status_dict['v_free'])-1)*-10000
 
     #def finish_episode(self):
         # force return to depots for tsp

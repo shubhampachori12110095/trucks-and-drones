@@ -58,12 +58,11 @@ class CustomEnv(gym.Env):
         self.count_total_steps = 0
 
     def step(self, actions):
-
-        done = False #######################################################################
         
         # take action:
         self.simulator.temp_db.init_step()
         self.action_interp.take_actions(actions)
+        done = self.simulator.finish_step()
         self.simulator.temp_db.finish_step()
 
         # new state:

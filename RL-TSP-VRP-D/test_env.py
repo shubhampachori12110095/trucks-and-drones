@@ -169,4 +169,4 @@ env = CustomEnv(
 
 agent = Agent(env)
 
-agent.test_agent(1)
+agent.test_agent(1000)
