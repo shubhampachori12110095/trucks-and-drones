@@ -20,9 +20,136 @@ from main.simulation.nodes import NodeCreator
 from main.simulation.vehicles import VehicleCreator
 from main.simulation.temp_database import TempDatabase
 
-# gewinn - kosten oder nur -kosten?
+
+def calc_rates(self, should_value, keys, indices):
+    rate_vals = [self.temp_db.status_dict[keys[i]][indices[i]] for i in range(len(keys))]
+    min_rate = np.min(rate_vals)
+    i_of_min = np.argmin(rate_vals)
+    return min(should_value, min_rate), self.temp_db.status_dict[keys[i_of_min]][indices[i_of_min]]
+
+# Move Functions:
+# ----------------------------------------------------------------------------------------------------------------
+
+def distance_value(self):
+    
+    self.temp_db.status_dict['v_direc'][self.v_index] = (
+        self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
+    )
+    
+    return self.calc_distance(self.temp_db.status_dict['v_direc'][self.v_index])
+
+def distance_rate(self, should_value):
+    
+    real_distance = np.min(
+        should_value,
+        self.temp_db.status_dict['distance_in_time'][self.v_index]
+    )
+    rate_constant = self.temp_db.constants_dict['speed'][self.v_index]
+    
+    return real_distance, rate_constant
+
+def distance_act(self, real_distance, should_distance):
+    
+    real_distance = self.go(real_distance)
+    self.temp_db.status_dict['v_coord'][self.v_index] = (
+        self.temp_db.status_dict['v_direc'][self.v_index] * (real_distance/should_distance) + self.temp_db.status_dict['v_coord'][self.v_index]
+    )
+    
+    return real_distance
+
+move_funcs = [distance_value, distance_rate, distance_act]
 
 
+# Unload Vehicle Functions:
+# ----------------------------------------------------------------------------------------------------------------
+
+def unload_vehicle(self):
+
+    to_unload_index = self.temp_db.status_dict['v_to_unload'][self.v_index]
+    weight = self.temp_db.status_dict['weight'][to_unload_index]
+    
+    return np.min(
+        self.temp_db.status_dict['cargo'][self.v_index] - weight,
+        self.temp_db.status_dict['max_cargo'][to_unload_index],
+    )
+
+def unload_vehicle_rate(self, cargo_amount):
+
+    to_unload_index = self.temp_db.status_dict['v_to_unload'][self.v_index]
+    weight = self.temp_db.status_dict['weight'][to_unload_index]
+    
+    real_cargo_amount = np.min(
+        cargo_amount,
+        self.temp_db.status_dict['cargo_in_time'][self.v_index] - weight,
+        self.temp_db.status_dict['cargo_in_time'][to_unload_index],
+    )
+
+    if self.temp_db.constants_dict['cargo_rate'][self.v_index] < self.temp_db.constants_dict['cargo_rate'][to_unload_index]:
+        rate_constant = self.temp_db.constants_dict['cargo_rate'][self.v_index]
+    else:
+        rate_constant = self.temp_db.constants_dict['cargo_rate'][to_unload_index]
+    
+    return real_distance, rate_constant
+
+def unload_vehicle_act(self, real_cargo_amount, cargo_amount):
+    
+    to_unload_index = self.temp_db.status_dict['v_to_unload'][self.v_index]
+    weight = self.temp_db.status_dict['weight'][to_unload_index]
+    
+    return np.min(
+            self.cargo_rate.subtract_value(real_cargo_amount+weight),
+            self.cargo.subtract_value(real_cargo_amount+weight),
+            self.temp_db.base_groups[to_unload_index].cargo_rate.subtract_value(real_cargo_amount),
+            self.temp_db.base_groups[to_unload_index].cargo.add_value(real_cargo_amount),
+        )
+
+unload_vehicle_funcs = [unload_vehicle, unload_vehicle_rate, unload_vehicle_act]
+
+
+# Load Vehicle Functions:
+# ----------------------------------------------------------------------------------------------------------------
+
+def load_vehicle(self):
+
+    to_load_index = self.temp_db.status_dict['v_to_load'][self.v_index]
+    weight = self.temp_db.status_dict['weight'][to_load_index]
+    
+    return np.min(
+        self.temp_db.status_dict['cargo'][self.v_index] - weight,
+        self.temp_db.status_dict['max_cargo'][to_load_index],
+    )
+
+def load_vehicle_rate(self, cargo_amount):
+
+    to_load_index = self.temp_db.status_dict['v_to_load'][self.v_index]
+    weight = self.temp_db.status_dict['weight'][to_load_index]
+    
+    real_cargo_amount = np.min(
+        cargo_amount,
+        self.temp_db.status_dict['cargo_in_time'][self.v_index] - weight,
+        self.temp_db.status_dict['cargo_in_time'][to_load_index],
+    )
+
+    if self.temp_db.constants_dict['cargo_rate'][self.v_index] < self.temp_db.constants_dict['cargo_rate'][to_load_index]:
+        rate_constant = self.temp_db.constants_dict['cargo_rate'][self.v_index]
+    else:
+        rate_constant = self.temp_db.constants_dict['cargo_rate'][to_load_index]
+    
+    return real_distance, rate_constant
+
+def load_vehicle_act(self, real_cargo_amount, cargo_amount):
+    
+    to_load_index = self.temp_db.status_dict['v_to_load'][self.v_index]
+    weight = self.temp_db.status_dict['weight'][to_load_index]
+    
+    return np.min(
+            self.cargo_rate.subtract_value(real_cargo_amount+weight),
+            self.cargo.add_value(real_cargo_amount+weight),
+            self.temp_db.base_groups[to_load_index].cargo_rate.subtract_value(real_cargo_amount),
+            self.temp_db.base_groups[to_load_index].cargo.subtract_value(real_cargo_amount),
+        )
+
+load_vehicle_funcs = [load_vehicle, load_vehicle_rate, load_vehicle_act]
 # Vehicle with vehicle interactions:
 # ----------------------------------------------------------------------------------------------------------------
 

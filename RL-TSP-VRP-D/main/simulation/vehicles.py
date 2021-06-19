@@ -5,382 +5,213 @@ import numpy as np
 from main.simulation.restrictions import RestrValueObject
 from main.simulation.common_sim_func import param_interpret, random_coordinates
 
-# Cargo
-# ----------------------------------------------------------------------------------------------------------------
 
-
-def cargo_parameter(
-        cargo_type         = 'standard+extra',
-        max_cargo          = 10,
-        max_cargo_UV       = 1,
-        cargo_per_step     = 1,
-        cargo_UV_per_step  = 1,
-        init_value         = 0,
-        signal_list        = [1,1,-1],
-       ):
-    return {
-            'cargo_type': cargo_type,
-            'max_cargo': max_cargo,
-            'max_cargo_UV': max_cargo_UV,
-            'cargo_per_step': cargo_per_step,
-            'cargo_UV_per_step': cargo_UV_per_step,
-            'init_value': init_value,
-            'signal_list': signal_list,
-            }
-
-
-class CargoClass:
-    '''
-    Has normal cargo space for standard customer products and extra cargo space for UV. 
-    '''
-    def __init__(self, v_index, temp_db, cargo_param):
-
-        [setattr(self, k, param_interpret(v)) for k, v in cargo_param.items()]
-
-        self.cargo_rate    = RestrValueObject('cargo_rate', v_index, temp_db, self.cargo_per_step, 0, self.cargo_per_step, self.signal_list)
-        self.cargo_UV_rate = RestrValueObject('cargo_UV_rate', v_index, temp_db, self.cargo_UV_per_step, 0, self.cargo_UV_per_step, self.signal_list)
-
-        if self.cargo_type == 'standard+extra':
-            self.standard_cargo = RestrValueObject('cargo', v_index, temp_db, self.max_cargo, 0, self.init_value, self.signal_list)
-            self.UV_cargo       = RestrValueObject('cargo_v', v_index, temp_db, self.max_cargo_UV, 0, self.init_value, self.signal_list)
-            
-        elif self.cargo_type == 'standard+including':
-            self.standard_cargo = RestrValueObject('cargo', v_index, temp_db, self.max_cargo, 0, self.init_value, self.signal_list)
-            self.UV_cargo       = self.standard_cargo
-
-        elif self.cargo_type == 'standard':
-            self.standard_cargo = RestrValueObject('cargo', v_index, temp_db, self.max_cargo, 0, self.init_value, sself.ignal_list)
-
-        else:
-            raise Exception("cargo_type was set to '{}', but has to be: 'standard+extra', 'standard+including', 'only_standard'".format(self.cargo_type))
-
-
-# Range
-# ----------------------------------------------------------------------------------------------------------------
-
-
-def battery_parameter(
-        range_type         = 'battery',
-        max_charge         = 100,
-        charge_per_step    = 50,
-        discharge_per_step = 10,
-        init_value         = 0,
-        signal_list        = [1,1,-1],
-        ):
-    return {
-            'range_type': range_type,
-            'max_charge': max_charge,
-            'charge_per_step': charge_per_step,
-            'discharge_per_step': discharge_per_step,
-            'init_value': init_value,
-            'signal_list': signal_list,
-            }
-
-
-class StandardBattery:
-    '''
-    For battery recharge.
-    '''
-    def __init__(self,v_index,temp_db,battery_parameter):
-
-        [setattr(self, k, param_interpret(v)) for k, v in battery_parameter.items()]
+''' VEHICLE PARAMETER 
+# number of vehicles:
+num: (int, list, tuple, np.ndarray) = 1,
+# loadable:
+loadable: bool = False,
+# range or battery:
+range_type: str = 'simple', # alt: 'simple', 'battery'
+max_range: (NoneType, int, list, tuple, np.ndarray) = None,
+max_charge: (NoneType, int, list, tuple, np.ndarray) = None,
+init_charge: (str, NoneType, int, list, tuple, np.ndarray) = None,
+charge_rate: (str, NoneType, int, list, tuple, np.ndarray) = None,
+# travel:
+travel_type: str = 'street', # alt: 'street', arial
+speed: (int, list, tuple, np.ndarray) = 1,
+# cargo:
+cargo_type: str = 'standard', # alt: 'standard', 'standard+extra', 'standard+including'
+max_cargo: (NoneType, int, list, tuple, np.ndarray) = None,
+init_cargo: (str, NoneType, int, list, tuple, np.ndarray) = 'max',
+cargo_rate: (NoneType, int, list, tuple, np.ndarray) = None,
+# vehicle capacity:
+max_v_cap: (NoneType, int, list, tuple, np.ndarray) = 0,
+v_rate: (NoneType, int, list, tuple, np.ndarray) = 0,
+# visualization:
+symbol: (str, NoneType) = 'circle', # 'triangle-up', 'triangle-down' 'rectangle'
+color: (str, NoneType, int, list, tuple, np.ndarray) = 'red',
+'''      
         
-        self.SoC = RestrValueObject('battery',v_index, temp_db, self.max_charge, 0, self.init_value, self.signal_list)
+# Vehicle Class Functions:
+# ----------------------------------------------------------------------------------------------------------------
 
-
-    def travel_step(self, distance):
-        real_discharge = self.SoC.subtract_value(distance*self.discharge_per_step)
-        distance = real_discharge/self.discharge_per_step
+def simple_go(self, distance):
+    if self.range_restr.max_value is None:
         return distance
+    distance = self.range_restr.subtract_value(distance)
+    return distance
 
-    def charge_travelling(self):
-        real_charge = self.SoC.add_value(self.charge_per_step)
+def simple_recharge(self):
+    self.range_restr.set_to_max()
 
+def battery_go(self, distance):
+    real_discharge = self.range_restr.subtract_value(distance * self.charge_rate)
+    distance = real_discharge / self.charge_rate
+    return distance
 
-def range_parameter(
-        range_type  = 'range',
-        max_range   = None,
-        init_value  = 0,
-        signal_list = [1,1,-1],
-        ):
-    return {
-            'range_type': range_type,
-            'max_range': max_range,
-            'init_value': init_value,
-            'signal_list': signal_list,
-            }
+def battery_recharge(self):
+    real_charge = self.range_restr.add_value(self.charge_rate)
 
+def street_distance(self, direction):
+    return np.sum(np.abs(direction))
 
-class StandardRange:
-    '''
-    For battery swap or unlimited range.
-    '''
-    def __init__(self, v_index, temp_db, range_parameter):
-
-        [setattr(self, k, param_interpret(v)) for k, v in range_parameter.items()]
-        
-        self.range_dist = RestrValueObject('range', v_index, temp_db, self.max_range,0,self.init_value,self.signal_list)
-
-    def travel_step(self, distance):
-        if self.max_range is None:
-            return distance
-        distance = self.range_dist.subtract_value(distance)
-        return distance
-
-    def charge_travelling(self):
-        self.range_dist.set_to_max()
+def arial_distance(self, direction):
+    return np.linalg.norm(direction)
 
 
-
-# Travel
+# Base Battery:
 # ----------------------------------------------------------------------------------------------------------------
 
+class BaseBatteryClass(RestrValueObject):
 
-def travel_parameter(
-        travel_type = 'street',
-        speed       = 1,
-        ):
-    return {
-            'travel_type': travel_type,
-            'speed': speed,
-            }
+    def __init__(self, battery, name, obj_index, index_type, temp_db, speed):
 
+        super().__init__(name, obj_index, index_type, temp_db, rate=speed)
 
-class StreetTravel:
-    '''
-    Street travel only allows horizontal and vertical movement to simulate a street grid. Used by ground vehicles.
-    '''
-    def __init__(self, range_obj, speed=1):
-        self.range_obj = range_obj
-        self.speed     = speed
-        self.type      = 'street'
+        self.battery = battery
+        self.charge_to_distance = 0.5 ####################################################################################################################
 
-    def travel(self, direction, time):
-        distance = np.sum(np.abs(direction))
-        in_time_distance = self.speed * time
+    def add_value(self, value):
+        new_charge = self.battery.check_add_value(value)
+        new_distance = self.charge_to_distance*new_charge
+        value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+        self.update(new_value, restr_signal)
+        self.battery.add_value((new_value / self.charge_to_distance) - new_charge)
+        return new_value
 
-        if distance != 0 and in_time_distance != 0:
-            
-            if in_time_distance < distance:
-                # ERGÄNZE VEHICLE STUCK
-                real_distance = self.range_obj.travel_step(in_time_distance)
-            else:
-                real_distance = self.range_obj.travel_step(distance)
+    def subtract_value(self, value):
+        new_charge = self.battery.check_subtract_value(value)
+        new_charge = self.charge_to_distance*new_charge
+        value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+        self.update(new_value, restr_signal)
+        self.battery.subtract_value(new_charge - (new_value / self.charge_to_distance))
+        return new_value
 
-            if distance - real_distance == 0:
-                time_till_dest = 0
-            else:
-                time_till_dest = (distance-real_distance) / self.speed
+    def check_add_value(self, value):
+        new_charge = self.battery.check_add_value(value)
+        new_charge = self.charge_to_distance * new_charge
+        value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+        return new_value - self.temp_db.status_dict[self.name][self.obj_index]
 
-            #      new direction vector,                   # time till destination is reached
-            return direction * (distance / real_distance), time_till_dest
-        else:
-            return np.zeros((2)), 0
-
-
-class ArialTravel:
-    '''
-    Arial travel is measeured by euclidian distance. Used by drones.
-    '''
-    def __init__(self, range_obj, speed=1):
-        self.range_obj = range_obj
-        self.speed     = speed
-        self.type      = 'arial'
-
-    def travel(self, direction, time):
-        distance = np.linalg.norm(direction)
-        
-        if distance != 0:
-            in_time_distance = (self.speed / distance) * time
-            # ERGÄNZE VEHICLE STUCK
-            real_distance = self.range_obj.travel_step(in_time_distance)
-            
-            #      new direction vector,                   # time till destination is reached
-            return direction * (distance / real_distance), (distance-in_time_distance) / self.speed
-        else:
-            return np.zeros((2)), 0
+    def check_subtract_value(self, value):
+        new_charge = self.battery.check_subtract_value(value)
+        new_charge = self.charge_to_distance * new_charge
+        value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+        return self.temp_db.status_dict[self.name][self.obj_index] - new_value
 
 
-
-# Base Vehicle Classes
+# Base Vehicle Class:
 # ----------------------------------------------------------------------------------------------------------------
 
-class VehicleClass:
+class BaseVehicleClass:
     '''
-    Creates a vehicle based on cargo_obj and travel_obj.
-    Cargo loading/ unloading is restricted either by possibles actions or automatic management through heuristics.
-    Travel is based on taking a direction.
     '''
-    def __init__(self, temp_db, v_index, v_type, v_loadable, cargo_obj, travel_obj, weight=0):
+    def __init__(self, temp_db, v_index, v_type, v_params, BatteryClass=BaseBatteryClass):
 
+        # Init:
         self.temp_db = temp_db
         self.v_index = v_index
         self.v_type = v_type
-        self.v_loadable = v_loadable
 
-        self.weight = weight
-        
-        self.cargo_obj  = cargo_obj
-        self.travel_obj = travel_obj
+        # Intepret parameter dict:
+        for key in v_params.keys(): v_params[key] = param_interpret(v_params[key])
 
-        self.speed = travel_obj.speed
+        # Init parameter based on parameter dict
+        self.v_name = v_params['v_name']
 
-        if self.travel_obj.type == 'street':
-            self.calc_distance = self.street_distance
-        elif self.travel_obj.type == 'arial':
-            self.calc_distance = self.arial_distance
+        # Create items as restricted value:
+        if v_params['range_type'] == 'simple':
+            self.go = simple_go
+            self.recharge = simple_recharge
+            self.range_restr = RestrValueObject('range', v_index, 'vehicle', temp_db, v_params['max_range'], 0, v_params['max_range'], v_params['speed'])
 
-    def calc_direction(self):
-        return self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
+        elif v_params['range_type'] == 'battery':
+            self.go = battery_go
+            self.recharge = battery_recharge
+            self.range_restr = BaseBatteryClass(
+                RestrValueObject('battery', v_index, 'vehicle', temp_db, v_params['max_charge'], 0, v_params['init_charge'], v_params['charge_rate']), 
+                'range', v_index, 'vehicle', temp_db, v_params['speed']
+            )
 
-    def street_distance(self, direction):
-        return np.sum(np.abs(direction))
-
-    def arial_distance(self, direction):
-        return np.linalg.norm(direction)
-
-    def set_time_till_dest(self, distance):
-        if distance == 0:
-            self.temp_db.status_dict['time_to_dest'][self.v_index] = 0
         else:
-            self.temp_db.status_dict['time_to_dest'][self.v_index] = distance / self.speed
+            raise Exception("range_type was set to '{}', but has to be: 'simple', 'battery'".format(v_params['range_type']))
 
-
-    def update_destination(self, coord):
-        self.temp_db.status_dict['v_dest'][self.v_index] = np.array(coord)
-        self.set_time_till_dest(self.calc_distance(self.calc_direction()))
-
-        
-    def travel_period(self, time):
-
-        direction = self.calc_direction()
-        distance = self.calc_distance(direction)
-
-        in_time_distance = self.speed * time
-
-        if distance != 0 and in_time_distance != 0:
+        # Create cargo as restricted value:
+        if v_params['cargo_type'] == 'standard+extra':
+            self.cargo = RestrValueObject('cargo', v_index, 'vehicle', temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
+            self.max_v_cap = RestrValueObject('max_v_cap', v_index, 'vehicle', temp_db, v_params['max_v_cap'], 0, 0, v_params['v_rate'])
+            self.is_truck = True
             
-            if in_time_distance < distance:
-                # ERGÄNZE VEHICLE STUCK
-                real_distance = self.travel_obj.range_obj.travel_step(in_time_distance)
-            else:
-                real_distance = self.travel_obj.range_obj.travel_step(distance)
+        elif v_params['cargo_type'] == 'standard+including':
+            self.cargo = RestrValueObject('cargo', v_index, 'vehicle', temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
+            self.max_v_cap = self.standard_cargo
+            self.is_truck = True
 
-            self.temp_db.status_dict['v_coord'][self.v_index] = direction * (real_distance/distance) + self.temp_db.status_dict['v_coord'][self.v_index]
-        
-        self.set_time_till_dest(self.calc_distance(self.calc_direction()))
+        elif v_params['cargo_type'] == 'standard':
+            self.standard_cargo = RestrValueObject('cargo', 'vehicle', v_index, temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
+            self.is_truck = False
 
-        loaded_v = self.temp_db.v_transporting_v[self.v_index]
-        if any(loaded_v):
-            for i in self.temp_db.v_transporting_v[self.v_index]:
-                self.temp_db.status_dict['v_coord'][i] = self.temp_db.status_dict['v_coord'][self.v_index]
+        else:
+            raise Exception("cargo_type was set to '{}', but has to be: 'standard+extra', 'standard+including', 'only_standard'".format(v_params['cargo_type']))
 
-    '''
-    def calc_travel(self, step_time=1):
+        # Init travel functions:
+        if v_params['travel_type'] == 'street':
+            self.calc_distance = street_distance
+        elif v_params['travel_type'] == 'arial':
+            self.calc_distance = arial_distance
+        else:
+            raise Exception("travel_type was set to '{}', but has to be: 'street', 'arial'".format(v_params['travel_type']))
 
-        self.cur_coordinates = np.array(self.temp_db.status_dict['v_coord'][self.v_index])
-        
-        abs_traveled, times_till_dest = self.travel_obj.travel(self.cur_destination - self.cur_coordinates, step_time)
-        new_coordinates = self.cur_coordinates + abs_traveled
 
-        print('cur_coordinates', self.cur_coordinates)
-        print('abs_traveled', abs_traveled)
-        print('new_coordinates', new_coordinates)
-        print('times_till_dest', times_till_dest)
+    def step(self, time):
+        # v_acts[0] = function that calcs a value
+        # v_acts[1] = keys list
+        # v_acts[2] = index list for the keys
+        # v_acts[3] = function that takes an action
+        v_acts = self.temp_db.v_acts[self.v_index]
+        should_value = v_acts[0]()
+        real_value, min_rate_constant = v_acts[1]()
+
+        if action_value != 0:
+            real_value = v_acts[2](real_value, should_value)
+
+        if should_value-real_value == 0:
+            self.temp_db.status_dict['time_till_fin'][self.v_index] = 0
+        else:
+            self.temp_db.status_dict['time_till_fin'][self.v_index] = (should_value-real_value) / min_rate_constant
+                    
             
-        return new_coordinates, times_till_dest
 
-    def travel_period(self, step_time):
 
-        if self.cur_destination is not None and np.sum(self.cur_destination-self.cur_coordinates) != 0:
 
-            self.cur_coordinates, self.temp_db.status_dict['time_to_dest'][self.v_index] = self.calc_travel(step_time)
-
-            self.temp_db.status_dict['v_coord'][self.v_index] = self.cur_coordinates
-            
-            loaded_v = self.temp_db.v_transporting_v[self.v_index]
-            if any(loaded_v):
-                for i in self.temp_db.v_transporting_v[self.v_index]:
-                    self.temp_db.base_groups['vehicles'][i].cur_coordinates = self.cur_coordinates
-
-        if self.cur_destination is None:
-            self.temp_db.status_dict['time_to_dest'][self.v_index] = 0
-    '''
-
-# Vehicle Creator
+# Base Vehicle Creator:
 # ----------------------------------------------------------------------------------------------------------------
 
-class VehicleCreator:
+class BaseVehicleCreator:
 
-    def __init__(self, temp_db,
-                 # Manned Vehicles:
-                 MV_cargo_param, 
-                 MV_range_param, 
-                 MV_travel_param,
-                 # Unmanned Vehicles:
-                 UV_cargo_param, 
-                 UV_range_param, 
-                 UV_travel_param,
-                 ):
+    def __init__(self, temp_db, v_params_list, VehicleClass=BaseVehicleClass):
 
-        self.temp_db         = temp_db
+        self.temp_db = temp_db
+        self.v_params_list = v_params_list
 
-        self.MV_cargo_param  = MV_cargo_param
-        self.MV_range_param  = MV_range_param
-        self.MV_travel_param = MV_travel_param
-
-        self.UV_cargo_param  = UV_cargo_param
-        self.UV_range_param  = UV_range_param
-        self.UV_travel_param = UV_travel_param
+        '''
+        save important constants to temp_db !!!
+        '''
 
 
-    def create_vehicles(self, num_transporter=2, num_loadable=4, weight_loadable=1):
-
-        #### LOADABLE ergänzen######
-    
-        #MV_list        = []
-        #UV_per_MV_list = []
+    def create(self):
 
         v_index = 0
+        v_type = 0
 
-        for i in range(num_transporter):
-            self.create_vehicle(v_index, True, False, self.MV_cargo_param, self.MV_range_param, self.MV_travel_param)
-            v_index += 1
-
-        for i in range(num_loadable):
-            vehicle = self.create_vehicle(v_index, False, True, self.MV_cargo_param, self.MV_range_param, self.MV_travel_param, weight_loadable)
-            v_index += 1
-
-
-    def create_vehicle(self, v_index, can_load_v, loadable, cargo_param, range_param, travel_param, weight=0):
-
-
-        cargo_obj = CargoClass(v_index, self.temp_db, cargo_param)
-
-        # Initilize Range
-        # Range calculation through batter:
-        if range_param['range_type'] == 'battery':
-            range_obj = StandardBattery(v_index, self.temp_db, range_param)
-        # Range calculation with max distance or no range restriction if max_range = None:
-        elif range_param['range_type'] == 'range':
-            range_obj = StandardRange(v_index, self.temp_db, range_param)
-        # Exception:
-        else:
-            raise Exception("range_type was set to '{}', but has to be: 'battery', 'range'".format(range_type))
-
-
-        # Initilize Travel
-        # Travel by street:
-        if travel_param['travel_type'] == 'street':
-            travel_obj = StreetTravel(range_obj, travel_param['speed'])
-        # Travel by air:
-        elif travel_param['travel_type'] == 'arial':
-            travel_obj = ArialTravel(range_obj, travel_param['speed'])
-        # Exception:
-        else:
-            raise Exception("travel_type was set to '{}', but has to be: 'street', 'arial'".format(travel_type))
-
-        vehicle = VehicleClass(self.temp_db, v_index, can_load_v, loadable, cargo_obj, travel_obj, weight)
-        self.temp_db.add_vehicle(
-            vehicle, travel_param['travel_type'], range_param['range_type'], travel_obj.speed)
-
+        for v_params in v_params_list:
+            for i in range(v_params['num']):
+                vehicle = VehicleClass(self.temp_db, v_index, v_type, v_params)
+                self.temp_db.add_vehicle(vehicle)
+                v_index +=1
+            v_type += 1

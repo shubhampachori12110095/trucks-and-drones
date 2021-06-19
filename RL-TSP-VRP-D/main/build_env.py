@@ -38,13 +38,17 @@ class BuildEnvironment:
     def vehicle(self,
             # number of vehicles:
             num: (int, list, tuple, np.ndarray) = 1,
+            # vehicle name:
+            v_name: str = 'vehicle', # alt: 'vehicle', 'truck', 'drone', 'robot'
             # loadable:
             loadable: bool = False,
-            # range or battery:
-            range_type: str = 'range', # alt: 'range', 'battery'
+            weight: (NoneType, int, list, tuple, np.ndarray) = 0,
+            # range:
+            range_type: str = 'simple', # alt: 'simple', 'battery'
             max_range: (NoneType, int, list, tuple, np.ndarray) = None,
             max_charge: (NoneType, int, list, tuple, np.ndarray) = None,
             init_charge: (str, NoneType, int, list, tuple, np.ndarray) = None,
+            charge_rate: (str, NoneType, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'street', # alt: 'street', arial
             speed: (int, list, tuple, np.ndarray) = 1,
@@ -58,17 +62,20 @@ class BuildEnvironment:
             v_rate: (NoneType, int, list, tuple, np.ndarray) = 0,
             # visualization:
             symbol: (str, NoneType) = 'circle', # 'triangle-up', 'triangle-down' 'rectangle'
-            color: (str, NoneType, int, list, tuple, np.ndarray) = 'red',
+            color: (str, NoneType, list, tuple, np.ndarray) = 'red',
         ):
 
 
         self.vehicle_params.append({
             'num': num,
+            'v_name': v_name,
             'loadable': loadable,
+            'weight': weight,
             'range_type': range_type,
             'max_range': max_range,
             'max_charge': max_charge,
             'init_charge': init_charge,
+            'charge_rate': charge_rate,
             'travel_type': travel_type,
             'speed': speed,
             'cargo_type': cargo_type,
@@ -88,11 +95,13 @@ class BuildEnvironment:
             num: (int, list, tuple, np.ndarray) = 1,
             # loadable:
             loadable: bool = False,
-            # range or battery:
-            range_type: str = 'range', # alt: 'range', 'battery'
+            weight: (NoneType, int, list, tuple, np.ndarray) = 0,
+            # range:
+            range_type: str = 'simple', # alt: 'simple', 'battery'
             max_range: (NoneType, int, list, tuple, np.ndarray) = None,
             max_charge: (NoneType, int, list, tuple, np.ndarray) = None,
             init_charge: (str, NoneType, int, list, tuple, np.ndarray) = None,
+            charge_rate: (str, NoneType, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'street', # alt: 'street', arial
             speed: (int, list, tuple, np.ndarray) = 1,
@@ -106,10 +115,10 @@ class BuildEnvironment:
             v_rate: (NoneType, int, list, tuple, np.ndarray) = 1,
             # visualization:
             symbol: (str, NoneType) = 'circle', # 'triangle-up', 'triangle-down' 'rectangle'
-            color: (str, NoneType, int, list, tuple, np.ndarray) = 'purple',
+            color: (str, NoneType, list, tuple, np.ndarray) = 'purple',
         ):
 
-        self.vehicle(num,loadable,range_type,max_range,max_charge,init_charge,travel_type
+        self.vehicle(num,'truck',loadable,weight,range_type,max_range,max_charge,init_charge,charge_rate,travel_type
             speed,cargo_type,max_cargo,init_cargo,cargo_rate,max_v_cap,v_rate, symbol, color)
 
 
@@ -118,11 +127,13 @@ class BuildEnvironment:
             num: (int, list, tuple, np.ndarray) = 1,
             # loadable:
             loadable: bool = True,
-            # range or battery:
-            range_type: str = 'battery', # alt: 'range', 'battery'
+            weight: (NoneType, int, list, tuple, np.ndarray) = 0,
+            # range:
+            range_type: str = 'battery', # alt: 'simple', 'battery'
             max_range: (NoneType, int, list, tuple, np.ndarray) = None,
             max_charge: (NoneType, int, list, tuple, np.ndarray) = 100,
             init_charge: (str, NoneType, int, list, tuple, np.ndarray) = 'max',
+            charge_rate: (str, NoneType, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'arial', # alt: 'street', arial
             speed: (int, list, tuple, np.ndarray) = 1,
@@ -136,10 +147,10 @@ class BuildEnvironment:
             v_rate: (NoneType, int, list, tuple, np.ndarray) = 0,
             # visualization:
             symbol: (str, NoneType) = 'triangle-up', # 'triangle-up', 'triangle-down' 'rectangle'
-            color: (str, NoneType, int, list, tuple, np.ndarray) = 'blue',
+            color: (str, NoneType, list, tuple, np.ndarray) = 'blue',
         ):
 
-        self.vehicle(num,loadable,range_type,max_range,max_charge,init_charge,travel_type
+        self.vehicle(num,'drone',loadable,weight,range_type,max_range,max_charge,init_charge,charge_rate,travel_type
             speed,cargo_type,max_cargo,init_cargo,cargo_rate,max_v_cap,v_rate, symbol, color)
 
 
@@ -148,11 +159,13 @@ class BuildEnvironment:
             num: (int, list, tuple, np.ndarray) = 1,
             # loadable:
             loadable: bool = True,
-            # range or battery:
-            range_type: str = 'battery', # alt: 'range', 'battery'
+            weight: (NoneType, int, list, tuple, np.ndarray) = 0,
+            # range:
+            range_type: str = 'battery', # alt: 'simple', 'battery'
             max_range: (NoneType, int, list, tuple, np.ndarray) = None,
             max_charge: (NoneType, int, list, tuple, np.ndarray) = 100,
             init_charge: (str, NoneType, int, list, tuple, np.ndarray) = 'max',
+            charge_rate: (str, NoneType, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'street', # alt: 'street', arial
             speed: (int, list, tuple, np.ndarray) = 0.5,
@@ -169,15 +182,15 @@ class BuildEnvironment:
             color: (str, NoneType, int, list, tuple, np.ndarray) = 'light-blue',
         ):
 
-        self.vehicle(num,loadable,range_type,max_range,max_charge,init_charge,travel_type
+        self.vehicle(num,'robot',loadable,weight,range_type,max_range,max_charge,init_charge,charge_rate,travel_type
             speed,cargo_type,max_cargo,init_cargo,cargo_rate,max_v_cap,v_rate, symbol, color)
 
 
     def node(self
             # number of nodes:
             num: (int, list, tuple, np.ndarray) = 1,
-            # node type:
-            n_type: str = 'depot', # alt: 'depot', 'customer'
+            # node name:
+            n_name: str = 'node', # alt: 'node', 'depot', 'customer'
             # items (stock if node is depot and demand if node is customer):
             max_items: (NoneType, int, list, tuple, np.ndarray) = 10,
             init_items: (str, NoneType, int, list, tuple, np.ndarray) = 'max',
@@ -186,13 +199,13 @@ class BuildEnvironment:
             init_items_at_step: (NoneType, int, list, tuple, np.ndarray) = 0,
             # visualization:
             symbol: (str, NoneType) = 'rectangle', # 'triangle-up', 'triangle-down', 'rectangle'
-            color: (str, NoneType, int, list, tuple, np.ndarray) = 'orange',
+            color: (str, NoneType, list, tuple, np.ndarray) = 'orange',
         ):
 
 
         self.node_params.append({
             'num': num,
-            'n_type': n_type,
+            'n_name': n_name,
             'max_items': max_items,
             'init_items': init_items,
             'item_rate': item_rate,
@@ -215,7 +228,7 @@ class BuildEnvironment:
             init_items_at_step: (NoneType, int, list, tuple, np.ndarray) = 0,
             # visualization:
             symbol: (str, NoneType) = 'rectangle', # 'triangle-up', 'triangle-down', 'rectangle'
-            color: (str, NoneType, int, list, tuple, np.ndarray) = 'orange',
+            color: (str, NoneType, list, tuple, np.ndarray) = 'orange',
         ):
 
         self.node(num,'depot',max_items,init_items,item_rate,item_recharge,init_items_at_step)
@@ -232,7 +245,7 @@ class BuildEnvironment:
             init_items_at_step: (NoneType, int, list, tuple, np.ndarray) = 0,
             # visualization:
             symbol: (str, NoneType) = 'rectangle', # 'triangle-up', 'triangle-down', 'rectangle'
-            color: (str, NoneType, int, list, tuple, np.ndarray) = 'yellow',
+            color: (str, NoneType, list, tuple, np.ndarray) = 'yellow',
         ):
 
         self.node(num,'customer',max_items,init_items,item_rate,item_recharge,init_items_at_step)

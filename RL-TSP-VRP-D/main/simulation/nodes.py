@@ -15,119 +15,91 @@ Depot Möglichkeiten:
 from main.simulation.restrictions import RestrValueObject
 from main.simulation.common_sim_func import param_interpret, random_coordinates, max_param_val
 
+'''
+NODE PARAMETER
+# number of nodes:
+num: (int, list, tuple, np.ndarray) = 1,
+# node type:
+n_name: str = 'depot', # alt: 'depot', 'customer'
+# items (stock if node is depot and demand if node is customer):
+max_items: (NoneType, int, list, tuple, np.ndarray) = 10,
+init_items: (str, NoneType, int, list, tuple, np.ndarray) = 'max',
+item_rate: (NoneType, int, list, tuple, np.ndarray) = None,
+item_recharge: (NoneType, int, list, tuple, np.ndarray) = 0,
+init_items_at_step: (NoneType, int, list, tuple, np.ndarray) = 0,
+# visualization:
+symbol: (str, NoneType) = 'rectangle', # 'triangle-up', 'triangle-down', 'rectangle'
+color: (str, NoneType, list, tuple, np.ndarray) = 'orange',
+'''
 
-# Parameter:
+# Vehicle Class Functions:
 # ----------------------------------------------------------------------------------------------------------------
 
-def depot_parameter(
-        num_depots       = 1,
-        max_stock        = None,
-        resupply_rate    = 1,
-        unlimited_supply = True,
-        init_value       = 30,
-        signal_list      = [1,1,-1],
-        ):
-    return {
-        'num_depots': num_depots,
-        'max_stock': max_stock,
-        'resupply_rate': resupply_rate,
-        'unlimited_supply': unlimited_supply,
-        'init_value': init_value,
-        'signal_list': signal_list,
-        }
+def item_recharge(self, time):
 
 
-def customer_parameter(
-        customer_type      = 'static',
-        num_customers      = [5,10],
-        first_demand_step  = [0,0],
-        demand_after_steps = None,
-        demand_add         = 1,
-        max_demand         = None,
-        init_value         = [1,1],
-        signal_list        = [1,1,-1],
-       ):
-    return {
-        'customer_type': customer_type,
-        'num_customers': num_customers,
-        'first_demand_step': first_demand_step,
-        'demand_after_steps': demand_after_steps,
-        'demand_add': demand_add,
-        'max_demand': max_demand,
-        'init_value': init_value,
-        'signal_list': signal_list,
-        }
+def init_items_at_step(self, time):
 
 
-# Nodes:
+# Base Node Class:
 # ----------------------------------------------------------------------------------------------------------------
 
-class NodeCreator:
+class BaseNodeClass:
 
-    def __init__(self, temp_db, customer_parameter, depot_parameter):
+    def __init__(self, temp_db, n_index, n_type, n_params):
+
+        # Init:
         self.temp_db = temp_db
+        self.n_index = n_index
+        self.n_type = n_type
 
-        self.depot_parameter = depot_parameter
-        self.num_depots      = depot_parameter['num_depots']
-        del self.depot_parameter['num_depots']
+        # Intepret parameter dict:
+        for key in n_params.keys(): n_params[key] = param_interpret(n_params[key])
 
-        self.customer_parameter = customer_parameter
-        self.num_customers      = customer_parameter['num_customers']
-        del self.customer_parameter['num_customers']
+        # Init parameter based on parameter dict
+        self.n_name = n_params['n_name']
 
-        # für max vals!
-        #self.temp_db.init_nodes(max_param_val(self.num_depots)+max_param_val(self.num_customers))
+        # Create items as restricted value:
+        self.items = RestrValueObject('items', n_index, temp_db, n_params['max_items'], 0, n_params['init_items'])
+        self.item_rate = RestrValueObject('item_rate', n_index, temp_db, n_params['item_rate'], 0, n_params['item_rate'])
 
-    def create_depot(self, n_index):
-        coordinates  = random_coordinates(self.temp_db.grid)
-        customer_obj = BaseDepot(n_index, self.temp_db, self.depot_parameter, coordinates)
-        self.temp_db.add_depot(customer_obj)
+        # Init time dependent functions (functions that take the passed time as input):
+        self.time_dependent_funcs = []
+        # Add item recharge as time dependent function if needed:
+        if n_params['item_recharge'] is not None:
+            self.time_dependent_funcs.append(item_recharge)
+        # Add init items at step as time dependent function if needed:
+        if n_params['init_items_at_step'] is not None:
+            self.time_dependent_funcs.append(init_items_at_step)
+
+    def step(self, time):
+
+        [func(time) for func in self.time_dependent_funcs]
 
 
-    def create_customer(self, n_index):
-        coordinates  = random_coordinates(self.temp_db.grid)
-        customer_obj = BaseCustomer(n_index, self.temp_db, self.customer_parameter, coordinates)
-        self.temp_db.add_customer(customer_obj)
-
-
-    def create_nodes(self):
-
-        #n_index = 0
-        for i in range(param_interpret(self.num_depots)):
-            self.create_depot(i)
-            #n_index += 1
-
-        for i in range(param_interpret(self.num_customers)):
-            self.create_customer(i)
-            #n_index += 1
-
-# Depots:
+# Base Node Creator:
 # ----------------------------------------------------------------------------------------------------------------
 
-class BaseDepot:
+class BaseNodeCreator:
 
-    def __init__(self, d_index, temp_db, d_param, coordinates):
+    def __init__(self, temp_db, n_params_list, NodeClass=BaseNodeClass):
+        
+        self.temp_db = temp_db
+        self.n_params_list = n_params_list
 
-        self.d_index     = d_index
-        self.coordinates = coordinates
+        '''
+        save important constants to temp_db !!!
+        '''
 
-        [setattr(self, k, param_interpret(v)) for k, v in d_param.items()]
+    def create(self):
 
-        self.stock = RestrValueObject('stock', d_index, temp_db, self.max_stock, 0, self.init_value, self.signal_list)
+        n_index = 0
+        n_type = 0
 
-
-# Customers:
-# ----------------------------------------------------------------------------------------------------------------
-
-class BaseCustomer:
-
-    def __init__(self, c_index, temp_db, c_param, coordinates):
-
-        self.c_index     = c_index
-        self.coordinates = coordinates
-
-        [setattr(self, k, param_interpret(v)) for k, v in c_param.items()]
-
-        self.demand = RestrValueObject('demand', c_index, temp_db, self.max_demand, 0, self.init_value, self.signal_list)
-
+        for n_params in n_params_list:
+            for i in range(n_params['num']):
+                node = NodeClass(self.temp_db, n_index, n_type, n_params)
+                self.temp_db.add_node(node)
+                n_index +=1
+            n_type += 1
 

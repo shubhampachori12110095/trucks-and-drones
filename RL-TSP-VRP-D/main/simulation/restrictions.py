@@ -23,6 +23,9 @@ class MinToMaxRestriction:
         '''
         Adds a specified amount to the current value under the initialzied max restriction.
         '''
+        if cur_value is None:
+            return value, self.non_viol_signal
+
         new_value = cur_value + value
         
         if new_value <= self.max_restr:
@@ -40,6 +43,9 @@ class MinToMaxRestriction:
         '''
         Subtracts a specified amount from the current value under the initialzied min restriction.
         '''
+        if cur_value is None:
+            return value, self.non_viol_signal
+
         new_value = cur_value - value
         
         if new_value >= self.min_restr:
@@ -64,8 +70,9 @@ class MinRestriction(MinToMaxRestriction):
         '''
         Overrides the max restriction from the original class to unrestricted max.
         '''
-        cur_value += value
-        return cur_value, self.non_viol_signal
+        if cur_value is None:
+            return value, self.non_viol_signal
+        return cur_value + value, self.non_viol_signal
 
 
 class MaxRestriction(MinToMaxRestriction):
@@ -79,8 +86,9 @@ class MaxRestriction(MinToMaxRestriction):
         '''
         Overrides the min restriction from the original class to unrestricted min.
         '''
-        cur_value -= value
-        return cur_value, self.non_viol_signal
+        if cur_value is None:
+            return value, self.non_viol_signal
+        return cur_value - value, self.non_viol_signal
 
 
 class DummyRestriction(MinToMaxRestriction):
@@ -94,15 +102,17 @@ class DummyRestriction(MinToMaxRestriction):
         '''
         Overrides the max restriction from the original class to unrestricted max.
         '''
-        cur_value += value
-        return cur_value, self.non_viol_signal
+        if cur_value is None:
+            return value, self.non_viol_signal
+        return cur_value + value, self.non_viol_signal
 
     def subtract_value(self, cur_value, value):
         '''
         Overrides the min restriction from the original class to unrestricted min.
         '''
-        cur_value -= value
-        return cur_value, self.non_viol_signal
+        if cur_value is None:
+            return value, self.non_viol_signal
+        return cur_value - value, self.non_viol_signal
 
 
 class RestrValueObject:
@@ -110,20 +120,24 @@ class RestrValueObject:
     Traces a the value of a variable that is restricted. Can also be used to trace unrestriced variabels, in which case a dummy restriction will be created (doesn't restrict anything).
     '''
 
-    def __init__(self, name, obj_index, temp_db, max_restr=None,min_restr=None,init_value=0,signal_list=[1,1,-1]):
+    def __init__(self, name, obj_index, index_type, temp_db, max_restr=None, min_restr=None, init_value=None, rate=None):
 
         self.name = name
         self.obj_index = obj_index
         self.temp_db = temp_db
 
-        self.temp_db.add_restriction(name, max_restr, min_restr, init_value)
-
         self.max_restr  = max_restr
         self.min_restr  = min_restr
-        self.init_value = init_value
+
+        if init_value is None:
+            self.init_value = max_restr
+        else:
+            self.init_value = init_value
+        
+        self.rate = rate
+        
         self.reset()
         self.reset_signal()
-
 
         if max_restr == None and min_restr == None:
             self.restriction = DummyRestriction(signal_list)        
@@ -133,6 +147,15 @@ class RestrValueObject:
             self.restriction = MaxRestriction(max_restr,signal_list)
         else:
             self.restriction = MinToMaxRestriction(max_restr,min_restr,signal_list)
+
+        self.temp_db.add_restriction(self, name, max_restr, min_restr, self.init_value, rate, obj_index, index_type)
+
+
+    def in_time(self, time):
+        if self.rate is not None:
+            self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = self.rate*time
+        else:
+            self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = None
 
     def cur_value(self):
         return self.temp_db.status_dict[self.name][self.obj_index]
@@ -151,7 +174,16 @@ class RestrValueObject:
 
 
     def update(self, new_value, restr_signal):
-        self.temp_db.status_dict[self.name][self.obj_index]  = new_value
+        if self.rate is not None:
+            self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = (
+                self.temp_db.status_dict['in_time_'+self.name][self.obj_index] - abs(
+                    abs(self.temp_db.status_dict[self.name][self.obj_index]) - abs(new_value)
+                )
+            )
+
+        if self.temp_db.status_dict[self.name][self.obj_index] is not None:
+            self.temp_db.status_dict[self.name][self.obj_index]  = new_value
+
         self.temp_db.status_dict['signal_'+self.name][self.obj_index] = restr_signal
 
     def update_signal(self, restr_signal):
@@ -159,21 +191,37 @@ class RestrValueObject:
 
 
     def add_value(self, value):
-        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index],value)
+        if self.temp_db.status_dict['in_time_'+self.name][self.obj_index] is not None:
+            value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        
+        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], value)
         self.update(new_value,restr_signal)
+        
         return new_value
 
     def subtract_value(self, value):
-        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index],value)
+        if self.temp_db.status_dict['in_time_'+self.name][self.obj_index] is not None:
+            value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        
+        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)
         self.update(new_value,restr_signal)
+        
         return new_value
 
 
-    def check_add_value(self,value):
-        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index],value)
+    def check_add_value(self, value):
+        if self.temp_db.status_dict['in_time_'+self.name][self.obj_index] is not None:
+            value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        
+        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+        
         return new_value - self.temp_db.status_dict[self.name][self.obj_index]
 
-    def check_subtract_value(self,value):
-        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index],value)
+    def check_subtract_value(self, value):
+        if self.temp_db.status_dict['in_time_'+self.name][self.obj_index] is not None:
+            value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        
+        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+        
         return self.temp_db.status_dict[self.name][self.obj_index] - new_value
 

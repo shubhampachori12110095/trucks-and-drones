@@ -9,12 +9,6 @@ def lookup_db(db_dict, name_list):
     return [obj_list.append(db_dict[i]) for name in name_list]
 '''
 
-def append_to(dict_var, key, value):
-    if any(key in elem for elem in dict_var):
-        dict_var[key].append(value)
-    else:
-        dict_var[key] = [value]
-
 def random_coordinates(grid):
     return np.array([np.random.randint(0,grid[0]+1), np.random.randint(0,grid[1]+1)])
 
@@ -186,6 +180,10 @@ class TempDatabase:
             'signal_demand'      : [],
         }
 
+        self.status_dict = {}
+        self.constants_dict = {}
+        self.signals_dict = {}
+
     def reset_db(self):    
 
         # Calculate numbers
@@ -253,42 +251,65 @@ class TempDatabase:
         for key in self.restr_dict.keys():
             self.restriction_signals[key] = [elem.cur_signal for elem in self.restr_dict[key]]
 
+    def insert_at(self, dict_var, key, value, list_index, num_objs):
+        if any(key in elem for elem in dict_var):
+            dict_var[key][list_index] = value
+        else:
+            dict_var[key] = np.zeros((num_objs))
+            dict_var[key][list_index] = value
 
-    def add_restriction(self, name, max_restr, min_restr, init_value):
-        append_to(self.status_dict, name, init_value)
-        append_to(self.status_dict, 'max_'+name, max_restr)
-        append_to(self.status_dict, 'min_'+name, min_restr)
-        append_to(self.status_dict, 'init_'+name, init_value)
-        append_to(self.status_dict, 'signal_'+name, 0)
+
+    def add_restriction(self, restr_obj, name, max_restr, min_restr, init_value, rate, list_index, index_type):
+
+        if index_type == 'vehicle':
+            num_objs = self.num_vehicles
+        else:
+            num_objs = self.num_nodes
+
+        # Object at Base Group:
+        self.insert_at(self.base_groups, 'restr', restr_obj, list_index, num_objs)
+
+        # Variables at Status Dict:
+        self.insert_at(self.status_dict, name, init_value, list_index, num_objs)
+        self.insert_at(self.status_dict, 'in_time_'+name, 0, list_index, num_objs)
+
+        # Constants at Constants Dict:
+        self.insert_at(self.constants_dict, 'max_'+name, max_restr, list_index, num_objs)
+        self.insert_at(self.constants_dict, 'min_'+name, min_restr, list_index, num_objs)
+        self.insert_at(self.constants_dict, 'init_'+name, init_value, list_index, num_objs)
+        self.insert_at(self.constants_dict, 'rate_'+name, rate, list_index, num_objs)
+        
+        # Signals at Signals Dict:
+        self.insert_at(self.signals_dict, 'signal_'+name, 0, list_index, num_objs)
 
 
     def add_vehicle(self, vehicle, travel_type, range_type, speed):
-        append_to(self.base_groups, 'vehicles', vehicle)
+        self.insert_at(self.base_groups, 'vehicles', vehicle)
         
-        append_to(self.status_dict, 'travel_type', travel_type)
-        append_to(self.status_dict, 'range_type', range_type)
-        append_to(self.status_dict, 'speed', speed)
+        self.insert_at(self.status_dict, 'travel_type', travel_type)
+        self.insert_at(self.status_dict, 'range_type', range_type)
+        self.insert_at(self.status_dict, 'speed', speed)
         
-        append_to(self.status_dict, 'v_free', 1)
-        append_to(self.status_dict, 'v_type', int(vehicle.v_type))
-        append_to(self.status_dict, 'v_loadable', int(vehicle.v_loadable))
+        self.insert_at(self.status_dict, 'v_free', 1)
+        self.insert_at(self.status_dict, 'v_type', int(vehicle.v_type))
+        self.insert_at(self.status_dict, 'v_loadable', int(vehicle.v_loadable))
 
-        append_to(self.status_dict, 'v_coord', random.choice(self.status_dict['d_coord']))
+        self.insert_at(self.status_dict, 'v_coord', random.choice(self.status_dict['d_coord']))
 
 
     
     def add_depot(self, depot):
-        append_to(self.base_groups, 'depots', depot)
-        append_to(self.base_groups, 'nodes', depot)
+        self.insert_at(self.base_groups, 'depots', depot)
+        self.insert_at(self.base_groups, 'nodes', depot)
 
-        append_to(self.status_dict, 'd_coord', random_coordinates(self.grid))
+        self.insert_at(self.status_dict, 'd_coord', random_coordinates(self.grid))
 
 
     def add_customer(self, customer):
-        append_to(self.base_groups, 'customers', customer)
-        append_to(self.base_groups, 'nodes', customer)
+        self.insert_at(self.base_groups, 'customers', customer)
+        self.insert_at(self.base_groups, 'nodes', customer)
 
-        append_to(self.status_dict, 'c_coord', random_coordinates(self.grid))
+        self.insert_at(self.status_dict, 'c_coord', random_coordinates(self.grid))
 
 
     def nearest_neighbour(self, v_index, coord_key, exclude=None):
