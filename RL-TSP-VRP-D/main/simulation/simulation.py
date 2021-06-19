@@ -154,43 +154,49 @@ load_vehicle_funcs = [load_vehicle, load_vehicle_rate, load_vehicle_act]
 # ----------------------------------------------------------------------------------------------------------------
 
 
-def v_unload_v(transporter_obj, to_unload_obj_list):
-    '''
-    - only unload when cargo can be also unloaded
-    - unload nevertheless (ergänzen)
-    '''
+def v_load_v(self, v_i, v_j):
 
-    # first check how many UV can be unloaded:
-    num_v_to_unload = min(l_ignore_none([transporter_obj.cargo_obj.cargo_UV_rate.cur_value(), len(to_unload_obj_list)]))
+    cargo_i = self.temp_db.restr_dict['cargo'][v_i]
+    items_i = self.temp_db.restr_dict['items'][v_i]
+    loaded_v_i = self.temp_db.restr_dict['loaded_v'][v_i]
+    
+    cargo_j = self.temp_db.restr_dict['cargo'][v_j]
+    items_j = self.temp_db.restr_dict['items'][v_j]
+    weight_j = self.temp_db.constants_dict['weight'][v_j]
 
-    unloaded_list = []
-    for i in range(num_v_to_unload):
+    if restr_i.max_restr - restr_i.cur_value() >= restr_j.cur_value() and (loaded_v_i.cur_value() is None or bool(loaded_v_i.check_add_value(1) - loaded_v_i.cur_value())):
+        cargo_amount = restr_j.cur_value()
+    
+        real_cargo_amount = min(
+            cargo_i.check_subtract_value(cargo_amount + weight)
+            items_i.check_subtract_value(cargo_amount)
+            cargo_j.check_add_value(cargo_amount)
+            items_j.check_add_value(cargo_amount)
+        )
 
-        weight = to_unload_obj_list[i].weight
-        cargo_amount = to_unload_obj_list[i].cargo_obj.standard_cargo.max_restr
-
-        cargo_amount = min(
-            to_unload_obj_list[i].cargo_obj.cargo_rate.check_subtract_value(cargo_amount),
-            to_unload_obj_list[i].cargo_obj.standard_cargo.check_add_value(cargo_amount),
-            transporter_obj.cargo_obj.cargo_rate.check_subtract_value(cargo_amount+weight),
-            transporter_obj.cargo_obj.standard_cargo.check_subtract_value(cargo_amount+weight)
+        if real_cargo_amount > 0:
+            real_cargo_amount = min(
+                cargo_i.subtract_value(real_cargo_amount + weight)
+                items_i.subtract_value(real_cargo_amount)
+                cargo_j.add_value(real_cargo_amount)
+                items_j.add_value(real_cargo_amount)
             )
 
-        if cargo_amount > 0:
-            to_unload_obj_list[i].cargo_obj.cargo_rate.subtract_value(cargo_amount-weight),
-            to_unload_obj_list[i].cargo_obj.standard_cargo.add_value(cargo_amount-weight),
-            transporter_obj.cargo_obj.cargo_rate.subtract_value(cargo_amount),
-            transporter_obj.cargo_obj.standard_cargo.subtract_value(cargo_amount)
-
-            unloaded_list.append(to_unload_obj_list[i].name)
-
+        if real_cargo_amount == cargo_amount:
+            loaded_v_i.add_value(1):
+            self.temp_db.v_transporting_v[v_i].append(v_j)
+            self.temp_db.actions_list[v_i].pop(0)
+            self.temp_db.time_till_fin[v_i] = None
+        
         else:
-            break
+            self.temp_db.time_till_fin[v_i] = (real_cargo_amount / self.temp_db.cur_time_frame) * (cargo_amount - real_cargo_amount)
 
-    return unloaded_list
+    else:
+        self.temp_db.actions_list[v_i].pop(0)
+        self.temp_db.time_till_fin[v_i] = None
 
 
-def v_load_v(transporter_obj, to_load_obj):
+def v_unload_v(transporter_obj, to_load_obj):
 
     if transporter_obj.cargo_obj.cargo_UV_rate == None or transporter_obj.cargo_obj.cargo_UV_rate.cur_value() >= 1:
 

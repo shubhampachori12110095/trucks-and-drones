@@ -126,15 +126,15 @@ class RestrValueObject:
         self.obj_index = obj_index
         self.temp_db = temp_db
 
-        self.max_restr  = max_restr
-        self.min_restr  = min_restr
+        self.max_restr  = param_interpret(max_restr)
+        self.min_restr  = param_interpret(min_restr)
 
         if init_value is None:
-            self.init_value = max_restr
+            self.init_value = self.max_restr
         else:
-            self.init_value = init_value
+            self.init_value = param_interpret(init_value)
         
-        self.rate = rate
+        self.rate = param_interpret(rate)
         
         self.reset()
         self.reset_signal()
@@ -148,7 +148,8 @@ class RestrValueObject:
         else:
             self.restriction = MinToMaxRestriction(max_restr,min_restr,signal_list)
 
-        self.temp_db.add_restriction(self, name, max_restr, min_restr, self.init_value, rate, obj_index, index_type)
+        self.temp_db.add_restriction(self, obj_index, index_type)
+        self.temp_db.prep_max_min(name, max_restr, min_restr, rate)
 
 
     def in_time(self, time):

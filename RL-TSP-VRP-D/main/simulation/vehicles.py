@@ -9,8 +9,11 @@ from main.simulation.common_sim_func import param_interpret, random_coordinates
 ''' VEHICLE PARAMETER 
 # number of vehicles:
 num: (int, list, tuple, np.ndarray) = 1,
+# vehicle name:
+v_name: str = 'vehicle', # alt: 'vehicle', 'truck', 'drone', 'robot'
 # loadable:
 loadable: bool = False,
+weight: (NoneType, int, list, tuple, np.ndarray) = 0,
 # range or battery:
 range_type: str = 'simple', # alt: 'simple', 'battery'
 max_range: (NoneType, int, list, tuple, np.ndarray) = None,
@@ -31,8 +34,8 @@ v_rate: (NoneType, int, list, tuple, np.ndarray) = 0,
 # visualization:
 symbol: (str, NoneType) = 'circle', # 'triangle-up', 'triangle-down' 'rectangle'
 color: (str, NoneType, int, list, tuple, np.ndarray) = 'red',
-'''      
-        
+'''
+
 # Vehicle Class Functions:
 # ----------------------------------------------------------------------------------------------------------------
 
@@ -119,10 +122,15 @@ class BaseVehicleClass:
         self.v_type = v_type
 
         # Intepret parameter dict:
-        for key in v_params.keys(): v_params[key] = param_interpret(v_params[key])
+        #for key in v_params.keys(): v_params[key] = param_interpret(v_params[key])
 
         # Init parameter based on parameter dict
         self.v_name = v_params['v_name']
+        self.range_type = v_params['range_type']
+        self.travel_type = v_params['travel_type']
+        self.cargo_type = v_params['cargo_type']
+        self.v_loadable = v_params['loadable']
+        self.v_weight = param_interpret(v_params['weight'])
 
         # Create items as restricted value:
         if v_params['range_type'] == 'simple':
@@ -143,17 +151,21 @@ class BaseVehicleClass:
 
         # Create cargo as restricted value:
         if v_params['cargo_type'] == 'standard+extra':
+            self.items = RestrValueObject('items', v_index, 'vehicle', temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
             self.cargo = RestrValueObject('cargo', v_index, 'vehicle', temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
-            self.max_v_cap = RestrValueObject('max_v_cap', v_index, 'vehicle', temp_db, v_params['max_v_cap'], 0, 0, v_params['v_rate'])
+            self.loaded_v = RestrValueObject('loaded_v', v_index, 'vehicle', temp_db, v_params['max_v_cap'], 0, 0, v_params['v_rate'])
             self.is_truck = True
             
         elif v_params['cargo_type'] == 'standard+including':
+            self.items = RestrValueObject('items', v_index, 'vehicle', temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
             self.cargo = RestrValueObject('cargo', v_index, 'vehicle', temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
-            self.max_v_cap = self.standard_cargo
+            self.loaded_v = RestrValueObject('loaded_v', v_index, 'vehicle', temp_db, None, None, None, v_params['v_rate'])
             self.is_truck = True
 
         elif v_params['cargo_type'] == 'standard':
-            self.standard_cargo = RestrValueObject('cargo', 'vehicle', v_index, temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
+            self.items = RestrValueObject('items', v_index, 'vehicle', temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
+            self.cargo = RestrValueObject('cargo', v_index, 'vehicle', temp_db, v_params['max_cargo'], 0, v_params['init_cargo'], v_params['cargo_rate'])
+            self.loaded_v = RestrValueObject('loaded_v', v_index, 'vehicle', temp_db, 0, 0, 0, 0)
             self.is_truck = False
 
         else:
@@ -199,10 +211,8 @@ class BaseVehicleCreator:
         self.temp_db = temp_db
         self.v_params_list = v_params_list
 
-        '''
-        save important constants to temp_db !!!
-        '''
-
+        self.temp_db.num_vehicles = sum([np.max(v_params['num']) for v_params in v_params_list])
+        self.temp_db.min_max_dict['v_type'] = np.array([0, len(v_params_list) - 1])
 
     def create(self):
 
@@ -210,8 +220,8 @@ class BaseVehicleCreator:
         v_type = 0
 
         for v_params in v_params_list:
-            for i in range(v_params['num']):
+            for i in range(param_interpret(v_params['num'])):
                 vehicle = VehicleClass(self.temp_db, v_index, v_type, v_params)
-                self.temp_db.add_vehicle(vehicle)
+                self.temp_db.add_vehicle(vehicle, v_index, v_type)
                 v_index +=1
             v_type += 1

@@ -87,9 +87,10 @@ class BaseNodeCreator:
         self.temp_db = temp_db
         self.n_params_list = n_params_list
 
-        '''
-        save important constants to temp_db !!!
-        '''
+        self.temp_db.num_nodes = sum([np.max(n_params['num']) for n_params in n_params_list])
+        self.temp_db.num_depots = sum([np.max(n_params['num']) for n_params in n_params_list if n_params['name'] == 'depot'])
+        self.temp_db.num_customers = sum([np.max(n_params['num']) for n_params in n_params_list if n_params['name'] == 'customer'])
+        self.temp_db.min_max_dict['n_type'] = np.array([0, len(v_params_list) - 1])
 
     def create(self):
 
@@ -99,7 +100,7 @@ class BaseNodeCreator:
         for n_params in n_params_list:
             for i in range(n_params['num']):
                 node = NodeClass(self.temp_db, n_index, n_type, n_params)
-                self.temp_db.add_node(node)
+                self.temp_db.add_node(node, n_index, n_type)
                 n_index +=1
             n_type += 1
 
