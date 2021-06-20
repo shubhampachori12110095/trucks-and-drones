@@ -60,16 +60,16 @@ class BaseNodeClass:
         self.n_name = n_params['n_name']
 
         # Create items as restricted value:
-        self.items = RestrValueObject('items', n_index, temp_db, n_params['max_items'], 0, n_params['init_items'])
-        self.item_rate = RestrValueObject('item_rate', n_index, temp_db, n_params['item_rate'], 0, n_params['item_rate'])
+        self.items = RestrValueObject('n_items', n_index, temp_db, n_params['max_items'], 0, n_params['init_items'])
+        self.item_rate = RestrValueObject('n_item_rate', n_index, temp_db, n_params['item_rate'], 0, n_params['item_rate'])
 
         # Init time dependent functions (functions that take the passed time as input):
         self.time_dependent_funcs = []
         # Add item recharge as time dependent function if needed:
-        if n_params['item_recharge'] is not None:
+        if n_params['n_item_recharge'] is not None:
             self.time_dependent_funcs.append(item_recharge)
         # Add init items at step as time dependent function if needed:
-        if n_params['init_items_at_step'] is not None:
+        if n_params['n_init_items_at_step'] is not None:
             self.time_dependent_funcs.append(init_items_at_step)
 
     def step(self, time):

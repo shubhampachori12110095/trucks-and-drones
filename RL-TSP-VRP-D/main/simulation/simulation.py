@@ -21,326 +21,192 @@ from main.simulation.vehicles import VehicleCreator
 from main.simulation.temp_database import TempDatabase
 
 
-def calc_rates(self, should_value, keys, indices):
-    rate_vals = [self.temp_db.status_dict[keys[i]][indices[i]] for i in range(len(keys))]
-    min_rate = np.min(rate_vals)
-    i_of_min = np.argmin(rate_vals)
-    return min(should_value, min_rate), self.temp_db.status_dict[keys[i_of_min]][indices[i_of_min]]
-
-# Move Functions:
+# Action Functions (used by vehicle objects):
 # ----------------------------------------------------------------------------------------------------------------
 
-def distance_value(self):
-    
-    self.temp_db.status_dict['v_direc'][self.v_index] = (
-        self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
-    )
-    
-    return self.calc_distance(self.temp_db.status_dict['v_direc'][self.v_index])
+def v_load_v(self, v_j, item_amount=None):
 
-def distance_rate(self, should_value):
-    
-    real_distance = np.min(
-        should_value,
-        self.temp_db.status_dict['distance_in_time'][self.v_index]
-    )
-    rate_constant = self.temp_db.constants_dict['speed'][self.v_index]
-    
-    return real_distance, rate_constant
-
-def distance_act(self, real_distance, should_distance):
-    
-    real_distance = self.go(real_distance)
-    self.temp_db.status_dict['v_coord'][self.v_index] = (
-        self.temp_db.status_dict['v_direc'][self.v_index] * (real_distance/should_distance) + self.temp_db.status_dict['v_coord'][self.v_index]
-    )
-    
-    return real_distance
-
-move_funcs = [distance_value, distance_rate, distance_act]
-
-
-# Unload Vehicle Functions:
-# ----------------------------------------------------------------------------------------------------------------
-
-def unload_vehicle(self):
-
-    to_unload_index = self.temp_db.status_dict['v_to_unload'][self.v_index]
-    weight = self.temp_db.status_dict['weight'][to_unload_index]
-    
-    return np.min(
-        self.temp_db.status_dict['cargo'][self.v_index] - weight,
-        self.temp_db.status_dict['max_cargo'][to_unload_index],
-    )
-
-def unload_vehicle_rate(self, cargo_amount):
-
-    to_unload_index = self.temp_db.status_dict['v_to_unload'][self.v_index]
-    weight = self.temp_db.status_dict['weight'][to_unload_index]
-    
-    real_cargo_amount = np.min(
-        cargo_amount,
-        self.temp_db.status_dict['cargo_in_time'][self.v_index] - weight,
-        self.temp_db.status_dict['cargo_in_time'][to_unload_index],
-    )
-
-    if self.temp_db.constants_dict['cargo_rate'][self.v_index] < self.temp_db.constants_dict['cargo_rate'][to_unload_index]:
-        rate_constant = self.temp_db.constants_dict['cargo_rate'][self.v_index]
-    else:
-        rate_constant = self.temp_db.constants_dict['cargo_rate'][to_unload_index]
-    
-    return real_distance, rate_constant
-
-def unload_vehicle_act(self, real_cargo_amount, cargo_amount):
-    
-    to_unload_index = self.temp_db.status_dict['v_to_unload'][self.v_index]
-    weight = self.temp_db.status_dict['weight'][to_unload_index]
-    
-    return np.min(
-            self.cargo_rate.subtract_value(real_cargo_amount+weight),
-            self.cargo.subtract_value(real_cargo_amount+weight),
-            self.temp_db.base_groups[to_unload_index].cargo_rate.subtract_value(real_cargo_amount),
-            self.temp_db.base_groups[to_unload_index].cargo.add_value(real_cargo_amount),
-        )
-
-unload_vehicle_funcs = [unload_vehicle, unload_vehicle_rate, unload_vehicle_act]
-
-
-# Load Vehicle Functions:
-# ----------------------------------------------------------------------------------------------------------------
-
-def load_vehicle(self):
-
-    to_load_index = self.temp_db.status_dict['v_to_load'][self.v_index]
-    weight = self.temp_db.status_dict['weight'][to_load_index]
-    
-    return np.min(
-        self.temp_db.status_dict['cargo'][self.v_index] - weight,
-        self.temp_db.status_dict['max_cargo'][to_load_index],
-    )
-
-def load_vehicle_rate(self, cargo_amount):
-
-    to_load_index = self.temp_db.status_dict['v_to_load'][self.v_index]
-    weight = self.temp_db.status_dict['weight'][to_load_index]
-    
-    real_cargo_amount = np.min(
-        cargo_amount,
-        self.temp_db.status_dict['cargo_in_time'][self.v_index] - weight,
-        self.temp_db.status_dict['cargo_in_time'][to_load_index],
-    )
-
-    if self.temp_db.constants_dict['cargo_rate'][self.v_index] < self.temp_db.constants_dict['cargo_rate'][to_load_index]:
-        rate_constant = self.temp_db.constants_dict['cargo_rate'][self.v_index]
-    else:
-        rate_constant = self.temp_db.constants_dict['cargo_rate'][to_load_index]
-    
-    return real_distance, rate_constant
-
-def load_vehicle_act(self, real_cargo_amount, cargo_amount):
-    
-    to_load_index = self.temp_db.status_dict['v_to_load'][self.v_index]
-    weight = self.temp_db.status_dict['weight'][to_load_index]
-    
-    return np.min(
-            self.cargo_rate.subtract_value(real_cargo_amount+weight),
-            self.cargo.add_value(real_cargo_amount+weight),
-            self.temp_db.base_groups[to_load_index].cargo_rate.subtract_value(real_cargo_amount),
-            self.temp_db.base_groups[to_load_index].cargo.subtract_value(real_cargo_amount),
-        )
-
-load_vehicle_funcs = [load_vehicle, load_vehicle_rate, load_vehicle_act]
-# Vehicle with vehicle interactions:
-# ----------------------------------------------------------------------------------------------------------------
-
-
-def v_load_v(self, v_i, v_j):
-
-    cargo_i = self.temp_db.restr_dict['cargo'][v_i]
-    items_i = self.temp_db.restr_dict['items'][v_i]
-    loaded_v_i = self.temp_db.restr_dict['loaded_v'][v_i]
+    cargo_i = self.cargo
+    items_i = self.items
+    loaded_v_i = self.loaded_v
     
     cargo_j = self.temp_db.restr_dict['cargo'][v_j]
     items_j = self.temp_db.restr_dict['items'][v_j]
     weight_j = self.temp_db.constants_dict['weight'][v_j]
 
-    if restr_i.max_restr - restr_i.cur_value() >= restr_j.cur_value() and (loaded_v_i.cur_value() is None or bool(loaded_v_i.check_add_value(1) - loaded_v_i.cur_value())):
-        cargo_amount = restr_j.cur_value()
+    if items_i.max_restr - items_i.cur_value() < cargo_j.cur_value() or self.temp_db.constants_dict['loadable'][v_j] == 0:
+        self.temp_db.actions_list[self.v_index].pop(0)
+        
+        if len(self.temp_db.actions_list[self.v_index]) == 0:
+            self.temp_db.time_till_fin[self.v_index] = None
+        else:
+            self.temp_db.time_till_fin[self.v_index] = 0
+        return
+
+    if loaded_v_i.cur_value() is None or bool(loaded_v_i.check_add_value(1)):
+        item_amount = items_j.cur_value()
     
-        real_cargo_amount = min(
-            cargo_i.check_subtract_value(cargo_amount + weight)
-            items_i.check_subtract_value(cargo_amount)
-            cargo_j.check_add_value(cargo_amount)
-            items_j.check_add_value(cargo_amount)
+        real_item_amount = item_amount - min(
+            cargo_i.check_add_value(item_amount + weight) - weight,
+            items_i.check_add_value(item_amount),
+            cargo_j.check_subtract_value(item_amount),
+            items_j.check_subtract_value(item_amount)
         )
 
-        if real_cargo_amount > 0:
-            real_cargo_amount = min(
-                cargo_i.subtract_value(real_cargo_amount + weight)
-                items_i.subtract_value(real_cargo_amount)
-                cargo_j.add_value(real_cargo_amount)
-                items_j.add_value(real_cargo_amount)
-            )
+        if real_item_amount > 0:
+            cargo_i.add_value(real_item_amount + weight)
+            items_i.add_value(real_item_amount)
+            cargo_j.subtract_value(real_item_amount)
+            items_j.subtract_value(real_item_amount)
 
-        if real_cargo_amount == cargo_amount:
+        if real_item_amount == item_amount:
             loaded_v_i.add_value(1):
-            self.temp_db.v_transporting_v[v_i].append(v_j)
-            self.temp_db.actions_list[v_i].pop(0)
-            self.temp_db.time_till_fin[v_i] = None
+            self.temp_db.v_transporting_v[self.v_index].append(v_j)
+            self.temp_db.actions_list[self.v_index].pop(0)
+            
+            if len(self.temp_db.actions_list[self.v_index]) == 0:
+                self.temp_db.time_till_fin[self.v_index] = None
+            else:
+                self.temp_db.time_till_fin[self.v_index] = 0
         
         else:
-            self.temp_db.time_till_fin[v_i] = (real_cargo_amount / self.temp_db.cur_time_frame) * (cargo_amount - real_cargo_amount)
+            self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
     else:
-        self.temp_db.actions_list[v_i].pop(0)
-        self.temp_db.time_till_fin[v_i] = None
+        self.temp_db.time_till_fin[self.v_index] = 1 / loaded_v_i.rate
 
 
-def v_unload_v(transporter_obj, to_load_obj):
+def v_unload_v(self, v_j, item_amount=None):
 
-    if transporter_obj.cargo_obj.cargo_UV_rate == None or transporter_obj.cargo_obj.cargo_UV_rate.cur_value() >= 1:
-
-        weight = to_load_obj.weight
-        cargo_amount = to_load_obj.cargo_obj.standard_cargo.cur_value()
-
-        cargo_amount = min(
-            to_load_obj.cargo_obj.cargo_rate.check_subtract_value(cargo_amount),
-            to_load_obj.cargo_obj.standard_cargo.check_subtract_value(cargo_amount),
-            transporter_obj.cargo_obj.cargo_rate.check_subtract_value(cargo_amount+weight),
-            transporter_obj.cargo_obj.standard_cargo.check_add_value(cargo_amount+weight)
-            )
-
-        if cargo_amount == to_load_obj.cargo_obj.standard_cargo.cur_value():
-            to_load_obj.cargo_obj.cargo_rate.subtract_value(cargo_amount-weight),
-            to_load_obj.cargo_obj.standard_cargo.subtract_value(cargo_amount-weight),
-            transporter_obj.cargo_obj.cargo_rate.subtract_value(cargo_amount),
-            transporter_obj.cargo_obj.standard_cargo.add_value(cargo_amount)
-            return True
-
-    return False
-
-
-
-# Vehicle at Node
-# ----------------------------------------------------------------------------------------------------------------
-
-
-def vehicle_at_customer(vehicle_obj, customer_obj, amount):
-
-    if amount is None:
-        amount = min(
-            vehicle_obj.cargo_obj.cargo_rate.cur_value(), 
-            vehicle_obj.cargo_obj.standard_cargo.cur_value(), 
-            customer_obj.demand.cur_value()
-        )
-    else:
-        amount = min(
-            vehicle_obj.cargo_obj.cargo_rate.check_subtract_value(amount), 
-            vehicle_obj.cargo_obj.standard_cargo.check_subtract_value(amount), 
-            customer_obj.demand.cur_value()
-            )
-
-    vehicle_obj.cargo_obj.standard_cargo.subtract_value(amount)
-    vehicle_obj.cargo_obj.cargo_rate.subtract_value(amount)
-    customer_obj.demand.subtract_value(amount)
-    return amount
-
-
-def vehicle_at_depot(vehicle_obj, depot_obj, amount):
-
-    if amount is None:
-        amount = min(
-            vehicle_obj.cargo_obj.cargo_rate.cur_value(), 
-            vehicle_obj.cargo_obj.standard_cargo.max_restr - vehicle_obj.cargo_obj.standard_cargo.cur_value(), 
-            depot_obj.stock.cur_value()
-        )
-
-    else:
-        amount = min(
-            vehicle_obj.cargo_obj.cargo_rate.check_subtract_value(amount), 
-            vehicle_obj.cargo_obj.standard_cargo.check_add_value(amount), 
-            depot_obj.stock.cur_value()
-            )
-
+    cargo_i = self.cargo
+    items_i = self.items
+    loaded_v_i = self.loaded_v
     
+    cargo_j = self.temp_db.restr_dict['cargo'][v_j]
+    items_j = self.temp_db.restr_dict['items'][v_j]
+    weight_j = self.temp_db.constants_dict['weight'][v_j]
 
-    vehicle_obj.cargo_obj.standard_cargo.add_value(amount)
-    vehicle_obj.cargo_obj.cargo_rate.subtract_value(amount)
-    depot_obj.stock.subtract_value(amount)
-    return amount
- 
+    if loaded_v_i.cur_value() is None or bool(loaded_v_i.check_subtract_value(1)):
+        
+        if item_amount is None:
+            item_amount = min(items_i.cur_value(), items_j.max_restr)
+    
+        real_item_amount = min(
+            cargo_i.check_subtract_value(item_amount + weight) - weight,
+            items_i.check_subtract_value(item_amount),
+            cargo_j.check_add_value(item_amount),
+            items_j.check_add_value(item_amount),
+        )
 
-# Functions for simulation init:
+        if real_item_amount > 0:
+            cargo_i.subtract_value(real_item_amount + weight)
+            items_i.subtract_value(real_item_amount)
+            cargo_j.add_value(real_item_amount)
+            items_j.add_value(real_item_amount)
+
+
+        if real_item_amount == item_amount:
+            loaded_v_i.subtract_value(1):
+            self.temp_db.v_transporting_v[self.v_index].pop(self.temp_db.v_transporting_v[self.v_index].index(v_j))
+            self.temp_db.actions_list[self.v_index].pop(0)
+            
+            if len(self.temp_db.actions_list[self.v_index]) == 0:
+                self.temp_db.time_till_fin[self.v_index] = None
+            else:
+                self.temp_db.time_till_fin[self.v_index] = 0
+        
+        else:
+            self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
+
+    else:
+        self.temp_db.time_till_fin[self.v_index] = 1 / loaded_v_i.rate
+
+
+def v_unload_items(self, n_j, item_amount=None):
+
+    cargo_i = self.cargo
+    items_i = self.items
+    
+    items_j = self.temp_db.restr_dict['n_items'][n_j]
+
+    if item_amount is None:
+        item_amount = min(items_i.cur_value(), items_j.cur_value())
+
+    real_item_amount = min(
+        cargo_i.check_subtract_value(item_amount)
+        items_i.check_subtract_value(item_amount)
+        items_j.check_subtract_value(item_amount)
+    )
+
+    if real_item_amount > 0:
+        cargo_i.subtract_value(real_item_amount)
+        items_i.subtract_value(real_item_amount)
+        items_j.subtract_value(real_item_amount)
+
+    if real_item_amount == item_amount:
+        self.temp_db.actions_list[self.v_index].pop(0)
+        
+        if len(self.temp_db.actions_list[self.v_index]) == 0:
+            self.temp_db.time_till_fin[self.v_index] = None
+        else:
+            self.temp_db.time_till_fin[self.v_index] = 0
+
+    else:
+        self.temp_db.time_till_fin[self.v_index] = (real_cargo_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
+
+
+def v_load_items(self, n_j, item_amount=None):
+
+    cargo_i = self.cargo
+    items_i = self.items
+    
+    items_j = self.temp_db.restr_dict['n_items'][n_j]
+
+    if item_amount is None:
+        item_amount = min(items_i.cur_value(), items_j.cur_value())
+
+    real_item_amount = min(
+        cargo_i.check_add_value(item_amount)
+        items_i.check_add_value(item_amount)
+        items_j.check_subtract_value(item_amount)
+    )
+
+    if real_item_amount > 0:
+        cargo_i.add_value(real_item_amount)
+        items_i.add_value(real_item_amount)
+        items_j.subtract_value(real_item_amount)
+
+    if real_item_amount == item_amount:
+        self.temp_db.actions_list[self.v_index].pop(0)
+        
+        if len(self.temp_db.actions_list[self.v_index]) == 0:
+            self.temp_db.time_till_fin[self.v_index] = None
+        else:
+            self.temp_db.time_till_fin[self.v_index] = 0
+
+    else:
+        self.temp_db.time_till_fin[self.v_index] = (real_cargo_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
+
+
+# Base Simulator Class:
 # ----------------------------------------------------------------------------------------------------------------
-
-
-def create_param_name(all_parameter_list):
-    return {
-        'MV_cargo_param' : all_parameter_list[0],
-        'MV_range_param' : all_parameter_list[1],
-        'MV_travel_param': all_parameter_list[2], 
-        'UV_cargo_param' : all_parameter_list[3],
-        'UV_range_param' : all_parameter_list[4],
-        'UV_travel_param': all_parameter_list[5],
-        'customer_param' : all_parameter_list[6],
-        'depot_param'    : all_parameter_list[7],
-        }
-
-
-
-# Simulation:
-# ----------------------------------------------------------------------------------------------------------------
-'''
-- ergänze funktionen für den fall das jedes vehicle einzeln bewegt wird
-
-'''
-def simulation_parameter(
-        grid          = [10,10],
-        coord_type    = 'exact',
-        locked_travel = False,
-        num_MV        = 2,
-        num_UV_per_MV = 2
-        ):
-    return {
-        'grid'         : grid,
-        'coord_type'   : coord_type,
-        'locked_travel': locked_travel,
-        'num_MV'       : num_MV,
-        'num_UV_per_MV': num_UV_per_MV,
-        }
-
 
 class BaseSimulator:
 
-    def __init__(self, all_parameter_list, sim_param):
+    def __init__(self, temp_db, vehicle_creator, node_creator):
 
         [setattr(self, k, v) for k, v in sim_param.items()]
 
-        self.temp_db = TempDatabase(self.grid)
+        self.temp_db = temp_db
+        self.vehicle_creator = vehicle_creator
+        self.node_creator = node_creator
 
-        all_param_dict = create_param_name(all_parameter_list)
-
-
-        self.vehicle_creator = VehicleCreator(
-            self.temp_db,
-            # Manned Vehicles:
-            all_param_dict['MV_cargo_param'], all_param_dict['MV_range_param'], all_param_dict['MV_travel_param'],
-            # Unmanned Vehicles:
-            all_param_dict['UV_cargo_param'], all_param_dict['UV_range_param'], all_param_dict['UV_travel_param']
-        )
-
-        self.node_creator = NodeCreator(self.temp_db, all_param_dict['customer_param'], all_param_dict['depot_param'])
-
-        self.free_after_step = []
 
     def reset_simulation(self):
 
         self.temp_db.init_db()
-
-        self.node_creator.create_nodes()
-        self.vehicle_creator.create_vehicles(param_interpret(self.num_MV ),param_interpret(self.num_UV_per_MV))
-        
-
+        self.node_creator.create()
+        self.vehicle_creator.create()
         self.temp_db.reset_db()
 
 
