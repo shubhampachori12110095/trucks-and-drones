@@ -152,9 +152,9 @@ class RestrValueObject:
         self.temp_db.prep_max_min(name, max_restr, min_restr, rate)
 
 
-    def in_time(self, time):
+    def in_time(self):
         if self.rate is not None:
-            self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = self.rate*time
+            self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = self.rate*self.temp_db.cur_time_frame
         else:
             self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = None
 

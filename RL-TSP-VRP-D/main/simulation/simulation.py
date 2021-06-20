@@ -23,8 +23,39 @@ from main.simulation.temp_database import TempDatabase
 
 # Action Functions (used by vehicle objects):
 # ----------------------------------------------------------------------------------------------------------------
+    
+def v_move(self, _, _, calc_time=False):
 
-def v_load_v(self, v_j, item_amount=None):
+    direction = self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
+    distance = self.calc_distance(direction)
+
+    real_distance = self.range_obj.check_subtract_value(distance)
+    
+    if real_distance != 0 and not calc_time:
+        self.range_obj.subtract_value(distance)
+        self.temp_db.status_dict['v_coord'][self.v_index] = direction * (real_distance/distance) + self.temp_db.status_dict['v_coord'][self.v_index]
+        
+        for i in self.temp_db.v_transporting_v[self.v_index]:
+            self.temp_db.status_dict['v_coord'][i] = self.temp_db.status_dict['v_coord'][self.v_index]
+    
+    if real_distance == distance and not calc_time:
+
+        self.temp_db.actions_list[self.v_index].pop(0)
+        
+        if len(self.temp_db.actions_list[self.v_index]) == 0:
+            self.temp_db.time_till_fin[self.v_index] = None
+        else:
+            self.temp_db.time_till_fin[self.v_index] = 0
+
+    else:
+        self.temp_db.time_till_fin[self.v_index] = (real_distance / self.temp_db.cur_time_frame) * (distance - real_distance)
+
+    if calc_time:
+        self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
+
+
+
+def v_load_v(self, v_j, item_amount=None, calc_time=False):
 
     cargo_i = self.cargo
     items_i = self.items
@@ -34,7 +65,7 @@ def v_load_v(self, v_j, item_amount=None):
     items_j = self.temp_db.restr_dict['items'][v_j]
     weight_j = self.temp_db.constants_dict['weight'][v_j]
 
-    if items_i.max_restr - items_i.cur_value() < cargo_j.cur_value() or self.temp_db.constants_dict['loadable'][v_j] == 0:
+    if items_i.max_restr - items_i.cur_value() < cargo_j.cur_value() or self.temp_db.constants_dict['loadable'][v_j] == 0 or self.temp_db.status_dict['v_free'][v_j] == 0:
         self.temp_db.actions_list[self.v_index].pop(0)
         
         if len(self.temp_db.actions_list[self.v_index]) == 0:
@@ -53,16 +84,17 @@ def v_load_v(self, v_j, item_amount=None):
             items_j.check_subtract_value(item_amount)
         )
 
-        if real_item_amount > 0:
+        if real_item_amount > 0 and not calc_time:
             cargo_i.add_value(real_item_amount + weight)
             items_i.add_value(real_item_amount)
             cargo_j.subtract_value(real_item_amount)
             items_j.subtract_value(real_item_amount)
 
-        if real_item_amount == item_amount:
+        if real_item_amount == item_amount and not calc_time:
             loaded_v_i.add_value(1):
             self.temp_db.v_transporting_v[self.v_index].append(v_j)
             self.temp_db.actions_list[self.v_index].pop(0)
+            self.temp_db.status_dict['v_free'][v_j] = 0
             
             if len(self.temp_db.actions_list[self.v_index]) == 0:
                 self.temp_db.time_till_fin[self.v_index] = None
@@ -72,11 +104,13 @@ def v_load_v(self, v_j, item_amount=None):
         else:
             self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
+        if calc_time:
+            self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
     else:
         self.temp_db.time_till_fin[self.v_index] = 1 / loaded_v_i.rate
 
 
-def v_unload_v(self, v_j, item_amount=None):
+def v_unload_v(self, v_j, item_amount=None, calc_time=False):
 
     cargo_i = self.cargo
     items_i = self.items
@@ -98,17 +132,18 @@ def v_unload_v(self, v_j, item_amount=None):
             items_j.check_add_value(item_amount),
         )
 
-        if real_item_amount > 0:
+        if real_item_amount > 0 and not calc_time:
             cargo_i.subtract_value(real_item_amount + weight)
             items_i.subtract_value(real_item_amount)
             cargo_j.add_value(real_item_amount)
             items_j.add_value(real_item_amount)
 
 
-        if real_item_amount == item_amount:
+        if real_item_amount == item_amount and not calc_time:
             loaded_v_i.subtract_value(1):
             self.temp_db.v_transporting_v[self.v_index].pop(self.temp_db.v_transporting_v[self.v_index].index(v_j))
             self.temp_db.actions_list[self.v_index].pop(0)
+            self.temp_db.status_dict['v_free'][v_j] = 1
             
             if len(self.temp_db.actions_list[self.v_index]) == 0:
                 self.temp_db.time_till_fin[self.v_index] = None
@@ -118,11 +153,14 @@ def v_unload_v(self, v_j, item_amount=None):
         else:
             self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
+        if calc_time:
+            self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
+
     else:
         self.temp_db.time_till_fin[self.v_index] = 1 / loaded_v_i.rate
 
 
-def v_unload_items(self, n_j, item_amount=None):
+def v_unload_items(self, n_j, item_amount=None, calc_time=False):
 
     cargo_i = self.cargo
     items_i = self.items
@@ -138,12 +176,12 @@ def v_unload_items(self, n_j, item_amount=None):
         items_j.check_subtract_value(item_amount)
     )
 
-    if real_item_amount > 0:
+    if real_item_amount > 0 and not calc_time:
         cargo_i.subtract_value(real_item_amount)
         items_i.subtract_value(real_item_amount)
         items_j.subtract_value(real_item_amount)
 
-    if real_item_amount == item_amount:
+    if real_item_amount == item_amount and not calc_time:
         self.temp_db.actions_list[self.v_index].pop(0)
         
         if len(self.temp_db.actions_list[self.v_index]) == 0:
@@ -154,8 +192,11 @@ def v_unload_items(self, n_j, item_amount=None):
     else:
         self.temp_db.time_till_fin[self.v_index] = (real_cargo_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
+    if calc_time:
+        self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
 
-def v_load_items(self, n_j, item_amount=None):
+
+def v_load_items(self, n_j, item_amount=None, calc_time=False):
 
     cargo_i = self.cargo
     items_i = self.items
@@ -171,12 +212,12 @@ def v_load_items(self, n_j, item_amount=None):
         items_j.check_subtract_value(item_amount)
     )
 
-    if real_item_amount > 0:
+    if real_item_amount > 0 and not calc_time:
         cargo_i.add_value(real_item_amount)
         items_i.add_value(real_item_amount)
         items_j.subtract_value(real_item_amount)
 
-    if real_item_amount == item_amount:
+    if real_item_amount == item_amount and not calc_time:
         self.temp_db.actions_list[self.v_index].pop(0)
         
         if len(self.temp_db.actions_list[self.v_index]) == 0:
@@ -187,19 +228,21 @@ def v_load_items(self, n_j, item_amount=None):
     else:
         self.temp_db.time_till_fin[self.v_index] = (real_cargo_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
+    if calc_time:
+        self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
+
 
 # Base Simulator Class:
 # ----------------------------------------------------------------------------------------------------------------
 
 class BaseSimulator:
 
-    def __init__(self, temp_db, vehicle_creator, node_creator):
-
-        [setattr(self, k, v) for k, v in sim_param.items()]
+    def __init__(self, temp_db, vehicle_creator, node_creator, auto_agent):
 
         self.temp_db = temp_db
         self.vehicle_creator = vehicle_creator
         self.node_creator = node_creator
+        self.auto_agent = auto_agent
 
 
     def reset_simulation(self):
@@ -208,109 +251,71 @@ class BaseSimulator:
         self.node_creator.create()
         self.vehicle_creator.create()
         self.temp_db.reset_db()
+        self.reset_round()
 
 
-    def set_destination(self, vehicle_i, coordinates):
+    def reset_round(self):
+        self.v_count = 0
+        self.v_indices = np.where(self.temp_db.time_till_fin == None)
+        self.num_v = len(self.v_indice)
+        self.temp_db.cur_v_index = self.v_indices[self.v_count]
+
+
+    def set_destination(self, coordinates=None):
 
         if coordinates is None:
-            if self.temp_db.base_groups['vehicles'][vehicle_i].cargo_obj.standard_cargo.cur_value() > 0 and 0 in self.temp_db.status_dict['c_waiting']:
-                coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['c_coord'], exclude=[['demand',0], ['c_waiting',1]])
-                coordinates = self.temp_db.status_dict['c_coord'][coord_index]
-                self.temp_db.status_dict['c_waiting'][coord_index] = 1
-                self.temp_db.status_dict['v_to_n'][vehicle_i] = 1
-                self.temp_db.status_dict['v_to_n_index'][vehicle_i] = coord_index
-            else:
-                coord_index = self.temp_db.nearest_neighbour(vehicle_i, ['d_coord'], exclude=[['stock',0]])
-                coordinates = self.temp_db.status_dict['d_coord'][coord_index]
-                if self.temp_db.status_dict['v_to_n'][vehicle_i] == 1:
-                    self.temp_db.status_dict['c_waiting'][self.temp_db.status_dict['v_to_n_index'][vehicle_i]] = 0
-                self.temp_db.status_dict['v_to_n'][vehicle_i] = 0
-                self.temp_db.status_dict['v_to_n_index'][vehicle_i] = coord_index
+            coordinates = self.auto_agent.find_destination()
 
-        self.temp_db.base_groups['vehicles'][vehicle_i].update_destination(coordinates)
-
-        print('new_destination:',coordinates,'for',vehicle_i)
+        if coordinates is not None:
+            self.temp_db.status_dict['v_dest'][self.temp_db.cur_v_index] = np.array(coordinates)
+            self.temp_db.actions_list[self.temp_db.cur_v_index].append([v_move, None, None])
+            print('new destination:', coordinates, 'for', self.temp_db.cur_v_index)
 
 
-    def unload_vehicles(self, vehicle_i, num_v):
+    def unload_vehicle(self, v_j=None, amount=None):
 
-        if num_v is None:
-            num_v = len(self.temp_db.v_transporting_v[vehicle_i])
+        if v_j is None:
+            v_j = self.auto_agent.find_v_to_unload()
 
-        # Get vehicles:
-        vehicle = self.temp_db.base_groups['vehicles'][vehicle_i]
-        UV_list = [self.temp_db.base_groups['vehicles'][i] for i in self.temp_db.v_transporting_v[vehicle_i]]
-
-        # try to unload UVs from MV i
-        unloaded_list = v_unload_v(vehicle, UV_list)
-        
-        # Update Error Signal:
-        # - positve value: more actions were correct than incorrect
-        # - 0: equal number of good and bad actions
-        # - negative value: more actions were incorrect
-        self.temp_db.action_signal['unloading_v'][vehicle_i] += (num_v - ((num_v-len(unloaded_list)) * 2))
-        
-        # Update Database:
-        for elem in unloaded_list:
-            self.temp_db.v_transporting_v[vehicle_i].remove(elem)
-            self.free_after_step.append(elem.v_index)
-            self.tempd_db.status_dict['time_to_dest'][elem.v_index] = 0
-
-            print('unloaded v',elem.v_index,'from',vehicle_i)
-            self.v_did_sth = True
+        if v_j is not None:
+            self.temp_db.actions_list[self.temp_db.cur_v_index].append([v_unload_v, v_j, amount])
+            print(v_j, 'to unload from', self.temp_db.cur_v_index, 'with', amount, 'items')
 
 
-    def load_vehicle(self, vehicle_i, vehicle_j):
+    def load_vehicle(self, v_j=None):
 
-        if vehicle_j is None:
-            vehicle_j = self.temp_db.nearest_neighbour(vehicle_i, 'v_coord', exclude=[['v_type',1], ['v_free',0]])
+        if v_j is None:
+            v_j = self.auto_agent.find_v_to_load()
 
-        if self.temp_db.same_coord(vehicle_i, vehicle_j, 'v_coord'):
-
-            v_to_load = self.temp_db.base_groups['vehicles'][vehicle_j]
-            
-            loaded = False
-            if v_to_load.v_loadable:
-                loaded = v_load_v(self.temp_db.base_groups['vehicles'][vehicle_i], v_to_load)
-
-            if loaded and v_to_load.v_loadable:
-                self.temp_db.status_dict['v_free'][vehicle_j] = 0
-                self.temp_db.status_dict['time_to_dest'][vehicle_j] = 10000
-                self.temp_db.v_transporting_v[vehicle_i].append(vehicle_j)
-                self.temp_db.action_signal['free_to_be_loaded_v'][vehicle_j] += 1
-                print('loaded v',v_to_load.v_index,'to',vehicle_i)
-                self.v_did_sth = True
-            else:
-                self.temp_db.action_signal['free_to_be_loaded_v'][vehicle_j] -= 1
+        if v_j is not None:
+            if self.temp_db.same_coord(self.temp_db.status_dict['v_coord'][v_j]):
+                self.temp_db.actions_list[self.temp_db.cur_v_index].append([v_load_v, v_j, None])
+                print(v_j, 'to unload to', self.temp_db.cur_v_index)
 
 
-    def unload_cargo(self, vehicle_i, customer_j, amount):
+    def unload_items(self, n_j=None, amount=None):
 
-        if customer_j is None:
-            customer_j = self.temp_db.nearest_neighbour(vehicle_i, 'c_coord', exclude=[['demand',0]])
+        if n_j is None:
+            n_j = self.auto_agent.find_customer()
 
-        if self.temp_db.same_coord(vehicle_i, customer_j, 'c_coord'):
-            real_amount = vehicle_at_customer(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['customers'][customer_j], amount)
+        if n_j is not None:
+            if self.temp_db.same_coord(self.temp_db.status_dict['n_coord'][n_j]):
+                self.temp_db.actions_list[self.temp_db.cur_v_index].append([v_unload_items, n_j, amount])
+                print(amount, 'items to unload from', self.temp_db.cur_v_index, 'to', n_j)
 
-            print('unloaded cargo',real_amount,'from',vehicle_i,'to customer',customer_j)
-            if real_amount > 0:
-                self.v_did_sth = True
 
-    def load_cargo(self, vehicle_i, depot_j, amount):
+    def load_items(self, n_j=None, amount=None):
 
-        if depot_j is None:
-            depot_j = self.temp_db.nearest_neighbour(vehicle_i,'d_coord', exclude=[['stock',0]])
-    
-        if self.temp_db.same_coord(vehicle_i, depot_j, 'd_coord'):
-            real_amount = vehicle_at_depot(self.temp_db.base_groups['vehicles'][vehicle_i], self.temp_db.base_groups['depots'][depot_j], amount)
+        if n_j is None:
+            n_j = self.auto_agent.find_depot()
 
-            print('loaded cargo',real_amount,'to',vehicle_i, 'from depot', depot_j)
-            if real_amount > 0:
-                self.v_did_sth = True
+        if n_j is not None:
+            if self.temp_db.same_coord(self.temp_db.status_dict['n_coord'][n_j]):
+                self.temp_db.actions_list[self.temp_db.cur_v_index].append([v_load_items, n_j, amount])
+                print(amount, 'items to load to', self.temp_db.cur_v_index, 'from', n_j)
+
 
     def recharge_range(self, vehicle_i):
-
-        #charge_station = 
 
         if any(self.temp_db.status_dict['v_coord'][vehicle_i] for elem in recharge_coord):
             recharge_v(self.temp_db.base_groups[vehicle_i])
@@ -318,51 +323,24 @@ class BaseSimulator:
 
     def finish_step(self):
 
-        print('free_after_step', self.free_after_step)
-        print('cur_v_index', self.temp_db.cur_v_index)
-        print('v_transporting_v', self.temp_db.v_transporting_v)
+        if self.temp_db.terminal_state():
+            return True
 
-        if any(self.free_after_step):
-            self.temp_db.status_dict['v_free'][self.free_after_step[0]] = 1
-            self.temp_db.cur_v_index = self.free_after_step[0]
-            self.free_after_step.pop(0)
-        
-        else:
+        self.v_count += 1
+        self.temp_db.cur_v_index = self.v_indices[self.v_count]
 
-            print('v did sth', self.v_did_sth)
+        if self.v_count == self.num_v
 
-            next_step_time = min(self.temp_db.status_dict['time_to_dest'])
-            new_v_index = np.argmin(self.temp_db.status_dict['time_to_dest'])
+            self.temp_db.cur_time_frame = 1
+            [restr.in_time() for restr in self.temp_db.restr_dict[key] for key in self.temp_db.restr_dict.keys()]
+            [v.calc_time() for v in self.temp_db.base_groups['vehicles']]
+            
 
-            print('next_step_time',next_step_time)
+            masked_array = np.ma.masked_where(self.temp_db.time_till_fin == None, self.temp_db.time_till_fin)
+            self.temp_db.cur_time_frame = np.min(masked_array)
+            [restr.in_time() for restr in self.temp_db.restr_dict[key] for key in self.temp_db.restr_dict.keys()]
+            [v.take_action() for v in self.temp_db.base_groups['vehicles']]
 
-            if next_step_time == 0 and sum(self.temp_db.status_dict['demand']) == 0:
-                masked_array = np.ma.masked_where(np.array(self.temp_db.status_dict['time_to_dest'])==0, np.array(self.temp_db.status_dict['time_to_dest']))
-                next_step_time = np.min(masked_array)
-                new_v_index = np.argmin(masked_array)
+            self.reset_round()
 
-            if next_step_time == 0 and self.v_did_sth == False:
-                print(self.temp_db.cur_v_index)
-                new_v_index = self.temp_db.cur_v_index + 1
-                print(new_v_index)
-
-                if new_v_index >= self.temp_db.num_vehicles:
-                    new_v_index = 0
-                next_step_time = self.temp_db.status_dict['time_to_dest'][self.temp_db.cur_v_index]
-
-            if next_step_time != 0:
-                [v.travel_period(next_step_time) for v in self.temp_db.base_groups['vehicles'] if self.temp_db.status_dict['v_free'][v.v_index] == 1]
-
-        self.temp_db.cur_v_index = new_v_index
-        self.v_did_sth = False
-        print(np.sum(np.array(self.temp_db.status_dict['v_free'])-1)*10000)
-        return sum(self.temp_db.status_dict['demand']) + sum(self.temp_db.status_dict['time_to_dest']) == np.sum(np.array(self.temp_db.status_dict['v_free'])-1)*-10000
-
-    #def finish_episode(self):
-        # force return to depots for tsp
-
-
-
-
-
-
+        return False

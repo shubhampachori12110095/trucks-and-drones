@@ -14,40 +14,17 @@ def None_to_empty_list(variable):
 def flatten_list(list_of_lists):
     return [val for sublist in list_of_lists for val in sublist]
 
-def input_parameter(
-        image_input       = ['grid'],
-        contin_inputs     = ['coordinates','values','vehicles','customers','depots'],
-        discrete_inputs   = ['binary'],
-        discrete_dims     = 20,
-        combine_per_index = ['per_vehicle', 'per_customer', 'per_depot'], # list of input name lists
-        combine_per_type  = None,
-        # Flattens per combined (and all inputs not in a combined list),
-        # if no combination are used everything will be flattened,
-        flatten           = True,
-        flatten_images    = False,
-        ):
-    return {
-        'image_input'      : image_input,
-        'contin_inputs'    : contin_inputs,
-        'discrete_inputs'  : discrete_inputs,
-        'discrete_dims'    : discrete_dims,
-        'combine_per_index': combine_per_index,
-        'combine_per_type' : combine_per_type,
-        'flatten'          : flatten,
-        'flatten_images'   : flatten_images,
-        }
 
+class BaseObsEncoder:
 
-class BaseStateInterpreter:
-
-    def __init__(self, input_param, visualizor, simulator):
+    def __init__(self, obs_params, temp_db, visualizor):
 
         # Init parameter:
-        [setattr(self, k, None_to_empty_list(v)) for k, v in input_param.items()]
+        [setattr(self, k, None_to_empty_list(v)) for k, v in obs_params.items()]
 
         # Init objects:
         self.visualizor = visualizor
-        self.temp_db    = simulator.temp_db
+        self.temp_db    = temp_db
 
         
         # Init dicts:

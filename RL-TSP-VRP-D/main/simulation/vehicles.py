@@ -75,7 +75,7 @@ class BaseBatteryClass(RestrValueObject):
         self.battery = battery
         self.charge_to_distance = 0.5 ####################################################################################################################
 
-    def add_value(self, value):
+    def add_value(self, charge):
         new_charge = self.battery.check_add_value(value)
         new_distance = self.charge_to_distance*new_charge
         value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
@@ -84,8 +84,8 @@ class BaseBatteryClass(RestrValueObject):
         self.battery.add_value((new_value / self.charge_to_distance) - new_charge)
         return new_value
 
-    def subtract_value(self, value):
-        new_charge = self.battery.check_subtract_value(value)
+    def subtract_value(self, distance):
+        new_charge = self.battery.check_subtract_value(value/self.charge_to_distance)
         new_charge = self.charge_to_distance*new_charge
         value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
         new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)
@@ -179,25 +179,22 @@ class BaseVehicleClass:
         else:
             raise Exception("travel_type was set to '{}', but has to be: 'street', 'arial'".format(v_params['travel_type']))
 
+    def calc_time(self):
 
-    def step(self, time):
-        # v_acts[0] = function that calcs a value
-        # v_acts[1] = keys list
-        # v_acts[2] = index list for the keys
-        # v_acts[3] = function that takes an action
-        v_acts = self.temp_db.v_acts[self.v_index]
-        should_value = v_acts[0]()
-        real_value, min_rate_constant = v_acts[1]()
-
-        if action_value != 0:
-            real_value = v_acts[2](real_value, should_value)
-
-        if should_value-real_value == 0:
-            self.temp_db.status_dict['time_till_fin'][self.v_index] = 0
+        if len(self.temp_db.actions_list[self.v_index]) > 0:
+            action_pack = self.temp_db.actions_list[self.v_index][0]
+            action = action_pack[0]
+            action(action_pack[1], action_pack[2], True)
         else:
-            self.temp_db.status_dict['time_till_fin'][self.v_index] = (should_value-real_value) / min_rate_constant
-                    
-            
+            self.temp_db.time_till_fin[self.v_index] = None
+
+
+    def take_action(self):
+        
+        if len(self.temp_db.actions_list[self.v_index]) > 0:
+            action_pack = self.temp_db.actions_list[self.v_index][0]
+            action = action_pack[0]
+            action(action_pack[1], action_pack[2])
 
 
 

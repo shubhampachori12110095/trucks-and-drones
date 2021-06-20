@@ -6,32 +6,19 @@ import pygame
 from pygame import Surface
 
 
-def visual_parameter(
-        grid_surface_dim    = [800, 800],
-        grid_padding        = 10,
-        info_surface_height = 120,
-        marker_size         = 6):
-    return {
-        'grid_surface_dim'   : grid_surface_dim,
-        'grid_padding'       : grid_padding,
-        'info_surface_height': info_surface_height,
-        'marker_size'        : marker_size,
-        }
-
 
 class BaseVisualizer:
 
-    def __init__(self, name, visual_param, simulator):
+    def __init__(self, name, visual_params, temp_db):
 
         # Initialize pygame
         pygame.init()
 
         # Define parameter:
         self.name      = name
-        self.simulator = simulator
-        self.temp_db   = simulator.temp_db
-        self.grid      = simulator.grid
-        [setattr(self, k, v) for k, v in visual_param.items()]
+        self.temp_db   = temp_db
+        self.grid      = temp_db.grid
+        [setattr(self, k, v) for k, v in visual_params.items()]
 
         # Define some colors
         self.black    = (0, 0, 0)
@@ -47,8 +34,8 @@ class BaseVisualizer:
         #self.y_lenght = self.simulator.grid[1]
 
         # for resizing coordinates to grid window:
-        self.x_mulipl = int(round(self.grid_surface_dim[0] / (self.simulator.grid[0])))
-        self.y_mulipl = int(round(self.grid_surface_dim[1] / (self.simulator.grid[1])))
+        self.x_mulipl = int(round(self.grid_surface_dim[0] / (self.grid[0])))
+        self.y_mulipl = int(round(self.grid_surface_dim[1] / (self.grid[1])))
 
         self.axis_size = 20
 
@@ -118,17 +105,17 @@ class BaseVisualizer:
         self.status_surface.fill(self.transp_f)
         self.screen.fill(self.white)
 
-        for i in range(self.simulator.grid[0]+1):
+        for i in range(self.grid[0]+1):
             x_coord = self.small_font.render(str(i), True, self.black)
             width = int(round(x_coord.get_width()/2))
             self.grid_info_surface.blit(x_coord, (
                 -width+self.axis_size + int(round(self.marker_size/2)) + int(round(self.marker_size*2)) + i * self.x_mulipl,
-                int(round(self.axis_size/2))+(self.simulator.grid[1]+1)*self.x_mulipl
+                int(round(self.axis_size/2))+(self.grid[1]+1)*self.x_mulipl
                 )
             )
 
-        for i in range(self.simulator.grid[1]+1):
-            y_coord = self.small_font.render(str(self.simulator.grid[0]-i), True, self.black)
+        for i in range(self.grid[1]+1):
+            y_coord = self.small_font.render(str(self.grid[0]-i), True, self.black)
             height = int(round(y_coord.get_width()/2))
             self.grid_info_surface.blit(y_coord, (
                 int(round(self.axis_size/2)),
@@ -287,8 +274,8 @@ class BaseVisualizer:
         [self.draw_circle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['cargo'][i]) for i in range(len(self.temp_db.status_dict['v_coord'])) if self.temp_db.status_dict['v_type'][i] == 1]
         [self.draw_triangle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['cargo'][i]) for i in range(len(self.temp_db.status_dict['v_coord'])) if self.temp_db.status_dict['v_type'][i] == 0]
 
-        [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_not_transportable_v]
-        [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.simulator.temp_db.past_coord_transportable_v]
+        [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.temp_db.past_coord_not_transportable_v]
+        [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.temp_db.past_coord_transportable_v]
 
         self.draw_env_info(episode, step)
         self.draw_status_dict()

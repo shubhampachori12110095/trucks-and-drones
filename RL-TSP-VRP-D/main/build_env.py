@@ -5,10 +5,12 @@ from main.temp_database import BaseTempDatabase
 
 from main.simulation.vehicles import BaseVehicleCreator
 from main.simulation.nodes import BaseNodeCreator
+from main.simulation.auto_agent import BaseAutoAgent
+from main.simulation.simulation import BaseSimulator
 
 from main.visualizer import BaseVisualizer
-from main.state_interpreter import BaseStateInterpreter
-from main.action_interpreter import BaseActionInterpreter
+from main.state_interpreter import BaseObsEncoder
+from main.action_interpreter import BaseActDecoder
 from main.reward_calculator import BaseRewardCalculator
 
 from main.environment import CustomEnv
@@ -365,6 +367,7 @@ class BuildEnvironment:
             TempDatabase: BaseTempDatabase = BaseTempDatabase,
             VehicleCreator: BaseVehicleCreator = BaseVehicleCreator,
             NodeCreator: BaseNodeCreator = BaseNodeCreator,
+            AutoAgent: BaseAutoAgent = BaseAutoAgent,
             Simulator: BaseSimulator = BaseSimulator,
             Visualizer: BaseVisualizer = BaseVisualizer,
             ObsEncoder: BaseObsEncoder = BaseObsEncoder,
@@ -420,12 +423,13 @@ class BuildEnvironment:
         # Init vehicle and node creators:
         self.vehicle_creator = VehicleCreator(self.vehicle_params, self.temp_db)
         self.node_creator = NodeCreator(self.node_params, self.temp_db)
+        self.auto_agent = AutoAgent(self.temp_db)
 
         # Init simulation:
-        self.simulation = Simulator(self.temp_db, self.vehicle_creator, self.node_creator)
+        self.simulation = Simulator(self.temp_db, self.vehicle_creator, self.node_creator, self.auto_agent)
         
         # Init visualization:
-        self.visualizor = Visualizer(self.visual_params, self.temp_db)
+        self.visualizor = Visualizer(self.name, self.visual_params, self.temp_db)
 
         # Init observation and actions encoding/decoding:
         self.obs_encoder = ObsEncoder(self.obs_params, self.temp_db, self.visualizor)

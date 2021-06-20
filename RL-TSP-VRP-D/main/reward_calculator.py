@@ -85,13 +85,12 @@ class RewardFunctions:
 
 class BaseRewardCalculator:
 
-
-    def __init__(self, reward_param, simulation):
+    def __init__(self, reward_params, temp_db):
 
         # init reward parameter
-        [setattr(self, k, v) for k, v in reward_param.items()]
+        [setattr(self, k, v) for k, v in reward_params.items()]
 
-        self.reward_functions = RewardFunctions(self.reward_type, self.reward_modes, simulation.temp_db)
+        self.reward_functions = RewardFunctions(self.reward_type, self.reward_modes, temp_db)
 
 
     def reward_function(self):

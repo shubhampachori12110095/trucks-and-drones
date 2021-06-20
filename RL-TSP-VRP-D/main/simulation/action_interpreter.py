@@ -2,37 +2,14 @@ import numpy as np
 from gym import spaces
 
 
-def output_parameter(
-        mode             = 'single_vehicle', # 'multi_vehicle'
-        flattened        = 'per_output', #'per_vehicle', #'all'
-        contin_outputs   = ['coord','amount','v_amount'],
-        discrete_outputs = ['nodes', 'v_to_load'],
-        binary_discrete  = ['move', 'load_unload', 'v_load_unload'],
-        binary_contin    = [],
-        discrete_bins    = 20,
-        combine          = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
-        ):
-    return {
-        'mode': mode,
-        'flattened': flattened,
-        'contin_outputs': contin_outputs,
-        'discrete_outputs': discrete_outputs,
-        'binary_discrete': binary_discrete,
-        'binary_contin': binary_contin,
-        'discrete_bins': discrete_bins,
-        'combine': combine,
-    }
+class BaseActDecoder:
 
+    def __init__(self, act_params, temp_db, simulator):
 
-
-class BaseActionInterpreter:
-
-    def __init__(self, output_param, simulator, only_at_node_interactions=False):
-
-        self.temp_db = simulator.temp_db
+        self.temp_db = temp_db
         self.simulator = simulator
 
-        [setattr(self, k, v) for k, v in output_param.items()]
+        [setattr(self, k, v) for k, v in act_params.items()]
 
         all_outputs = ['coord', 'nodes','move', 'amount', 'v_amount', 'v_to_load', 'load_unload', 'v_load_unload', 'load', 'unload', 'v_load', 'v_unload', 'v_and_single_v', 'v_and_multi_v']
 
@@ -311,7 +288,7 @@ class BaseActionInterpreter:
         return np.round(actions*self.contin_max_val).astype(int)
 
 
-    def take_actions(self, actions):
+    def decode_actions(self, actions):
         if self.temp_db.status_dict['v_free'][self.temp_db.cur_v_index] == 1:
 
             if len(self.discrete_max_val) != 0: self.actions = decode_discrete(actions[:len(self.discrete_max_val)]).ravel()
@@ -320,9 +297,9 @@ class BaseActionInterpreter:
             [self.func_dict[key](key) for key in self.func_dict.keys()]
 
             if self.check_dict['coord_bool']:    self.simulator.set_destination(self.temp_db.cur_v_index, self.value_dict['coord'])
-            if self.check_dict['unload_bool']:   self.simulator.unload_cargo(self.temp_db.cur_v_index, None, self.value_dict['unload'])
-            if self.check_dict['load_bool']:     self.simulator.load_cargo(self.temp_db.cur_v_index, None, self.value_dict['load'])
-            if self.check_dict['v_unload_bool']: self.simulator.unload_vehicles(self.temp_db.cur_v_index, self.value_dict['v_unload'])
+            if self.check_dict['unload_bool']:   self.simulator.unload_items(self.temp_db.cur_v_index, self.value_dict['unload'])
+            if self.check_dict['load_bool']:     self.simulator.load_items(self.temp_db.cur_v_index, self.value_dict['load'])
+            if self.check_dict['v_unload_bool']: self.simulator.unload_vehicle(self.temp_db.cur_v_index, self.value_dict['v_unload'])
             if self.check_dict['v_load_bool']:   self.simulator.load_vehicle(self.temp_db.cur_v_index, self.value_dict['v_load'])
             
             #self.simulator.recharge_range(self.temp_db.v_index)

@@ -93,6 +93,7 @@ class TempDatabase:
         # Init indices:
         self.d_indices = []
         self.c_indices = []
+        self.v_indices = []
 
 
     def reset_db(self):    
@@ -100,14 +101,6 @@ class TempDatabase:
         for key in self.max_min_dict.keys(): self.max_min_dict[key] = np.array([np.min(self.max_min_dict[key]), np.max(self.max_min_dict[key])])
         for key in self.key_groups_dict[action_signals]: self.signals_dict[key] = np.zeros((self.num_vehicles))
 
-        # transporter name as key to look up list of loaded vehicles
-        self.v_transporting_v = [[] for i in range(self.num_vehicles)]
-
-        # Current times till vehicles reach their destination
-        self.times_till_destination = np.zeros((self.num_vehicles))
-        
-
-        self.visited = [[] for i in range(self.num_vehicles)]
 
         # Reset visited coordinates
         self.past_coord_not_transportable_v = [[] for v in self.base_groups['vehicles'] if not v.v_loadable] ##### ergänze bei vehicles
@@ -121,7 +114,11 @@ class TempDatabase:
                 self.status_dict[key] = np.zeros((self.num_vehicles))
 
         self.cur_v_index = 0
-
+        self.cur_time_frame = 0
+        self.actions_list = [[] for i in range(self.num_vehicles)]
+        self.v_transporting_v = [[] for i in range(self.num_vehicles)]
+        self.time_till_fin = np.zeros((self.num_vehicles))
+        self.time_till_fin.fill(None)
 
     def init_step(self):
 
@@ -205,30 +202,41 @@ class TempDatabase:
         insert_at_array(self.constants_dict, 'v_weight', int(vehicle.v_weight), v_index, self.num_vehicles)
         insert_at_array(self.constants_dict, 'v_type', v_type, v_index, self.num_vehicles)
 
+        self.v_indices.append(v_index)
 
-    def depots(self, array_from_dict, include=None):
+
+    def depots(self, array_from_dict, include=None, exclude=None):
+        indices = self.find_indices(self.d_indices, self.num_nodes, include, exclude)
+        return array_from_dict[indices]
+
+
+    def customers(self, array_from_dict, include=None, exclude=None):
+        indices = self.find_indices(self.c_indices, self.num_nodes, include, exclude)
+        return array_from_dict[indices]
+
+
+    def vehicles(self, array_from_dict, include=None, exclude=None):
+        indices = self.find_indices(self.v_indices, self.num_vehicles, include, exclude)
+        return array_from_dict[indices]
+
+
+    def find_indices(self, indices, num_objs, include, exclude):
+        indices = set(indices)
 
         if include is not None:
-            indices = set(self.d_indices)
             for elem in include:
-                indices = set([i for i in range(len(self.num_nodes)) if elem[0][i] == elem[1]]) & indices
-            return array_from_dict[list(indices)]
-        return array_from_dict[self.d_indices]
+                indices = set([i for i in range(num_objs) if elem[0][i] == elem[1]]) & indices
 
+        if exclude is not None:
+            for elem in exclude:
+                indices = indices.difference(set([i for i in range(num_objs) if elem[0][i] == elem[1]]))
 
-    def customers(self, array_from_dict, include=None):
-
-        if include is not None:
-            indices = set(self.c_indices)
-            for elem in include:
-                indices = set([i for i in range(len(self.num_nodes)) if elem[0][i] == elem[1]]) & indices
-            return array_from_dict[list(indices)]
-        return array_from_dict[self.c_indices]
+        return list(indices)
 
 
     def nearest_neighbour(self, v_index, coord_key, exclude=None):
 
-        v_coord = self.status_dict['v_coord'][v_index]
+        v_coord = self.status_dict['v_coord'][self.cur_v_index]
 
         if isinstance(coord_key, (list, tuple, np.ndarray)):
             coord_list = []
@@ -252,5 +260,8 @@ class TempDatabase:
         check = np.sum(np.array(self.status_dict['v_coord'][v_index]) - np.array(self.status_dict[coord_key][coord_index])) == 0
         print(check)
         return check
+
+
+    def terminal_state(self):
 
 
