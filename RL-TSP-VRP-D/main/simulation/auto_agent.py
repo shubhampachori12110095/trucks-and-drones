@@ -33,25 +33,25 @@ class BaseAutoAgent:
     def find_v_to_load(self):
 
         return self.temp_db.nearest_neighbour(self.temps_db.vehicles(
-            self.temp_db.status_dict['v_coord'],
-            include=[[self.temp_db.status_dict['v_loadable'], 1], [self.temp_db.status_dict['v_free'], 1]]
+                self.temp_db.status_dict['v_coord'],
+                include=[[self.temp_db.status_dict['v_loadable'], 1], [self.temp_db.status_dict['v_free'], 1]]
             )
         )
     
 
     def find_customer(self):
         return self.temp_db.nearest_neighbour(self.temps_db.customers(
-            self.temp_db.status_dict['n_coord'],
-            include=[[self.temp_db.status_dict['c_waiting'], 0]],
-            exclude=[[self.temp_db.status_dict['n_items'], 0]]
+                self.temp_db.status_dict['n_coord'],
+                include=[[self.temp_db.status_dict['c_waiting'], 0]],
+                exclude=[[self.temp_db.status_dict['n_items'], 0]]
             )
         )
     
 
     def find_depot(self):
         return self.temp_db.nearest_neighbour(self.temps_db.depots(
-            self.temp_db.status_dict['n_coord'],
-            exclude=[[self.temp_db.status_dict['n_items'], 0]]
+                self.temp_db.status_dict['n_coord'],
+                exclude=[[self.temp_db.status_dict['n_items'], 0]]
             )
         ) 
 

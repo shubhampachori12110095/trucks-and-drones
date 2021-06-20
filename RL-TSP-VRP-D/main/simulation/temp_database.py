@@ -106,12 +106,7 @@ class TempDatabase:
         self.past_coord_not_transportable_v = [[] for v in self.base_groups['vehicles'] if not v.v_loadable] ##### ergänze bei vehicles
         self.past_coord_transportable_v     = [[] for v in self.base_groups['vehicles'] if v.v_loadable]     ##### ergänze bei vehicles
 
-        ############################### QUICK FIX !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         self.status_dict['c_waiting'] = np.zeros((self.num_customers))
-
-        for key in self.status_dict.keys():
-            if self.status_dict[key]==[]:
-                self.status_dict[key] = np.zeros((self.num_vehicles))
 
         self.cur_v_index = 0
         self.cur_time_frame = 0
@@ -207,17 +202,17 @@ class TempDatabase:
 
     def depots(self, array_from_dict, include=None, exclude=None):
         indices = self.find_indices(self.d_indices, self.num_nodes, include, exclude)
-        return array_from_dict[indices]
+        return [array_from_dict[indices], indices]
 
 
     def customers(self, array_from_dict, include=None, exclude=None):
         indices = self.find_indices(self.c_indices, self.num_nodes, include, exclude)
-        return array_from_dict[indices]
+        return [array_from_dict[indices], indices]
 
 
     def vehicles(self, array_from_dict, include=None, exclude=None):
         indices = self.find_indices(self.v_indices, self.num_vehicles, include, exclude)
-        return array_from_dict[indices]
+        return [array_from_dict[indices], indices]
 
 
     def find_indices(self, indices, num_objs, include, exclude):
@@ -234,26 +229,14 @@ class TempDatabase:
         return list(indices)
 
 
-    def nearest_neighbour(self, v_index, coord_key, exclude=None):
+    def nearest_neighbour(self, coord_and_indices):
 
         v_coord = self.status_dict['v_coord'][self.cur_v_index]
+        
+        coord = coord_and_indices[0]
+        compared = np.sum(np.abs(coord - v_coord), axis=1)
 
-        if isinstance(coord_key, (list, tuple, np.ndarray)):
-            coord_list = []
-            for elem in coord_key:
-                coord_list += self.status_dict[elem]
-        else:
-            coord_list = self.status_dict[coord_key]
-
-        compared = [np.sum(np.abs(np.array(elem)-np.array(v_coord))) for elem in coord_list]
-
-        if exclude is not None:
-            for i in range(len(compared)):
-                for elem in exclude:
-                    if self.status_dict[elem[0]][i] == elem[1]:
-                        compared[i] = 10000
-
-        return np.argmin(compared)
+        return coord_and_indices[1][np.argmin(compared)]
 
     def same_coord(self, v_index, coord_index, coord_key):
         print(self.status_dict['v_coord'][v_index], self.status_dict[coord_key][coord_index])
@@ -263,5 +246,7 @@ class TempDatabase:
 
 
     def terminal_state(self):
-
+        if np.sum(self.customers(self.status_dict['n_intems'])[0]) == 0:
+            self.actions_list = [[] for i in range(self.num_vehicles)]
+            
 

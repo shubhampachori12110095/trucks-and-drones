@@ -271,6 +271,8 @@ class BaseSimulator:
             self.temp_db.actions_list[self.temp_db.cur_v_index].append([v_move, None, None])
             print('new destination:', coordinates, 'for', self.temp_db.cur_v_index)
 
+        #### hier c_waiting!
+
 
     def unload_vehicle(self, v_j=None, amount=None):
 
@@ -324,23 +326,26 @@ class BaseSimulator:
     def finish_step(self):
 
         if self.temp_db.terminal_state():
+            for self.cur_v_index in self.temp_db.num_vehicles: self.set_destination()
+            self.actions_during_timeframe()
             return True
 
         self.v_count += 1
         self.temp_db.cur_v_index = self.v_indices[self.v_count]
 
         if self.v_count == self.num_v
+            self.actions_during_timeframe()
+        
+        return False
 
+        def actions_during_timeframe(self):
             self.temp_db.cur_time_frame = 1
             [restr.in_time() for restr in self.temp_db.restr_dict[key] for key in self.temp_db.restr_dict.keys()]
             [v.calc_time() for v in self.temp_db.base_groups['vehicles']]
             
-
             masked_array = np.ma.masked_where(self.temp_db.time_till_fin == None, self.temp_db.time_till_fin)
             self.temp_db.cur_time_frame = np.min(masked_array)
             [restr.in_time() for restr in self.temp_db.restr_dict[key] for key in self.temp_db.restr_dict.keys()]
             [v.take_action() for v in self.temp_db.base_groups['vehicles']]
 
             self.reset_round()
-
-        return False
