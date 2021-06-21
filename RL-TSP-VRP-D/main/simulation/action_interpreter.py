@@ -296,17 +296,18 @@ class BaseActDecoder:
 
             [self.func_dict[key](key) for key in self.func_dict.keys()]
 
-            if self.check_dict['coord_bool']:    self.simulator.set_destination(self.temp_db.cur_v_index, self.value_dict['coord'])
-            if self.check_dict['unload_bool']:   self.simulator.unload_items(self.temp_db.cur_v_index, self.value_dict['unload'])
-            if self.check_dict['load_bool']:     self.simulator.load_items(self.temp_db.cur_v_index, self.value_dict['load'])
-            if self.check_dict['v_unload_bool']: self.simulator.unload_vehicle(self.temp_db.cur_v_index, self.value_dict['v_unload'])
-            if self.check_dict['v_load_bool']:   self.simulator.load_vehicle(self.temp_db.cur_v_index, self.value_dict['v_load'])
+            if self.check_dict['v_unload_bool']: self.simulator.unload_vehicle(self.value_dict['v_unload'])
+            if self.check_dict['v_load_bool']:   self.simulator.load_vehicle(self.value_dict['v_load'])
+            if self.check_dict['unload_bool']:   self.simulator.unload_items(self.value_dict['unload'])
+            if self.check_dict['load_bool']:     self.simulator.load_items(self.value_dict['load'])
+            if self.check_dict['coord_bool']:    self.simulator.set_destination(self.value_dict['coord'])
+
             
             #self.simulator.recharge_range(self.temp_db.v_index)
             
-            self.temp_db.action_signal['v_free'][self.temp_db.cur_v_index] += 1
+            #self.temp_db.signals_dict['v_free'][self.temp_db.cur_v_index] += 1
 
-        else:
-            self.temp_db.action_signal['v_free'][self.temp_db.cur_v_index] -= 1
+        #else:
+            #self.temp_db.signals_dict['v_free'][self.temp_db.cur_v_index] -= 1
 
 

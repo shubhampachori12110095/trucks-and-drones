@@ -1,11 +1,6 @@
 import gym
-from gym import spaces
 
-from main.simulation.simulation import BaseSimulator
-from main.simulation.action_interpreter import BaseActionInterpreter
-from main.simulation.state_interpreter import BaseStateInterpreter
-from main.reward_calculator import BaseRewardCalculator
-from main.visualizer import BaseVisualizer
+
 
 #from logger import TrainingLogger, TestingLogger
 
@@ -20,29 +15,29 @@ class CustomEnv(gym.Env):
 
     def __init__(self, 
             name,
-            all_parameter_list,
-            simulation_param,
-            visual_param,
-            output_param,
-            input_param,
-            reward_param,
-            #render_mode = ???,
+            simulation,
+            visualizor,
+            obs_encoder,
+            act_decoder,
+            reward_calc,
             ):
 
         super(CustomEnv, self).__init__()
 
+        self.name = name
+
         # Init simulator
-        self.simulator     = BaseSimulator(all_parameter_list, simulation_param)
+        self.simulation = simulation
 
         # Init visulizor:
-        self.visualizor    = BaseVisualizer(name, visual_param, self.simulator)
+        self.visualizor = visualizor
         
         # Init state and action interpreter
-        self.action_interp = BaseActionInterpreter(output_param, self.simulator, only_at_node_interactions=False)
-        self.state_interp  = BaseStateInterpreter(input_param, self.visualizor, self.simulator)
+        self.act_decoder = act_decoder
+        self.obs_encoder = obs_encoder
         
         # Init reward calculator
-        self.reward_calc   = BaseRewardCalculator(reward_param, self.simulator)
+        self.reward_calc = reward_calc
 
         # Init Logger (move to train process)
         #self.logger        = TrainingLogger()
@@ -50,8 +45,8 @@ class CustomEnv(gym.Env):
 
         # Init gym spaces:
         self.reset()
-        #self.action_space      = self.action_interp.action_space()
-        #self.observation_space = self.state_interp.obs_space()
+        #self.action_space      = self.act_decoder.action_space()
+        #self.observation_space = self.obs_encoder.obs_space()
 
         # Init Counter:
         self.count_episodes    = 0
@@ -60,13 +55,13 @@ class CustomEnv(gym.Env):
     def step(self, actions):
         
         # take action:
-        self.simulator.temp_db.init_step()
-        self.action_interp.decode_actions(actions)
-        done = self.simulator.finish_step()
-        self.simulator.temp_db.finish_step()
+        self.simulation.temp_db.init_step()
+        self.act_decoder.decode_actions(actions)
+        done = self.simulation.finish_step()
+        self.simulation.temp_db.finish_step()
 
         # new state:
-        observation = self.state_interp.observe_state()
+        observation = self.obs_encoder.observe_state()
 
         # reward:
         #reward = self.reward_calc.reward_function()
@@ -86,10 +81,10 @@ class CustomEnv(gym.Env):
         # reset counter:
         self.count_steps_of_episode = 0
 
-        self.simulator.reset_simulation()
+        self.simulation.reset_simulation()
 
         # Init first state:
-        observation = self.state_interp.observe_state()
+        observation = self.obs_encoder.observe_state()
 
         return observation
         

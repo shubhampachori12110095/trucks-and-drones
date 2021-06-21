@@ -265,14 +265,24 @@ class BaseVisualizer:
             self.status_surface.blit(text,  (5, 5+i*15))
             i += 1
 
+        i +=2
+        text = self.small_font.render('cur_v_index: '+str(self.temp_db.cur_v_index), True, self.black)
+        self.status_surface.blit(text,  (5, 5+i*15))
+        i +=2
+        text = self.small_font.render('cur_time_frame: '+str(self.temp_db.cur_time_frame), True, self.black)
+        self.status_surface.blit(text,  (5, 5+i*15))
+        i +=2
+        text = self.small_font.render('time_till_fin: '+str(self.temp_db.time_till_fin), True, self.black)
+        self.status_surface.blit(text,  (5, 5+i*15))
+
 
     def visualize_step(self, episode, step):
 
         self.reset_surfaces()
-        [self.draw_rect_marker(self.temp_db.status_dict['d_coord'][i], self.temp_db.status_dict['stock'][i]) for i in range(len(self.temp_db.status_dict['d_coord']))]
-        [self.draw_rect_marker(self.temp_db.status_dict['c_coord'][i], self.temp_db.status_dict['demand'][i], color=(0, 255, 255)) for i in range(len(self.temp_db.status_dict['c_coord']))]
-        [self.draw_circle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['cargo'][i]) for i in range(len(self.temp_db.status_dict['v_coord'])) if self.temp_db.status_dict['v_type'][i] == 1]
-        [self.draw_triangle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['cargo'][i]) for i in range(len(self.temp_db.status_dict['v_coord'])) if self.temp_db.status_dict['v_type'][i] == 0]
+        [self.draw_rect_marker(self.temp_db.status_dict['n_coord'][i], self.temp_db.status_dict['n_items'][i]) for i in self.temp_db.d_indices]
+        [self.draw_rect_marker(self.temp_db.status_dict['n_coord'][i], self.temp_db.status_dict['n_items'][i], color=(0, 255, 255)) for i in self.temp_db.c_indices]
+        [self.draw_circle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 1]
+        [self.draw_triangle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 0]
 
         [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.temp_db.past_coord_not_transportable_v]
         [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.temp_db.past_coord_transportable_v]
@@ -292,7 +302,7 @@ class BaseVisualizer:
 
         pygame.display.flip()
 
-        '''
+        
         event_happened = False
         while not event_happened:
             event = pygame.event.wait()
@@ -302,7 +312,7 @@ class BaseVisualizer:
             elif event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-        '''
+        
 
         #wait = input()
         

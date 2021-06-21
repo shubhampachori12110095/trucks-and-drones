@@ -9,10 +9,10 @@ class BaseAutoAgent:
 
 
     def find_destination(self):
-        
-        if self.temp_db.base_groups['vehicles'][self.temp_db.cur_v_index].items.cur_value() > 0 and 0 in self.temps_db.customers(self.temp_db.status_dict['c_waiting']):
+
+        if self.temp_db.base_groups['vehicles'][self.temp_db.cur_v_index].v_items.cur_value() > 0 and 0 in self.temp_db.customers(self.temp_db.status_dict['n_waiting'])[0]:
             n_index = self.find_customer()
-            self.temp_db.status_dict['c_waiting'][n_index] = 1            
+            self.temp_db.status_dict['n_waiting'][n_index] = 1            
 
         else:
             n_index = self.find_depot()
@@ -20,7 +20,7 @@ class BaseAutoAgent:
         if n_index is None:
             return None
 
-        return self.temp_db.status_dict['c_coord'][n_index]
+        return self.temp_db.status_dict['n_coord'][n_index]
 
 
     def find_v_to_unload(self):
@@ -32,24 +32,27 @@ class BaseAutoAgent:
 
     def find_v_to_load(self):
 
-        return self.temp_db.nearest_neighbour(self.temps_db.vehicles(
-                self.temp_db.status_dict['v_coord'],
-                include=[[self.temp_db.status_dict['v_loadable'], 1], [self.temp_db.status_dict['v_free'], 1]]
+        if self.temp_db.constants_dict['v_is_truck'][self.temp_db.cur_v_index]:
+            return self.temp_db.nearest_neighbour(self.temp_db.vehicles(
+                    self.temp_db.status_dict['v_coord'],
+                    include=[[self.temp_db.constants_dict['v_loadable'], 1], [self.temp_db.status_dict['v_free'], 1]]
+                )
             )
-        )
+        else:
+            return None
     
 
     def find_customer(self):
-        return self.temp_db.nearest_neighbour(self.temps_db.customers(
+        return self.temp_db.nearest_neighbour(self.temp_db.customers(
                 self.temp_db.status_dict['n_coord'],
-                include=[[self.temp_db.status_dict['c_waiting'], 0]],
+                include=[[self.temp_db.status_dict['n_waiting'], 0]],
                 exclude=[[self.temp_db.status_dict['n_items'], 0]]
             )
         )
     
 
     def find_depot(self):
-        return self.temp_db.nearest_neighbour(self.temps_db.depots(
+        return self.temp_db.nearest_neighbour(self.temp_db.depots(
                 self.temp_db.status_dict['n_coord'],
                 exclude=[[self.temp_db.status_dict['n_items'], 0]]
             )
