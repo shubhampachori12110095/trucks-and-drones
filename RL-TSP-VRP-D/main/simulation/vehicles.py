@@ -79,8 +79,11 @@ class BaseBatteryClass(RestrValueObject):
     def add_value(self, charge):
         new_charge = self.battery.check_add_value(value)
         new_distance = self.charge_to_distance*new_charge
-        value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
-        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+
+        if not np.isnan(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and self.temp_db.status_dict['in_time_'+self.name][self.obj_index] != None:
+           distance = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        
+        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], distance)
         self.update(new_value, restr_signal)
         self.battery.add_value((new_value / self.charge_to_distance) - new_charge)
         return new_value
@@ -88,8 +91,10 @@ class BaseBatteryClass(RestrValueObject):
     def subtract_value(self, distance):
         new_charge = self.battery.check_subtract_value(distance/self.charge_to_distance)
         new_distance = self.charge_to_distance*new_charge
-        value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
-        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+        if not np.isnan(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and self.temp_db.status_dict['in_time_'+self.name][self.obj_index] != None:
+           distance = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+
+        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], distance)
         self.update(new_value, restr_signal)
         self.battery.subtract_value(new_charge - (new_value / self.charge_to_distance))
         return new_value
@@ -97,16 +102,28 @@ class BaseBatteryClass(RestrValueObject):
     def check_add_value(self, value):
         new_charge = self.battery.check_add_value(value)
         new_distance = self.charge_to_distance * new_charge
-        value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
-        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+
+        if not np.isnan(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and self.temp_db.status_dict['in_time_'+self.name][self.obj_index] == None:
+            distance = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], distance)
+        
+        if np.isnan(self.temp_db.status_dict[self.name][self.obj_index]) or self.temp_db.status_dict[self.name][self.obj_index] == None:
+            return new_value
         return new_value - self.temp_db.status_dict[self.name][self.obj_index]
 
     def check_subtract_value(self, distance):
         new_charge = self.battery.check_subtract_value(distance/self.charge_to_distance)
         new_distance = self.charge_to_distance * new_charge
-        value = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
-        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)
+        
+        if not np.isnan(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and self.temp_db.status_dict['in_time_'+self.name][self.obj_index] == None:
+            distance = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        
+        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], distance)
+        
+        if np.isnan(self.temp_db.status_dict[self.name][self.obj_index]) or self.temp_db.status_dict[self.name][self.obj_index] == None:
+            return new_value
         return self.temp_db.status_dict[self.name][self.obj_index] - new_value
+
 
 
 # Base Vehicle Class:
@@ -207,13 +224,11 @@ class BaseVehicleClass:
         print('move')
 
         direction = self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
-        
+
         if np.sum(direction) != 0:
             distance = self.calc_distance(direction)
 
-            print('distance',distance)
             real_distance = self.range_restr.check_subtract_value(distance)
-            print('real_distance',real_distance)
             
             if real_distance != 0 and not calc_time:
                 self.range_restr.subtract_value(distance)
@@ -221,7 +236,6 @@ class BaseVehicleClass:
                 
                 for i in self.temp_db.v_transporting_v[self.v_index]:
                     self.temp_db.status_dict['v_coord'][i] = self.temp_db.status_dict['v_coord'][self.v_index]
-                    print('moved')
 
             if real_distance == distance and not calc_time:
 
@@ -236,10 +250,11 @@ class BaseVehicleClass:
                 self.temp_db.time_till_fin[self.v_index] = (real_distance / self.temp_db.cur_time_frame) * (distance - real_distance)
 
             if calc_time:
-                self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
+                self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
         
         else:
             self.temp_db.actions_list[self.v_index].pop(0)
+            self.take_action(calc_time)
 
 
     def v_load_v(self, v_j, item_amount=None, calc_time=False):
@@ -261,16 +276,16 @@ class BaseVehicleClass:
                 or loaded_v_i.rate == 0
             ):
             self.temp_db.actions_list[self.v_index].pop(0)
-            
-            if len(self.temp_db.actions_list[self.v_index]) == 0:
-                self.temp_db.time_till_fin[self.v_index] = None
-            else:
-                self.temp_db.time_till_fin[self.v_index] = 0
+            self.take_action(calc_time)
             return
 
         if loaded_v_i.cur_value() is None or bool(loaded_v_i.check_add_value(1)):
             item_amount = items_j.cur_value()
-            print(item_amount)
+            
+            if item_amount == 0:
+                self.temp_db.actions_list[self.v_index].pop(0)
+                self.take_action(calc_time)
+                return
         
             real_item_amount = item_amount - min(
                 cargo_i.check_add_value(item_amount + weight_j) - weight_j,
@@ -300,17 +315,14 @@ class BaseVehicleClass:
                 self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
             if calc_time:
-                self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
+                self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
         else:
-            print(loaded_v_i.rate)
-            print(bool(loaded_v_i.check_add_value(1)))
             self.temp_db.time_till_fin[self.v_index] = 1 / loaded_v_i.rate
 
 
     def v_unload_v(self, v_j, item_amount=None, calc_time=False):
 
         print('v_unload_v')
-
 
         cargo_i = self.v_cargo
         items_i = self.v_items
@@ -324,6 +336,11 @@ class BaseVehicleClass:
             
             if item_amount is None:
                 item_amount = min(items_i.cur_value(), items_j.max_restr)
+
+            if item_amount == 0:
+                self.temp_db.actions_list[self.v_index].pop(0)
+                self.take_action(calc_time)
+                return
         
             real_item_amount = min(
                 cargo_i.check_subtract_value(item_amount + weight_j) - weight_j,
@@ -344,17 +361,14 @@ class BaseVehicleClass:
                 self.temp_db.v_transporting_v[self.v_index].pop(self.temp_db.v_transporting_v[self.v_index].index(v_j))
                 self.temp_db.actions_list[self.v_index].pop(0)
                 self.temp_db.status_dict['v_free'][v_j] = 1
-                
-                if len(self.temp_db.actions_list[self.v_index]) == 0:
-                    self.temp_db.time_till_fin[self.v_index] = None
-                else:
-                    self.temp_db.time_till_fin[self.v_index] = 0
+                self.take_action(calc_time=True)
+                return
             
             elif self.temp_db.cur_time_frame != 0:
                 self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
             if calc_time:
-                self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
+                self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
 
         else:
             self.temp_db.time_till_fin[self.v_index] = 1 / loaded_v_i.rate
@@ -371,6 +385,13 @@ class BaseVehicleClass:
 
         if item_amount is None:
             item_amount = min(items_i.cur_value(), items_j.cur_value())
+            print('item_amount',item_amount)
+
+        if item_amount == 0:
+            self.temp_db.actions_list[self.v_index].pop(0)
+            self.temp_db.status_dict['n_waiting'][n_j] = 0
+            self.take_action(calc_time=True)
+            return
 
         real_item_amount = min(
             cargo_i.check_subtract_value(item_amount),
@@ -385,18 +406,15 @@ class BaseVehicleClass:
 
         if real_item_amount == item_amount and not calc_time:
             self.temp_db.actions_list[self.v_index].pop(0)
-            
-            if len(self.temp_db.actions_list[self.v_index]) == 0:
-                self.temp_db.time_till_fin[self.v_index] = None
-            else:
-                self.temp_db.time_till_fin[self.v_index] = 0
+            self.temp_db.status_dict['n_waiting'][n_j] = 0
+            self.take_action(calc_time=True)
+            return
 
         elif self.temp_db.cur_time_frame != 0:
             self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
         if calc_time:
-            self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
-
+            self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
 
     def v_load_items(self, n_j, item_amount=None, calc_time=False):
         
@@ -409,14 +427,18 @@ class BaseVehicleClass:
 
         if item_amount is None:
             item_amount = min(items_i.max_restr-items_i.cur_value(), items_j.cur_value())
-            print(item_amount)
+
+        if item_amount == 0:
+            self.temp_db.actions_list[self.v_index].pop(0)
+            self.take_action(calc_time)
+            return        
 
         real_item_amount = min(
             cargo_i.check_add_value(item_amount),
             items_i.check_add_value(item_amount),
             items_j.check_subtract_value(item_amount),
         )
-        print(real_item_amount)
+
         if real_item_amount > 0 and not calc_time:
             cargo_i.add_value(real_item_amount)
             items_i.add_value(real_item_amount)
@@ -424,17 +446,14 @@ class BaseVehicleClass:
 
         if real_item_amount == item_amount and not calc_time:
             self.temp_db.actions_list[self.v_index].pop(0)
-            
-            if len(self.temp_db.actions_list[self.v_index]) == 0:
-                self.temp_db.time_till_fin[self.v_index] = None
-            else:
-                self.temp_db.time_till_fin[self.v_index] = 0
+            self.take_action(calc_time)
+            return
 
         elif self.temp_db.cur_time_frame != 0:
             self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
         if calc_time:
-            self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + 1
+            self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
 
 
 

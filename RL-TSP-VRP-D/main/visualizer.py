@@ -174,7 +174,7 @@ class BaseVisualizer:
         self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
 
-    def draw_triangle_marker(self, coordinates, add_info=None, color=(0, 0, 255)):
+    def draw_triangle_down_marker(self, coordinates, add_info=None, color=(0, 0, 255)):
         '''
         Draws a marker to the grid surface with a traingle shape to specific location based on grid coordinates.
         Will also call draw_marker_info(), so additinal information can be drawn to the info grid surface.
@@ -202,6 +202,33 @@ class BaseVisualizer:
         # info:
         #self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
+    def draw_triangle_up_marker(self, coordinates, add_info=None, color=(0, 0, 255)):
+        '''
+        Draws a marker to the grid surface with a traingle shape to specific location based on grid coordinates.
+        Will also call draw_marker_info(), so additinal information can be drawn to the info grid surface.
+        '''
+
+        #resize grid coordinates to surface coordinates:
+        surface_coordinates = [
+            coordinates[0]*self.x_mulipl + int(round(self.marker_size*2)),
+            (self.grid[1] - coordinates[1])*self.y_mulipl + int(round(self.marker_size*2))]
+
+        # get relevant points:
+        # A tringle is drawn by giving a polygon three points.
+        # To be in the middle we apply the same logic of rectangles for y.
+        # For one of the two x values we subtract the half of marker size,
+        # for the other one we add a half.
+        x_1 = surface_coordinates[0] + int(round(self.marker_size / 2))
+        x_2 = surface_coordinates[0] - int(round(self.marker_size / 2))
+        x_y = surface_coordinates[1] 
+        y   = surface_coordinates[1] - int(round(self.marker_size / 2))
+        y_x = surface_coordinates[0]
+
+        # draw traingle:
+        pygame.draw.polygon(self.grid_surface, color, ([x_1, x_y], [y_x, y], [x_2, x_y]))
+
+        # info:
+        #self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
     def draw_marker_info(self, surface_coordinates, coordinates, add_info):
         '''
@@ -281,8 +308,9 @@ class BaseVisualizer:
         self.reset_surfaces()
         [self.draw_rect_marker(self.temp_db.status_dict['n_coord'][i], self.temp_db.status_dict['n_items'][i]) for i in self.temp_db.d_indices]
         [self.draw_rect_marker(self.temp_db.status_dict['n_coord'][i], self.temp_db.status_dict['n_items'][i], color=(0, 255, 255)) for i in self.temp_db.c_indices]
-        [self.draw_circle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 1]
-        [self.draw_triangle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 0]
+        [self.draw_circle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 0]
+        [self.draw_triangle_up_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 1]
+        [self.draw_triangle_down_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 2]
 
         [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.temp_db.past_coord_not_transportable_v]
         [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.temp_db.past_coord_transportable_v]

@@ -248,7 +248,9 @@ class BaseTempDatabase:
         coord = coord_and_indices[0]
         compared = np.sum(np.abs(coord - v_coord), axis=1)
 
-        return coord_and_indices[1][np.argmin(compared)]
+        if compared.size != 0:
+            return coord_and_indices[1][np.argmin(compared)]
+        return None
 
     def same_coord(self, compare_coord):
         check = np.sum(self.status_dict['v_coord'][self.cur_v_index] - compare_coord) == 0
@@ -256,7 +258,23 @@ class BaseTempDatabase:
 
 
     def terminal_state(self):
+        print(self.customers(self.status_dict['n_items'])[0])
+        print(self.customers(self.status_dict['n_waiting'])[0])
+
         if np.sum(self.customers(self.status_dict['n_items'])[0]) == 0:
-            self.actions_list = [[] for i in range(self.num_vehicles)]
+
+            d_coord = self.depots(self.status_dict['n_coord'])[0]
+            v_coord = self.status_dict['v_coord']
+
+            all_compare = []
+            for elem in v_coord:
+                print(d_coord)
+                print(elem)
+                compare = np.min(np.abs(d_coord-elem))
+                print(compare)
+                all_compare.append(compare)
+            if np.sum(all_compare) == 0:
+                return True
+        return False
             
 

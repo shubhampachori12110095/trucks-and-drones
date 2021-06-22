@@ -222,7 +222,7 @@ class BuildEnvironment:
             # number of nodes:
             num: (int, list, tuple, np.ndarray) = 1,
             # items (stock if node is depot and demand if node is customer):
-            max_items: (None, int, list, tuple, np.ndarray) = 100,
+            max_items: (None, int, list, tuple, np.ndarray) = 1000,
             init_items: (str, None, int, list, tuple, np.ndarray) = 'max',
             item_rate: (None, int, list, tuple, np.ndarray) = None,
             item_recharge: (None, int, list, tuple, np.ndarray) = 0,

@@ -42,11 +42,8 @@ class BaseSimulator:
 
     def reset_round(self):
         self.v_count = 0
-        print(self.temp_db.time_till_fin)
         self.v_indices = np.squeeze(np.argwhere(np.isnan(self.temp_db.time_till_fin)))#np.where( == np.nan)
         self.num_v = self.v_indices.size
-        print('num_v:', self.num_v)
-        print('v_indices:', self.v_indices)
         if self.num_v == 0:
             self.finish_step()
         elif self.num_v == 1:
@@ -63,7 +60,7 @@ class BaseSimulator:
         if coordinates is not None:
             self.temp_db.status_dict['v_dest'][self.temp_db.cur_v_index] = np.array(coordinates)
             self.temp_db.actions_list[self.temp_db.cur_v_index].append(['move', None, None])
-            print('new destination:', coordinates, 'for', self.temp_db.cur_v_index)
+            #print('new destination:', coordinates, 'for', self.temp_db.cur_v_index)
 
         #### hier c_waiting!
 
@@ -75,7 +72,7 @@ class BaseSimulator:
 
         if v_j is not None:
             self.temp_db.actions_list[self.temp_db.cur_v_index].append(['unload_v', v_j, amount])
-            print(v_j, 'to unload from', self.temp_db.cur_v_index, 'with', amount, 'items')
+            #print(v_j, 'to unload from', self.temp_db.cur_v_index, 'with', amount, 'items')
 
 
     def load_vehicle(self, v_j=None):
@@ -86,7 +83,7 @@ class BaseSimulator:
         if v_j is not None:
             if self.temp_db.same_coord(self.temp_db.status_dict['v_coord'][v_j]):
                 self.temp_db.actions_list[self.temp_db.cur_v_index].append(['load_v', v_j, None])
-                print(v_j, 'to load to', self.temp_db.cur_v_index)
+                #print(v_j, 'to load to', self.temp_db.cur_v_index)
 
 
     def unload_items(self, n_j=None, amount=None):
@@ -97,7 +94,7 @@ class BaseSimulator:
         if n_j is not None:
             if self.temp_db.same_coord(self.temp_db.status_dict['n_coord'][n_j]):
                 self.temp_db.actions_list[self.temp_db.cur_v_index].append(['unload_i', n_j, amount])
-                print(amount, 'items to unload from', self.temp_db.cur_v_index, 'to', n_j)
+                #print(amount, 'items to unload from', self.temp_db.cur_v_index, 'to', n_j)
 
 
     def load_items(self, n_j=None, amount=None):
@@ -108,7 +105,7 @@ class BaseSimulator:
         if n_j is not None:
             if self.temp_db.same_coord(self.temp_db.status_dict['n_coord'][n_j]):
                 self.temp_db.actions_list[self.temp_db.cur_v_index].append(['load_i', n_j, amount])
-                print(amount, 'items to load to', self.temp_db.cur_v_index, 'from', n_j)
+                #print(amount, 'items to load to', self.temp_db.cur_v_index, 'from', n_j)
 
 
     def recharge_range(self, vehicle_i):
@@ -120,8 +117,6 @@ class BaseSimulator:
     def finish_step(self):
 
         if self.temp_db.terminal_state():
-            for self.cur_v_index in self.temp_db.num_vehicles: self.set_destination()
-            self.actions_during_timeframe()
             return True
 
         self.v_count += 1
@@ -135,19 +130,17 @@ class BaseSimulator:
 
     def actions_during_timeframe(self):
 
-        print(self.temp_db.actions_list)
-
         self.temp_db.cur_time_frame = 1
         for key in self.temp_db.restr_dict.keys(): [restr.in_time() for restr in self.temp_db.restr_dict[key] if restr is not None]
         [v.take_action(calc_time=True) for v in self.temp_db.base_groups['vehicles']]
         
-        print(self.temp_db.time_till_fin)
-
-        min_masked_array = np.min(np.ma.masked_invalid(self.temp_db.time_till_fin))
-        if min_masked_array is not None:
+        min_masked_array = np.nanmin(self.temp_db.time_till_fin)
+        print('min_masked_array', min_masked_array)
+        if not np.isnan(min_masked_array):
             self.temp_db.cur_time_frame = min_masked_array
         else:
             self.temp_db.cur_time_frame = 0
+        print(self.temp_db.cur_time_frame)
         for key in self.temp_db.restr_dict.keys(): [restr.in_time() for restr in self.temp_db.restr_dict[key] if restr is not None]
         [v.take_action() for v in self.temp_db.base_groups['vehicles']]
 
