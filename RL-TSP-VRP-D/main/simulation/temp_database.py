@@ -249,7 +249,12 @@ class BaseTempDatabase:
         compared = np.sum(np.abs(coord - v_coord), axis=1)
 
         if compared.size != 0:
-            return coord_and_indices[1][np.argmin(compared)]
+            indices = coord_and_indices[1][np.argmin(compared)]
+            print('indices',indices)
+            if isinstance(indices, int):
+                return indices
+            else:
+                return indices[0]
         return None
 
     def same_coord(self, compare_coord):

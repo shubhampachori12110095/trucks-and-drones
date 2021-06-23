@@ -130,9 +130,8 @@ class BaseSimulator:
 
     def actions_during_timeframe(self):
 
-        self.temp_db.cur_time_frame = 1
-        for key in self.temp_db.restr_dict.keys(): [restr.in_time() for restr in self.temp_db.restr_dict[key] if restr is not None]
         [v.take_action(calc_time=True) for v in self.temp_db.base_groups['vehicles']]
+        for key in self.temp_db.restr_dict.keys(): [restr.in_time() for restr in self.temp_db.restr_dict[key] if restr is not None]
         
         min_masked_array = np.nanmin(self.temp_db.time_till_fin)
         print('min_masked_array', min_masked_array)

@@ -3,7 +3,7 @@
 '''
 import numpy as np
 
-from main.simulation.restrictions import RestrValueObject
+from main.simulation.restrictions import RestrValueObject, is_None, is_not_None
 from main.simulation.common_sim_func import param_interpret, random_coordinates
 
 
@@ -58,10 +58,10 @@ def battery_recharge(self):
     real_charge = self.range_restr.add_value(self.charge_rate)
 
 def street_distance(direction):
-    return np.sum(np.abs(direction))
+    return np.round(np.sum(np.abs(direction)),2)
 
 def arial_distance(direction):
-    return np.linalg.norm(direction)
+    return np.round(np.linalg.norm(direction),2)
 
 
 # Base Battery:
@@ -76,51 +76,57 @@ class BaseBatteryClass(RestrValueObject):
         self.battery = battery
         self.charge_to_distance = 0.5 ####################################################################################################################
 
+
     def add_value(self, charge):
         new_charge = self.battery.check_add_value(value)
-        new_distance = self.charge_to_distance*new_charge
+        distance = self.charge_to_distance*new_charge
 
-        if not np.isnan(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and self.temp_db.status_dict['in_time_'+self.name][self.obj_index] != None:
-           distance = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]):
+           distance = min(distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
         
         new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], distance)
         self.update(new_value, restr_signal)
         self.battery.add_value((new_value / self.charge_to_distance) - new_charge)
         return new_value
 
+
     def subtract_value(self, distance):
         new_charge = self.battery.check_subtract_value(distance/self.charge_to_distance)
-        new_distance = self.charge_to_distance*new_charge
-        if not np.isnan(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and self.temp_db.status_dict['in_time_'+self.name][self.obj_index] != None:
-           distance = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        distance = self.charge_to_distance*new_charge
+        
+        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]):
+           distance = min(distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
 
         new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], distance)
         self.update(new_value, restr_signal)
         self.battery.subtract_value(new_charge - (new_value / self.charge_to_distance))
         return new_value
 
-    def check_add_value(self, value):
-        new_charge = self.battery.check_add_value(value)
-        new_distance = self.charge_to_distance * new_charge
 
-        if not np.isnan(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and self.temp_db.status_dict['in_time_'+self.name][self.obj_index] == None:
-            distance = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+    def check_add_value(self, value, in_time=True):
+        new_charge = self.battery.check_add_value(value)
+        distance = self.charge_to_distance * new_charge
+
+        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and in_time:
+            distance = min(distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        
         new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], distance)
         
-        if np.isnan(self.temp_db.status_dict[self.name][self.obj_index]) or self.temp_db.status_dict[self.name][self.obj_index] == None:
+        if is_None(self.temp_db.status_dict[self.name][self.obj_index]):
             return new_value
         return new_value - self.temp_db.status_dict[self.name][self.obj_index]
 
-    def check_subtract_value(self, distance):
+
+    def check_subtract_value(self, distance, in_time=True):
         new_charge = self.battery.check_subtract_value(distance/self.charge_to_distance)
-        new_distance = self.charge_to_distance * new_charge
+        distance = self.charge_to_distance * new_charge
         
-        if not np.isnan(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and self.temp_db.status_dict['in_time_'+self.name][self.obj_index] == None:
-            distance = min(new_distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and in_time:
+            distance = min(distance, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
         
         new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], distance)
         
-        if np.isnan(self.temp_db.status_dict[self.name][self.obj_index]) or self.temp_db.status_dict[self.name][self.obj_index] == None:
+        if is_None(self.temp_db.status_dict[self.name][self.obj_index]):
             return new_value
         return self.temp_db.status_dict[self.name][self.obj_index] - new_value
 
@@ -221,45 +227,62 @@ class BaseVehicleClass:
 
     def v_move(self, calc_time=False):
 
-        print('move')
+        print('move',calc_time)
 
         direction = self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
+        distance = self.calc_distance(direction)
 
-        if np.sum(direction) != 0:
-            distance = self.calc_distance(direction)
+        if distance == 0:
+            self.temp_db.actions_list[self.v_index].pop(0)
+            '''
+            c_coord = self.temp_db.nearest_neighbour(self.temp_db.customers(
+                    self.temp_db.status_dict['n_coord'],
+                    include=[[self.temp_db.status_dict['n_waiting'], 1]]
+                )
+            )
+            if self.temp_db.same_coord(self.temp_db.status_dict['n_coord'][c_coord]):
+                self.temp_db.status_dict['n_waiting'] = 0
+            '''
+            self.take_action(calc_time=True)
+            return
+
+
+        if not calc_time:
 
             real_distance = self.range_restr.check_subtract_value(distance)
             
-            if real_distance != 0 and not calc_time:
+            if real_distance != 0:
                 self.range_restr.subtract_value(distance)
-                self.temp_db.status_dict['v_coord'][self.v_index] = direction * (real_distance/distance) + self.temp_db.status_dict['v_coord'][self.v_index]
+                self.temp_db.status_dict['v_coord'][self.v_index] = np.round(direction * (real_distance/distance) + self.temp_db.status_dict['v_coord'][self.v_index], 3)
                 
                 for i in self.temp_db.v_transporting_v[self.v_index]:
                     self.temp_db.status_dict['v_coord'][i] = self.temp_db.status_dict['v_coord'][self.v_index]
 
-            if real_distance == distance and not calc_time:
-
+            if real_distance == distance:
                 self.temp_db.actions_list[self.v_index].pop(0)
-                
-                if len(self.temp_db.actions_list[self.v_index]) == 0:
-                    self.temp_db.time_till_fin[self.v_index] = None
-                else:
-                    self.temp_db.time_till_fin[self.v_index] = 0
 
-            elif self.temp_db.cur_time_frame != 0:
-                self.temp_db.time_till_fin[self.v_index] = (real_distance / self.temp_db.cur_time_frame) * (distance - real_distance)
+                '''
+                c_coord = self.temp_db.nearest_neighbour(self.temp_db.customers(
+                        self.temp_db.status_dict['n_coord'],
+                        exclude=[[self.temp_db.status_dict['n_waiting'], 0]]
+                    )
+                )
+                if self.temp_db.same_coord(self.temp_db.status_dict['n_coord'][c_coord]):
+                    self.temp_db.status_dict['n_waiting'] = 0
+                '''
+                self.take_action(calc_time=True)
+                return
 
-            if calc_time:
-                self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
-        
+            else:
+                self.temp_db.time_till_fin[self.v_index] = self.range_restr.calc_time(distance - real_distance)
+
         else:
-            self.temp_db.actions_list[self.v_index].pop(0)
-            self.take_action(calc_time)
+            self.temp_db.time_till_fin[self.v_index] = self.range_restr.calc_time(distance)
 
 
     def v_load_v(self, v_j, item_amount=None, calc_time=False):
 
-        print('v_load_v')
+        print('v_load_v',calc_time)
 
         cargo_i = self.v_cargo
         items_i = self.v_items
@@ -270,59 +293,74 @@ class BaseVehicleClass:
         weight_j = self.temp_db.constants_dict['v_weight'][v_j]
 
         if (items_i.max_restr - items_i.cur_value() < cargo_j.cur_value()
-                or self.temp_db.constants_dict['v_loadable'][v_j] == 0
-                or self.temp_db.status_dict['v_free'][v_j] == 0
+                or bool(self.temp_db.constants_dict['v_loadable'][v_j])
+                or bool(self.temp_db.status_dict['v_free'][v_j])
                 or not self.is_truck
                 or loaded_v_i.rate == 0
+                or not loaded_v_i.check_add_value(1, in_time=False) == 1
             ):
             self.temp_db.actions_list[self.v_index].pop(0)
-            self.take_action(calc_time)
+            self.take_action(calc_time=True)
             return
 
-        if loaded_v_i.cur_value() is None or bool(loaded_v_i.check_add_value(1)):
-            item_amount = items_j.cur_value()
-            
-            if item_amount == 0:
-                self.temp_db.actions_list[self.v_index].pop(0)
-                self.take_action(calc_time)
-                return
+        item_amount = min(
+            cargo_i.check_add_value(item_amount + weight_j, in_time=False) - weight_j,
+            items_i.check_add_value(item_amount, in_time=False),
+            cargo_j.check_subtract_value(item_amount, in_time=False),
+            items_j.check_subtract_value(item_amount, in_time=False)
+        )
         
-            real_item_amount = item_amount - min(
+        if (item_amount == 0 and items_i.cur_value() != 0):
+            self.temp_db.actions_list[self.v_index].pop(0)
+            self.take_action(calc_time=True)
+            return
+        
+        if not calc_time and loaded_v_i.check_add_value(1) == 1:
+                
+            real_item_amount = min(
                 cargo_i.check_add_value(item_amount + weight_j) - weight_j,
                 items_i.check_add_value(item_amount),
                 cargo_j.check_subtract_value(item_amount),
                 items_j.check_subtract_value(item_amount)
             )
 
-            if real_item_amount > 0 and not calc_time:
+            if real_item_amount > 0:
                 cargo_i.add_value(real_item_amount + weight_j)
                 items_i.add_value(real_item_amount)
                 cargo_j.subtract_value(real_item_amount)
                 items_j.subtract_value(real_item_amount)
 
-            if real_item_amount == item_amount and not calc_time:
+            if real_item_amount == item_amount:
                 loaded_v_i.add_value(1)
                 self.temp_db.v_transporting_v[self.v_index].append(v_j)
-                self.temp_db.actions_list[self.v_index].pop(0)
                 self.temp_db.status_dict['v_free'][v_j] = 0
                 
-                if len(self.temp_db.actions_list[self.v_index]) == 0:
-                    self.temp_db.time_till_fin[self.v_index] = None
-                else:
-                    self.temp_db.time_till_fin[self.v_index] = 0
+                self.temp_db.actions_list[self.v_index].pop(0)
+                self.take_action(calc_time=True)
+                return
             
-            elif self.temp_db.cur_time_frame !=0:
-                self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
+            else:
+                self.temp_db.time_till_fin[self.v_index] = max(
+                    cargo_i.calc_time(item_amount-real_item_amount),
+                    items_i.calc_time(item_amount-real_item_amount),
+                    cargo_j.calc_time(item_amount-real_item_amount),
+                    items_j.calc_time(item_amount-real_item_amount),
+                    loaded_v_i.calc_time(1)
+                )
 
-            if calc_time:
-                self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
         else:
-            self.temp_db.time_till_fin[self.v_index] = 1 / loaded_v_i.rate
+            self.temp_db.time_till_fin[self.v_index] = max(
+                cargo_i.calc_time(item_amount + weight_j),
+                items_i.calc_time(item_amount),
+                cargo_j.calc_time(item_amount),
+                items_j.calc_time(item_amount),
+                loaded_v_i.calc_time(1)
+            )
 
 
     def v_unload_v(self, v_j, item_amount=None, calc_time=False):
 
-        print('v_unload_v')
+        print('v_unload_v',calc_time)
 
         cargo_i = self.v_cargo
         items_i = self.v_items
@@ -332,15 +370,18 @@ class BaseVehicleClass:
         items_j = self.temp_db.restr_dict['v_items'][v_j]
         weight_j = self.temp_db.constants_dict['v_weight'][v_j]
 
-        if loaded_v_i.cur_value() is None or bool(loaded_v_i.check_subtract_value(1)):
-            
-            if item_amount is None:
-                item_amount = min(items_i.cur_value(), items_j.max_restr)
+        possible_item_amount = min(
+            cargo_i.check_subtract_value(item_amount + weight_j, in_time=False) - weight_j,
+            items_i.check_subtract_value(item_amount, in_time=False),
+            cargo_j.check_add_value(item_amount, in_time=False),
+            items_j.check_add_value(item_amount, in_time=False)
+        )
 
-            if item_amount == 0:
-                self.temp_db.actions_list[self.v_index].pop(0)
-                self.take_action(calc_time)
-                return
+        if not item_amount is None:
+            action_error = abs(item_amount-possible_item_amount)
+        item_amount = possible_item_amount
+
+        if not calc_time and loaded_v_i.check_subtract_value(1) == 1:
         
             real_item_amount = min(
                 cargo_i.check_subtract_value(item_amount + weight_j) - weight_j,
@@ -349,112 +390,164 @@ class BaseVehicleClass:
                 items_j.check_add_value(item_amount),
             )
 
-            if real_item_amount > 0 and not calc_time:
+            if real_item_amount > 0:
                 cargo_i.subtract_value(real_item_amount + weight_j)
                 items_i.subtract_value(real_item_amount)
                 cargo_j.add_value(real_item_amount)
                 items_j.add_value(real_item_amount)
 
 
-            if real_item_amount == item_amount and not calc_time:
+            if real_item_amount == item_amount:
                 loaded_v_i.subtract_value(1)
+                
                 self.temp_db.v_transporting_v[self.v_index].pop(self.temp_db.v_transporting_v[self.v_index].index(v_j))
-                self.temp_db.actions_list[self.v_index].pop(0)
                 self.temp_db.status_dict['v_free'][v_j] = 1
+                
+                self.temp_db.actions_list[self.v_index].pop(0)
                 self.take_action(calc_time=True)
                 return
             
-            elif self.temp_db.cur_time_frame != 0:
-                self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
-
-            if calc_time:
-                self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
+            else:
+                self.temp_db.time_till_fin[self.v_index] = max(
+                    cargo_i.calc_time(item_amount-real_item_amount),
+                    items_i.calc_time(item_amount-real_item_amount),
+                    cargo_j.calc_time(item_amount-real_item_amount),
+                    items_j.calc_time(item_amount-real_item_amount),
+                    loaded_v_i.calc_time(1)
+                )
 
         else:
-            self.temp_db.time_till_fin[self.v_index] = 1 / loaded_v_i.rate
+            self.temp_db.time_till_fin[self.v_index] = max(
+                cargo_i.calc_time(item_amount + weight_j),
+                items_i.calc_time(item_amount),
+                cargo_j.calc_time(item_amount),
+                items_j.calc_time(item_amount),
+                loaded_v_i.calc_time(1)
+            )
 
 
     def v_unload_items(self, n_j, item_amount=None, calc_time=False):
 
-        print('v_unload_i')
+        print('v_unload_i',calc_time)
 
         cargo_i = self.v_cargo
         items_i = self.v_items
         
         items_j = self.temp_db.restr_dict['n_items'][n_j]
 
-        if item_amount is None:
-            item_amount = min(items_i.cur_value(), items_j.cur_value())
-            print('item_amount',item_amount)
-
-        if item_amount == 0:
-            self.temp_db.actions_list[self.v_index].pop(0)
-            self.temp_db.status_dict['n_waiting'][n_j] = 0
-            self.take_action(calc_time=True)
-            return
-
-        real_item_amount = min(
-            cargo_i.check_subtract_value(item_amount),
-            items_i.check_subtract_value(item_amount),
-            items_j.check_subtract_value(item_amount),
+        possible_item_amount = min(
+            cargo_i.check_subtract_value(item_amount, in_time=False),
+            items_i.check_subtract_value(item_amount, in_time=False),
+            items_j.check_subtract_value(item_amount, in_time=False),
         )
 
-        if real_item_amount > 0 and not calc_time:
-            cargo_i.subtract_value(real_item_amount)
-            items_i.subtract_value(real_item_amount)
-            items_j.subtract_value(real_item_amount)
+        if not item_amount is None:
+            action_error = abs(item_amount-possible_item_amount)
+        item_amount = possible_item_amount
 
-        if real_item_amount == item_amount and not calc_time:
-            self.temp_db.actions_list[self.v_index].pop(0)
+        if item_amount == 0:
             self.temp_db.status_dict['n_waiting'][n_j] = 0
+            
+            self.temp_db.actions_list[self.v_index].pop(0)
             self.take_action(calc_time=True)
             return
 
-        elif self.temp_db.cur_time_frame != 0:
-            self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
+        if not calc_time:
 
-        if calc_time:
-            self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
+            real_item_amount = min(
+                cargo_i.check_subtract_value(item_amount),
+                items_i.check_subtract_value(item_amount),
+                items_j.check_subtract_value(item_amount),
+            )
+        
+            if real_item_amount > 0:
+                cargo_i.subtract_value(real_item_amount)
+                items_i.subtract_value(real_item_amount)
+                items_j.subtract_value(real_item_amount)
+
+            if real_item_amount == item_amount:
+                self.temp_db.status_dict['n_waiting'][n_j] = 0
+                
+                self.temp_db.actions_list[self.v_index].pop(0)
+                self.take_action(calc_time=True)
+                return
+
+            else:
+                self.temp_db.time_till_fin[self.v_index] = max(
+                    cargo_i.calc_time(item_amount - real_item_amount),
+                    items_i.calc_time(item_amount - real_item_amount),
+                    items_j.calc_time(item_amount - real_item_amount),
+                )
+
+        else:
+            self.temp_db.time_till_fin[self.v_index] = max(
+                cargo_i.calc_time(item_amount),
+                items_i.calc_time(item_amount),
+                items_j.calc_time(item_amount),
+            )
 
     def v_load_items(self, n_j, item_amount=None, calc_time=False):
         
-        print('v_load_i')
+        print('v_load_i',calc_time)
 
         cargo_i = self.v_cargo
         items_i = self.v_items
         
         items_j = self.temp_db.restr_dict['n_items'][n_j]
 
-        if item_amount is None:
-            item_amount = min(items_i.max_restr-items_i.cur_value(), items_j.cur_value())
+        possible_item_amount = min(
+                cargo_i.check_add_value(item_amount, in_time=False),
+                items_i.check_add_value(item_amount, in_time=False),
+                items_j.check_subtract_value(item_amount, in_time=False),
+        )
+
+        print('possible_item_amount', possible_item_amount)
+
+        if not item_amount is None:
+            action_error = abs(item_amount-possible_item_amount)
+        item_amount = possible_item_amount
 
         if item_amount == 0:
             self.temp_db.actions_list[self.v_index].pop(0)
-            self.take_action(calc_time)
+            self.take_action(calc_time=True)
             return        
 
-        real_item_amount = min(
-            cargo_i.check_add_value(item_amount),
-            items_i.check_add_value(item_amount),
-            items_j.check_subtract_value(item_amount),
-        )
+        if not calc_time:
 
-        if real_item_amount > 0 and not calc_time:
-            cargo_i.add_value(real_item_amount)
-            items_i.add_value(real_item_amount)
-            items_j.subtract_value(real_item_amount)
+            real_item_amount = min(
+                cargo_i.check_add_value(item_amount),
+                items_i.check_add_value(item_amount),
+                items_j.check_subtract_value(item_amount),
+            )
 
-        if real_item_amount == item_amount and not calc_time:
-            self.temp_db.actions_list[self.v_index].pop(0)
-            self.take_action(calc_time)
-            return
+            print('real_item_amount', real_item_amount)
 
-        elif self.temp_db.cur_time_frame != 0:
-            self.temp_db.time_till_fin[self.v_index] = (real_item_amount / self.temp_db.cur_time_frame) * (item_amount - real_item_amount)
 
-        if calc_time:
-            self.temp_db.time_till_fin[self.v_index] = self.temp_db.time_till_fin[self.v_index] + self.temp_db.cur_time_frame
+            if real_item_amount > 0:
+                cargo_i.add_value(real_item_amount)
+                items_i.add_value(real_item_amount)
+                items_j.subtract_value(real_item_amount)
 
+            if real_item_amount == item_amount:
+                self.temp_db.actions_list[self.v_index].pop(0)
+                self.take_action(calc_time=True)
+                return
+
+            else:
+                self.temp_db.time_till_fin[self.v_index] = max(
+                    cargo_i.calc_time(item_amount - real_item_amount),
+                    items_i.calc_time(item_amount - real_item_amount),
+                    items_j.calc_time(item_amount - real_item_amount),
+                )
+
+                print('time_till_fin', self.temp_db.time_till_fin[self.v_index])
+
+        else:
+            self.temp_db.time_till_fin[self.v_index] = max(
+                cargo_i.calc_time(item_amount),
+                items_i.calc_time(item_amount),
+                items_j.calc_time(item_amount),
+            )
 
 
 # Base Vehicle Creator:

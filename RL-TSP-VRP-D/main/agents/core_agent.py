@@ -1,8 +1,8 @@
 
 
-class Agent:
+class DummyAgent:
 
-    def __init__(self, env, name='DummyActor'):
+    def __init__(self, env, name='DummyAgent'):
 
         self.name = name
         self.env = env

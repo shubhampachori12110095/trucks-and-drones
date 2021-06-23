@@ -163,6 +163,12 @@ class RestrValueObject:
         self.reset_signal()
 
 
+    def calc_time(self, value):
+        if self.rate is not None:
+            return self.rate*value
+        return 0
+
+
     def in_time(self):
         if self.rate is not None:
             if is_not_None(self.temp_db.cur_time_frame):
@@ -172,7 +178,9 @@ class RestrValueObject:
         else:
             self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = np.nan
 
-    def cur_value(self):
+    def cur_value(self, none_to_val=None):
+        if is_None(self.temp_db.status_dict[self.name][self.obj_index]):
+            return none_to_val
         return self.temp_db.status_dict[self.name][self.obj_index]
 
     def reset(self):
@@ -228,8 +236,11 @@ class RestrValueObject:
         return new_value
 
 
-    def check_add_value(self, value):
-        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]):
+    def check_add_value(self, value, in_time=True):
+        if value is None:
+            value = self.max_restr - self.cur_value(none_to_val=0)
+        
+        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and in_time:
             value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
         
         new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], value)
@@ -238,8 +249,11 @@ class RestrValueObject:
             return new_value
         return new_value - self.temp_db.status_dict[self.name][self.obj_index]
 
-    def check_subtract_value(self, value):
-        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]):
+    def check_subtract_value(self, value, in_time=True):
+        if value is None:
+            value = self.cur_value(none_to_val=self.max_restr)
+
+        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and in_time:
             value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
         
         new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)

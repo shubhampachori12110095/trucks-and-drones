@@ -17,8 +17,8 @@ class BaseAutoAgent:
                 exclude=[[self.temp_db.status_dict['n_items'], 0]]
             )
         )
-    
-            self.temp_db.status_dict['n_waiting'][n_index] = 1
+            if not n_index is None:
+                self.temp_db.status_dict['n_waiting'][n_index] = 1
 
         else:
             n_index = self.find_depot()

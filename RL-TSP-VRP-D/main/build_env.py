@@ -132,7 +132,7 @@ class BuildEnvironment:
             # range:
             range_type: str = 'battery', # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = None,
-            max_charge: (None, int, list, tuple, np.ndarray) = 100,
+            max_charge: (None, int, list, tuple, np.ndarray) = 10000,
             init_charge: (str, None, int, list, tuple, np.ndarray) = 'max',
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
@@ -164,7 +164,7 @@ class BuildEnvironment:
             # range:
             range_type: str = 'battery', # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = None,
-            max_charge: (None, int, list, tuple, np.ndarray) = 100,
+            max_charge: (None, int, list, tuple, np.ndarray) = 10000,
             init_charge: (str, None, int, list, tuple, np.ndarray) = 'max',
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
