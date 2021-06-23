@@ -272,6 +272,8 @@ class BaseVisualizer:
                 y += self.small_height + 3
                 self.info_surface.blit(text, (5, y))
 
+        test = 1
+
 
     def draw_distance_traveled(self, episode, step, coordinates_list, color=(0,0,0)):
         '''
