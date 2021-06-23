@@ -269,7 +269,7 @@ class BaseVisualizer:
             y = 5 + big_height + medium_height + 6
             for key in add_info_dict:
                 text  = self.small_font.render(key+': '+str(add_info_dict[key]), True, self.black)
-                y += small_height + 3
+                y += self.small_height + 3
                 self.info_surface.blit(text, (5, y))
 
 
