@@ -302,6 +302,8 @@ class BaseVisualizer:
         i +=2
         text = self.small_font.render('time_till_fin: '+str(self.temp_db.time_till_fin), True, self.black)
         self.status_surface.blit(text,  (5, 5+i*15))
+        i +=2
+        text = self.small_font.render('time_till_fin '+str(self.temp_db.time_till_fin), True, self.black)
 
 
     def visualize_step(self, episode, step):
