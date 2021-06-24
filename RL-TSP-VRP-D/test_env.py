@@ -1,7 +1,7 @@
 
 
 from main.build_env import BuildEnvironment
-from main.agents.core_agent import Agent
+from main.agents.core_agent import DummyAgent
 
 env = BuildEnvironment('test')
 
@@ -17,6 +17,6 @@ env.dummy_actions()
 
 env.compile()
 
-agent = Agent(env.build())
+agent = DummyAgent(env.build())
 
 agent.test_agent(1000)

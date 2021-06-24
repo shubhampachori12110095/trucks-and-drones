@@ -187,6 +187,7 @@ class BaseTempDatabase:
         self.past_coord_transportable_v     = [[] for v in self.base_groups['vehicles'] if v.v_loadable]     ##### ergänze bei vehicles
 
         self.status_dict['n_waiting'] = np.zeros((self.num_nodes))
+        self.status_dict['v_to_n'] = np.zeros((self.num_vehicles))
         self.status_dict['v_dest'] = np.copy(self.status_dict['v_coord'])
 
         self.cur_v_index = 0
@@ -278,7 +279,7 @@ class BaseTempDatabase:
                 compare = np.min(np.abs(d_coord-elem))
                 print(compare)
                 all_compare.append(compare)
-            if np.sum(all_compare) == 0:
+            if np.round(np.sum(all_compare), 2) == 0:
                 return True
         return False
             

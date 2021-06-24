@@ -14,7 +14,7 @@ unterscheidung ob dinge gleichzeitig oder nacheinander passieren können:
 - unload UV and unload cargo for UV
 '''
 import numpy as np
-
+from main.simulation.restrictions import is_not_None
 from main.simulation.common_sim_func import param_interpret, l_ignore_none
 
 
@@ -115,6 +115,11 @@ class BaseSimulator:
 
 
     def finish_step(self):
+
+        self.temp_db.status_dict['n_waiting'].fill(0)
+        for i in self.temp_db.status_dict['v_to_n']:
+            if is_not_None(i):
+                self.temp_db.status_dict['n_waiting'][int(i)] = 1
 
         if self.temp_db.terminal_state():
             return True

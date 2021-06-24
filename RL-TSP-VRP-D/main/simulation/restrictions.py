@@ -4,13 +4,13 @@
 import numpy as np
 from main.simulation.common_sim_func import param_interpret
 
+
 def is_None(value):
-    return np.isnan(value) or value == None or value == np.nan
+    return np.isnan(value) or value is None or value == np.nan
 
 
 def is_not_None(value):
     return not is_None(value)
-
 
 
 class MinToMaxRestriction:
@@ -28,7 +28,7 @@ class MinToMaxRestriction:
 
     def add_value(self, cur_value, value):
         '''
-        Adds a specified amount to the current value under the initialzied max restriction.
+        Adds a specified amount to the current value under the initialized max restriction.
         '''
         if is_None(cur_value):
             return value, 0
@@ -48,7 +48,7 @@ class MinToMaxRestriction:
 
     def subtract_value(self, cur_value, value):
         '''
-        Subtracts a specified amount from the current value under the initialzied min restriction.
+        Subtracts a specified amount from the current value under the initialized min restriction.
         '''
         if is_None(cur_value):
             return value, 0
@@ -87,7 +87,7 @@ class MaxRestriction(MinToMaxRestriction):
     Extension for MinToMaxRestriction class, that excludes the min restriction.
     '''
     def __init__(self, max_restr):
-        super().__init__(max_restr, None,)
+        super().__init__(max_restr, None)
 
     def subtract_value(self, cur_value, value):
         '''
@@ -124,7 +124,7 @@ class DummyRestriction(MinToMaxRestriction):
 
 class RestrValueObject:
     '''
-    Traces a the value of a variable that is restricted. Can also be used to trace unrestriced variabels, in which case a dummy restriction will be created (doesn't restrict anything).
+    Traces a the value of a variable that is restricted. Can also be used to trace unrestricted variables, in which case a dummy restriction will be created (doesn't restrict anything).
     '''
 
     def __init__(self, name, obj_index, index_type, temp_db, max_restr=None, min_restr=None, init_value=None, rate=None):
@@ -164,17 +164,13 @@ class RestrValueObject:
 
 
     def calc_time(self, value):
-        if self.rate is not None:
-            return self.rate*value
-        return 0
-
+        return np.nanmax(np.array([0, self.rate], dtype=np.float)) * value
 
     def in_time(self):
-        if self.rate is not None:
-            if is_not_None(self.temp_db.cur_time_frame):
-                self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = self.rate*self.temp_db.cur_time_frame
-            else:
-                self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = 0
+        if not self.rate is None:
+            self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = (np.nanmax(np.array(
+                    [0, self.rate], dtype=np.float)) * self.temp_db.cur_time_frame)
+
         else:
             self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = np.nan
 
@@ -195,19 +191,15 @@ class RestrValueObject:
     def set_to_min(self):
         self.temp_db.status_dict[self.name][self.obj_index] = self.min_restr
 
-
     def update(self, new_value, restr_signal):
-        if self.rate is not None:
-            if is_not_None(self.temp_db.status_dict[self.name][self.obj_index]):
-                self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = (
-                    self.temp_db.status_dict['in_time_'+self.name][self.obj_index] - abs(
-                        abs(self.temp_db.status_dict[self.name][self.obj_index]) - abs(new_value)
-                    )
-                )
-            else:
-                self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = max(
-                    self.temp_db.status_dict['in_time_'+self.name][self.obj_index] - abs(new_value), 0
-                )
+
+        self.temp_db.status_dict['in_time_' + self.name][self.obj_index] = (
+            self.temp_db.status_dict['in_time_' + self.name][self.obj_index]
+            - np.abs(
+                np.abs(np.nanmax(np.array([self.temp_db.status_dict[self.name][self.obj_index], 0], dtype=np.float)))
+                - np.abs(new_value)
+            )
+        )
 
         if is_not_None(self.temp_db.status_dict[self.name][self.obj_index]):
             self.temp_db.status_dict[self.name][self.obj_index] = new_value
@@ -216,7 +208,6 @@ class RestrValueObject:
 
     def update_signal(self, restr_signal):
         self.temp_db.signals_dict['signal_'+self.name][self.obj_index] = self.temp_db.signal_list[restr_signal]
-
 
     def add_value(self, value):
         if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]):
@@ -248,6 +239,7 @@ class RestrValueObject:
         if is_None(self.temp_db.status_dict[self.name][self.obj_index]):
             return new_value
         return new_value - self.temp_db.status_dict[self.name][self.obj_index]
+
 
     def check_subtract_value(self, value, in_time=True):
         if value is None:

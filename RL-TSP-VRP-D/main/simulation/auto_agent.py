@@ -1,4 +1,4 @@
-
+import numpy as np
 
 
 class BaseAutoAgent:
@@ -10,19 +10,22 @@ class BaseAutoAgent:
 
     def find_destination(self):
 
-        if self.temp_db.base_groups['vehicles'][self.temp_db.cur_v_index].v_items.cur_value() > 0 and 0 in self.temp_db.customers(self.temp_db.status_dict['n_waiting'])[0]:
+        if (self.temp_db.base_groups['vehicles'][self.temp_db.cur_v_index].v_items.cur_value() > 0
+            and 0 in self.temp_db.customers(self.temp_db.status_dict['n_waiting'])[0]
+            and np.sum(self.temp_db.customers(self.temp_db.status_dict['n_items'])[0]) != 0):
             n_index = self.temp_db.nearest_neighbour(self.temp_db.customers(
                 self.temp_db.status_dict['n_coord'],
                 include=[[self.temp_db.status_dict['n_waiting'], 0]],
                 exclude=[[self.temp_db.status_dict['n_items'], 0]]
             )
         )
-            if not n_index is None:
-                self.temp_db.status_dict['n_waiting'][n_index] = 1
+
+        # self.temp_db.status_dict['n_waiting'][n_index] = 1
 
         else:
             n_index = self.find_depot()
 
+        self.temp_db.status_dict['v_to_n'][self.temp_db.cur_v_index] = n_index
         if n_index is None:
             return None
 
@@ -59,7 +62,7 @@ class BaseAutoAgent:
     def find_depot(self):
         return self.temp_db.nearest_neighbour(self.temp_db.depots(
                 self.temp_db.status_dict['n_coord'],
-                exclude=[[self.temp_db.status_dict['n_items'], 0]]
+                # exclude=[[self.temp_db.status_dict['n_items'], 0]]
             )
         ) 
 

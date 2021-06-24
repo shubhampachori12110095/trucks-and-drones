@@ -130,7 +130,7 @@ class BuildEnvironment:
             loadable: bool = True,
             weight: (None, int, list, tuple, np.ndarray) = 0,
             # range:
-            range_type: str = 'battery', # alt: 'simple', 'battery'
+            range_type: str = 'simple', # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = None,
             max_charge: (None, int, list, tuple, np.ndarray) = 10000,
             init_charge: (str, None, int, list, tuple, np.ndarray) = 'max',
@@ -162,7 +162,7 @@ class BuildEnvironment:
             loadable: bool = True,
             weight: (None, int, list, tuple, np.ndarray) = 0,
             # range:
-            range_type: str = 'battery', # alt: 'simple', 'battery'
+            range_type: str = 'simple', # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = None,
             max_charge: (None, int, list, tuple, np.ndarray) = 10000,
             init_charge: (str, None, int, list, tuple, np.ndarray) = 'max',
