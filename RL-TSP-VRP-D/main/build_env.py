@@ -17,17 +17,20 @@ from main.environment import CustomEnv
 
 class BuildEnvironment:
 
-    def __init__(self, 
+    def __init__(
+            self,
             name: str, 
             grid: (list, tuple, np.ndarray) = [10,10],
             reward_signals: (list, tuple, np.ndarray) = [1,1,-1],
             max_steps_per_episode: int = 1000,
+            debug_mode: bool = False,
         ):
 
         self.name = name
         self.grid = grid
         self.reward_signals = reward_signals
         self.max_steps_per_episode = max_steps_per_episode
+        self.debug_mode = debug_mode
 
         self.vehicle_params = []
         self.node_params = []
@@ -37,8 +40,8 @@ class BuildEnvironment:
         self.act_params = None
         self.reward_params = None
 
-
-    def vehicles(self,
+    def vehicles(
+            self,
             # number of vehicles:
             num: (int, list, tuple, np.ndarray) = 1,
             # vehicle name:
@@ -68,7 +71,6 @@ class BuildEnvironment:
             color: (str, None, list, tuple, np.ndarray) = 'red',
         ):
 
-
         self.vehicle_params.append({
             'num': num,
             'v_name': v_name,
@@ -92,8 +94,8 @@ class BuildEnvironment:
             }
         )
 
-
-    def trucks(self,
+    def trucks(
+            self,
             # number of trucks:
             num: (int, list, tuple, np.ndarray) = 1,
             # loadable:
@@ -124,7 +126,6 @@ class BuildEnvironment:
         self.vehicles(num,'truck',loadable,weight,range_type,max_range,max_charge,init_charge,charge_rate,travel_type,
             speed,cargo_type,max_cargo,init_cargo,cargo_rate,max_v_cap,v_rate, symbol, color)
 
-
     def drones(self,
             # number of drones:
             num: (int, list, tuple, np.ndarray) = 1,
@@ -134,7 +135,7 @@ class BuildEnvironment:
             # range:
             range_type: str = 'simple', # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = 4,
-            max_charge: (None, int, list, tuple, np.ndarray) = None,
+            max_charge: (None, int, list, tuple, np.ndarray) = 100,
             init_charge: (str, None, int, list, tuple, np.ndarray) = 0,
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
@@ -156,8 +157,8 @@ class BuildEnvironment:
         self.vehicles(num,'drone',loadable,weight,range_type,max_range,max_charge,init_charge,charge_rate,travel_type,
             speed,cargo_type,max_cargo,init_cargo,cargo_rate,max_v_cap,v_rate, symbol, color)
 
-
-    def robots(self,
+    def robots(
+            self,
             # number of robots:
             num: (int, list, tuple, np.ndarray) = 1,
             # loadable:
@@ -165,9 +166,9 @@ class BuildEnvironment:
             weight: (None, int, list, tuple, np.ndarray) = 0,
             # range:
             range_type: str = 'simple', # alt: 'simple', 'battery'
-            max_range: (None, int, list, tuple, np.ndarray) = None,
-            max_charge: (None, int, list, tuple, np.ndarray) = 10000,
-            init_charge: (str, None, int, list, tuple, np.ndarray) = 'max',
+            max_range: (None, int, list, tuple, np.ndarray) = 4,
+            max_charge: (None, int, list, tuple, np.ndarray) = 100,
+            init_charge: (str, None, int, list, tuple, np.ndarray) = 0,
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'street', # alt: 'street', arial
@@ -176,7 +177,7 @@ class BuildEnvironment:
             cargo_type: str = 'standard', # alt: 'standard', 'standard+extra', 'standard+including'
             max_cargo: (None, int, list, tuple, np.ndarray) = 1,
             init_cargo: (str, None, int, list, tuple, np.ndarray) = 0,
-            cargo_rate: (None, int, list, tuple, np.ndarray) = 1,
+            cargo_rate: (None, int, list, tuple, np.ndarray) = None,
             # vehicle capacity:
             max_v_cap: (None, int, list, tuple, np.ndarray) = 0,
             v_rate: (None, int, list, tuple, np.ndarray) = 0,
@@ -188,8 +189,8 @@ class BuildEnvironment:
         self.vehicles(num,'robot',loadable,weight,range_type,max_range,max_charge,init_charge,charge_rate,travel_type,
             speed,cargo_type,max_cargo,init_cargo,cargo_rate,max_v_cap,v_rate, symbol, color)
 
-
-    def nodes(self,
+    def nodes(
+            self,
             # number of nodes:
             num: (int, list, tuple, np.ndarray) = 1,
             # node name:
@@ -205,7 +206,6 @@ class BuildEnvironment:
             color: (str, None, list, tuple, np.ndarray) = 'orange',
         ):
 
-
         self.node_params.append({
             'num': num,
             'n_name': n_name,
@@ -219,8 +219,8 @@ class BuildEnvironment:
             }
         )
 
-
-    def depots(self,
+    def depots(
+            self,
             # number of nodes:
             num: (int, list, tuple, np.ndarray) = 1,
             # items (stock if node is depot and demand if node is customer):
@@ -234,10 +234,10 @@ class BuildEnvironment:
             color: (str, None, list, tuple, np.ndarray) = 'orange',
         ):
 
-        self.nodes(num,'depot',max_items,init_items,item_rate,item_recharge,init_items_at_step)
+        self.nodes(num,'depot',max_items,init_items,item_rate,item_recharge,init_items_at_step,symbol,color)
 
-
-    def customers(self,
+    def customers(
+            self,
             # number of nodes:
             num: (int, list, tuple, np.ndarray) = 1,
             # items (stock if node is depot and demand if node is customer):
@@ -248,13 +248,13 @@ class BuildEnvironment:
             init_items_at_step: (None, int, list, tuple, np.ndarray) = 0,
             # visualization:
             symbol: (str, None) = 'rectangle', # 'triangle-up', 'triangle-down', 'rectangle'
-            color: (str, None, list, tuple, np.ndarray) = 'yellow',
+            color: (str, None, list, tuple, np.ndarray) = 'light-grey',
         ):
 
-        self.nodes(num,'customer',max_items,init_items,item_rate,item_recharge,init_items_at_step)
+        self.nodes(num,'customer',max_items,init_items,item_rate,item_recharge,init_items_at_step,symbol,color)
 
-
-    def visuals(self,
+    def visuals(
+            self,
             grid_surface_dim: (list, tuple, np.ndarray) = [600, 600],
             grid_padding: int = 20,
             info_surface_height: int = 240,
@@ -268,8 +268,8 @@ class BuildEnvironment:
             'marker_size': marker_size,
         }
 
-
-    def observations(self,
+    def observations(
+            self,
             image_input: (None, list, tuple, np.ndarray) = ['grid'],
             contin_inputs: (None, list, tuple, np.ndarray) = ['coordinates','values','vehicles','customers','depots'],
             discrete_inputs: (None, list, tuple, np.ndarray) = ['binary'],
@@ -293,8 +293,8 @@ class BuildEnvironment:
             'flatten_images': flatten_images,
         }
 
-
-    def dummy_observations(self,
+    def dummy_observations(
+            self,
             image_input: (None, list, tuple, np.ndarray) = None,
             contin_inputs: (None, list, tuple, np.ndarray) = None,
             discrete_inputs: (None, list, tuple, np.ndarray) = None,
@@ -310,8 +310,8 @@ class BuildEnvironment:
         self.observations(image_input,contin_inputs,discrete_inputs,discrete_bins,combine_per_index,
             combine_per_type,flatten,flatten_images)
 
-
-    def actions(self,
+    def actions(
+            self,
             mode: str = 'single_vehicle', # 'multi_vehicle'
             flattened: str = 'per_output', #'per_vehicle', #'all'
             contin_outputs: (None, list, tuple, np.ndarray) = ['coord','amount','v_amount'],
@@ -333,8 +333,8 @@ class BuildEnvironment:
             'combine': combine,
         }
 
-
-    def dummy_actions(self,
+    def dummy_actions(
+            self,
             mode: str = 'single_vehicle', # 'multi_vehicle'
             flattened: str = 'per_output', #'per_vehicle', #'all'
             contin_outputs: (None, list, tuple, np.ndarray) = [],
@@ -348,8 +348,8 @@ class BuildEnvironment:
         self.actions(mode,flattened,contin_outputs,discrete_outputs,
             binary_discrete,binary_contin,discrete_bins,combine)
 
-
-    def rewards(self,
+    def rewards(
+            self,
             reward_modes: (str, None) = None, #['normalized', 'discounted']
             reward_type: str = 'single_vehicle', # 'multi_vehicle', 'sum_vehicle'
             restriction_rewards: (None, list, tuple, np.ndarray) = ['battery','range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],
@@ -363,8 +363,8 @@ class BuildEnvironment:
             'action_rewards': action_rewards,
         }
 
-
-    def compile(self,
+    def compile(
+            self,
             TempDatabase: BaseTempDatabase = BaseTempDatabase,
             VehicleCreator: BaseVehicleCreator = BaseVehicleCreator,
             NodeCreator: BaseNodeCreator = BaseNodeCreator,
@@ -419,7 +419,7 @@ class BuildEnvironment:
             print('Using standard rewards parameter')
 
         # Init temporary database:
-        self.temp_db = TempDatabase(self.name, self.grid, self.reward_signals)
+        self.temp_db = TempDatabase(self.name, self.grid, self.reward_signals, self.debug_mode)
 
         # Init vehicle and node creators:
         self.node_creator = NodeCreator(self.node_params, self.temp_db)
@@ -438,7 +438,6 @@ class BuildEnvironment:
 
         # Init reward calculations:
         self.reward_calc = RewardCalculator(self.reward_params, self.temp_db)
-
 
     def build(self) -> gym.Env:
 

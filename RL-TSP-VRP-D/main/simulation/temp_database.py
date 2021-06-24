@@ -12,12 +12,14 @@ def lookup_db(db_dict, name_list):
 def random_coordinates(grid):
     return np.array([np.random.randint(0,grid[0]+1), np.random.randint(0,grid[1]+1)])
 
+
 def insert_at_coord(dict_var, key, value, list_index, num_objs):
     if any(key in elem for elem in dict_var):
         dict_var[key][list_index] = value
     else:
         dict_var[key] = np.zeros((num_objs, 2))
         dict_var[key][list_index] = value
+
 
 def insert_at_array(dict_var, key, value, list_index, num_objs):
     if any(key in elem for elem in dict_var):
@@ -26,12 +28,14 @@ def insert_at_array(dict_var, key, value, list_index, num_objs):
         dict_var[key] = np.zeros((num_objs))
         dict_var[key][list_index] = value
 
+
 def insert_at_list(dict_var, key, value, list_index, num_objs):
     if any(key in elem for elem in dict_var):
         dict_var[key][list_index] = value
     else:
         dict_var[key] = [None for i in range(num_objs)]
         dict_var[key][list_index] = value
+
 
 def append_to_array(dict_var, key, value):
     if any(key in elem for elem in dict_var):
@@ -42,7 +46,7 @@ def append_to_array(dict_var, key, value):
 
 class BaseTempDatabase:
 
-    def __init__(self, name, grid, signal_list):
+    def __init__(self, name, grid, signal_list, debug_mode=False):
 
         self.name = name
         
@@ -50,6 +54,8 @@ class BaseTempDatabase:
         self.grid = grid
 
         self.signal_list = signal_list
+
+        self.debug_mode = debug_mode
 
         self.key_groups_dict = {
             'coordinates' : ['v_coord','c_coord','d_coord'],
@@ -69,7 +75,6 @@ class BaseTempDatabase:
         self.num_customers = 0
         self.num_depots    = 0
 
-
     def init_db(self):
 
         # Dict of vehicle and node objects:
@@ -88,6 +93,10 @@ class BaseTempDatabase:
         self.c_indices = []
         self.v_indices = []
 
+        # Init visuals:
+        self.vehicle_visuals = []
+        self.node_visuals = []
+
         self.min_max_dict = {
             'x_coord': np.array([0, self.grid[0]]),
             'y_coord': np.array([0, self.grid[1]]),
@@ -99,7 +108,6 @@ class BaseTempDatabase:
         }
 
         self.total_time = 0
-
 
     def prep_max_min(self, name, max_restr, min_restr, rate):
 
@@ -133,7 +141,6 @@ class BaseTempDatabase:
         # Signals at Signals Dict:
         insert_at_array(self.signals_dict, 'signal_'+name, 0, list_index, num_objs)
 
-
     def add_node(self, node, n_index, n_type):
 
         # Object at Base Group:
@@ -152,7 +159,6 @@ class BaseTempDatabase:
             self.d_indices.append(n_index)
         elif node.n_name == 'customer':
             self.c_indices.append(n_index)
-
 
     def add_vehicle(self, vehicle, v_index, v_type):
 
@@ -173,11 +179,9 @@ class BaseTempDatabase:
         insert_at_array(self.constants_dict, 'v_type', v_type, v_index, self.num_vehicles)
 
         self.v_indices.append(v_index)
-    
 
     def reset_db(self):    
 
-        
         for key in self.min_max_dict.keys():
             self.min_max_dict[key] = np.nan_to_num(self.min_max_dict[key].astype(float))
             self.min_max_dict[key] = np.array([np.min(self.min_max_dict[key]), np.max(self.min_max_dict[key])])
@@ -200,11 +204,9 @@ class BaseTempDatabase:
         self.time_till_fin = np.zeros((self.num_vehicles))
         self.time_till_fin.fill(None)
 
-    
     def init_step(self):
 
         [self.signals_dict[key].fill(0) for key in self.signals_dict.keys()]
-
 
     def finish_step(self):
 
@@ -215,21 +217,17 @@ class BaseTempDatabase:
             self.restriction_signals[key] = [elem.cur_signal for elem in self.restr_dict[key]]
         '''
 
-    
     def depots(self, array_from_dict, include=None, exclude=None):
         indices = self.find_indices(self.d_indices, self.num_nodes, include, exclude)
         return [array_from_dict[indices], indices]
-
 
     def customers(self, array_from_dict, include=None, exclude=None):
         indices = self.find_indices(self.c_indices, self.num_nodes, include, exclude)
         return [array_from_dict[indices], indices]
 
-
     def vehicles(self, array_from_dict, include=None, exclude=None):
         indices = self.find_indices(self.v_indices, self.num_vehicles, include, exclude)
         return [array_from_dict[indices], indices]
-
 
     def find_indices(self, indices, num_objs, include, exclude):
         indices = set(indices)
@@ -243,7 +241,6 @@ class BaseTempDatabase:
                 indices = indices.difference(set([i for i in range(num_objs) if elem[0][i] == elem[1]]))
 
         return list(indices)
-
 
     def nearest_neighbour(self, coord_and_indices):
 
@@ -264,7 +261,6 @@ class BaseTempDatabase:
         check = np.sum(self.status_dict['v_coord'][self.cur_v_index] - compare_coord) == 0
         return check
 
-
     def terminal_state(self):
 
         if np.sum(self.customers(self.status_dict['n_items'])[0]) == 0:
@@ -280,5 +276,3 @@ class BaseTempDatabase:
             if np.round(np.sum(all_compare), 2) == 0:
                 return True
         return False
-            
-

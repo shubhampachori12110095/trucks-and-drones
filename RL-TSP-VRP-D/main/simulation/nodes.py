@@ -94,6 +94,7 @@ class BaseNodeCreator:
                 node = self.NodeClass(self.temp_db, n_index, n_type, n_params)
                 self.temp_db.add_node(node, n_index, n_type)
                 n_index +=1
+            self.temp_db.node_visuals.append([n_params['symbol'], n_params['color']])
             n_type += 1
 
         self.temp_db.min_max_dict['n_type'] = np.array([0, len(self.n_params_list) - 1])

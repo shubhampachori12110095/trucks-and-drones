@@ -22,14 +22,21 @@ class BaseVisualizer:
         [setattr(self, k, v) for k, v in visual_params.items()]
 
         # Define some colors
-        self.black    = (0, 0, 0)
-        self.grey     = (128, 128, 128)
-        self.white    = (255, 255, 255)
-        self.transp_h = (255, 255, 255, 125)
-        self.transp_f = (255, 255, 255, 0)
-        self.red      = (255, 0, 0)
-        self.green    = (0, 255, 0)
-        self.blue     = (0, 0, 255)
+        self.color_dict = {
+            'white': (255, 255, 255),
+            'light-grey': (195, 195, 195),
+            'grey': (128, 128, 128),
+            'black': (0, 0, 0),
+            'half_transp': (255, 255, 255, 125),
+            'full_transp': (255, 255, 255, 0),
+            'red': (165, 36, 36),
+            'green':  (67, 149, 64),
+            'blue': (81, 73, 186),
+            'purple': (151, 69, 176),
+            'light-blue': (65, 163, 212),
+            'orange': (239, 179, 110),
+            'yellow': (239, 203, 24),
+        }
          
         #self.x_lenght = self.simulator.grid[0]
         #self.y_lenght = self.simulator.grid[1]
@@ -99,15 +106,15 @@ class BaseVisualizer:
         Erases old drawings by filling all surfaces with a fully transparent color.
         This will be called every step by visualize_step().
         '''
-        self.grid_surface.fill(self.transp_f)
-        self.grid_info_surface.fill(self.transp_f)
-        self.travel_surface.fill(self.transp_f)
-        self.info_surface.fill(self.transp_f)
-        self.status_surface.fill(self.transp_f)
-        self.screen.fill(self.white)
+        self.grid_surface.fill(self.color_dict['full_transp'])
+        self.grid_info_surface.fill(self.color_dict['full_transp'])
+        self.travel_surface.fill(self.color_dict['full_transp'])
+        self.info_surface.fill(self.color_dict['full_transp'])
+        self.status_surface.fill(self.color_dict['full_transp'])
+        self.screen.fill(self.color_dict['white'])
 
         for i in range(self.grid[0]+1):
-            x_coord = self.small_font.render(str(i), True, self.black)
+            x_coord = self.small_font.render(str(i), True, self.color_dict['black'])
             width = int(round(x_coord.get_width()/2))
             self.grid_info_surface.blit(x_coord, (
                 -width+self.axis_size + int(round(self.marker_size/2)) + int(round(self.marker_size*2)) + i * self.x_mulipl,
@@ -116,7 +123,7 @@ class BaseVisualizer:
             )
 
         for i in range(self.grid[1]+1):
-            y_coord = self.small_font.render(str(self.grid[0]-i), True, self.black)
+            y_coord = self.small_font.render(str(self.grid[0]-i), True, self.color_dict['black'])
             height = int(round(y_coord.get_width()/2))
             self.grid_info_surface.blit(y_coord, (
                 int(round(self.axis_size/2)),
@@ -126,7 +133,7 @@ class BaseVisualizer:
 
 
 
-    def draw_circle_marker(self, coordinates, add_info=None, color=(255, 0, 0)):
+    def draw_circle_marker(self, coordinates, add_info=None, color='purple'):
         '''
         Draws a marker to the grid surface with a circle shape to specific location based on grid coordinates.
         Will also call draw_marker_info(), so additinal information can be drawn to the info grid surface.
@@ -144,13 +151,13 @@ class BaseVisualizer:
         y = surface_coordinates[1]
 
         # draw_circle
-        pygame.draw.circle(self.grid_surface, color, (x, y), int(round(self.marker_size / 2)))
+        pygame.draw.circle(self.grid_surface, self.color_dict[color], (x, y), int(round(self.marker_size / 2)))
 
         # info:
         #self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
 
-    def draw_rect_marker(self, coordinates, add_info=None, color=(0, 255, 0)):
+    def draw_rect_marker(self, coordinates, add_info=None, color='orange'):
         '''
         Draws a marker to the grid surface with a rectangle shape to specific location based on grid coordinates.
         Will also call draw_marker_info(), so additinal information can be drawn to the info grid surface.
@@ -169,13 +176,13 @@ class BaseVisualizer:
         y = surface_coordinates[1] - (self.marker_size/2)
 
         # draw rectangle_
-        pygame.draw.rect(self.grid_surface, color, (x, y, self.marker_size, self.marker_size))
+        pygame.draw.rect(self.grid_surface, self.color_dict[color], (x, y, self.marker_size, self.marker_size))
 
         # info:
         self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
 
-    def draw_triangle_down_marker(self, coordinates, add_info=None, color=(0, 0, 255)):
+    def draw_triangle_down_marker(self, coordinates, add_info=None, color='light-blue'):
         '''
         Draws a marker to the grid surface with a traingle shape to specific location based on grid coordinates.
         Will also call draw_marker_info(), so additinal information can be drawn to the info grid surface.
@@ -198,12 +205,12 @@ class BaseVisualizer:
         y_x = surface_coordinates[0]
 
         # draw traingle:
-        pygame.draw.polygon(self.grid_surface, color, ([x_1, x_y], [y_x, y], [x_2, x_y]))
+        pygame.draw.polygon(self.grid_surface, self.color_dict[color], ([x_1, x_y], [y_x, y], [x_2, x_y]))
 
         # info:
         #self.draw_marker_info(surface_coordinates, coordinates, add_info)
 
-    def draw_triangle_up_marker(self, coordinates, add_info=None, color=(0, 0, 255)):
+    def draw_triangle_up_marker(self, coordinates, add_info=None, color='blue'):
         '''
         Draws a marker to the grid surface with a traingle shape to specific location based on grid coordinates.
         Will also call draw_marker_info(), so additinal information can be drawn to the info grid surface.
@@ -226,7 +233,7 @@ class BaseVisualizer:
         y_x = surface_coordinates[0]
 
         # draw traingle:
-        pygame.draw.polygon(self.grid_surface, color, ([x_1, x_y], [y_x, y], [x_2, x_y]))
+        pygame.draw.polygon(self.grid_surface, self.color_dict[color], ([x_1, x_y], [y_x, y], [x_2, x_y]))
 
         # info:
         #self.draw_marker_info(surface_coordinates, coordinates, add_info)
@@ -240,7 +247,7 @@ class BaseVisualizer:
         text = '({},{},{})'.format(coordinates[0], coordinates[1], add_info)
 
         # create image from text:
-        text = self.small_font.render(text, True, self.grey)
+        text = self.small_font.render(text, True, self.color_dict['grey'])
         
         # change surface coordinates, so no overlapping with marker occurs:
         x_text = surface_coordinates[0] + int(round(text.get_width() / 2))
@@ -254,9 +261,9 @@ class BaseVisualizer:
         '''
         Draws some general information to the info surface.
         '''
-        text_name  = self.big_font.render('Agent: '+self.name, True, self.black)
-        text_episode = self.medium_font.render('Episode: '+str(episode), True, self.black)
-        text_step  = self.medium_font.render('Step: '+str(step), True, self.black)
+        text_name  = self.big_font.render('Agent: '+self.name, True, self.color_dict['black'])
+        text_episode = self.medium_font.render('Episode: '+str(episode), True, self.color_dict['black'])
+        text_step  = self.medium_font.render('Step: '+str(step), True, self.color_dict['black'])
 
         big_height    = text_name.get_height()
         medium_height = text_episode.get_height()
@@ -269,13 +276,11 @@ class BaseVisualizer:
 
             y = 5 + big_height + medium_height + 6
             for key in add_info_dict:
-                text  = self.small_font.render(key+': '+str(add_info_dict[key]), True, self.black)
+                text  = self.small_font.render(key+': '+str(add_info_dict[key]), True, self.color_dict['black'])
                 y += self.small_height + 3
                 self.info_surface.blit(text, (5, y))
 
-
-
-    def draw_distance_traveled(self, episode, step, coordinates_list, color=(0,0,0)):
+    def draw_distance_traveled(self, episode, step, coordinates_list, color='grey'):
         '''
         ergänzen bei vehicle, temp_db update:
         arial travel: append start and end coordinates
@@ -283,13 +288,13 @@ class BaseVisualizer:
         '''
         surface_coordinates_list = [(elem[0]*self.x_mulipl, elem[1]*self.y_mulipl) for elem in coordinates_list]
         if len(surface_coordinates_list) > 1:
-            pygame.draw.lines(self.travel_surface, color, False, surface_coordinates_list)
+            pygame.draw.lines(self.travel_surface, color_dict[color], False, surface_coordinates_list)
 
     def text_draw(self, i, text, fontsize='small', i_plus=1):
         if fontsize == 'small':
-            text = self.small_font.render(text, True, self.black)
+            text = self.small_font.render(text, True, self.color_dict['black'])
         elif fontsize == 'medium':
-            text = self.medium_font.render(text, True, self.black)
+            text = self.medium_font.render(text, True, self.color_dict['black'])
 
         self.status_surface.blit(text, (5, 5 + i * 15))
         return i+i_plus
@@ -327,15 +332,52 @@ class BaseVisualizer:
         i = self.text_draw(i, 'total time ' + str(self.temp_db.total_time))
         i = self.text_draw(i, 'cargo loss ' + str(self.temp_db.signals_dict['cargo_loss']))
 
+    def draw_marker_iter(self, marker_type):
+
+        if marker_type == 'vehicle':
+            iter_indices = self.temp_db.v_indices
+            coord = self.temp_db.status_dict['v_coord']
+            items = self.temp_db.status_dict['v_cargo']
+            types = self.temp_db.constants_dict['v_type']
+            symbols, colors = zip(*self.temp_db.vehicle_visuals)
+            symbols = symbols
+            colors = colors
+
+        elif marker_type == 'node':
+            iter_indices = self.temp_db.c_indices+self.temp_db.d_indices
+            coord = self.temp_db.status_dict['n_coord']
+            items = self.temp_db.status_dict['n_items']
+            types = self.temp_db.constants_dict['n_type']
+            symbols, colors = zip(*self.temp_db.node_visuals)
+            symbols = list(symbols)
+            colors = list(colors)
+
+        for i in iter_indices:
+            type_index = int(types[i])
+
+            if symbols[type_index] == 'circle':
+                self.draw_circle_marker(coord[i], items[i], color=colors[type_index])
+
+            elif symbols[type_index] == 'triangle-up':
+                self.draw_triangle_up_marker(coord[i], items[i], color=colors[type_index])
+
+            elif symbols[type_index] == 'triangle-down':
+                self.draw_triangle_down_marker(coord[i], items[i], color=colors[type_index])
+
+            elif symbols[type_index] == 'rectangle':
+                self.draw_rect_marker(coord[i], items[i], color=colors[type_index])
+
+            else:
+                raise Exception(
+                    "'symbol' was {}, but needs to be 'circle', 'triangle-up', 'triangle-down', 'rectangle'"
+                )
 
     def visualize_step(self, episode, step):
 
         self.reset_surfaces()
-        [self.draw_rect_marker(self.temp_db.status_dict['n_coord'][i], self.temp_db.status_dict['n_items'][i]) for i in self.temp_db.d_indices]
-        [self.draw_rect_marker(self.temp_db.status_dict['n_coord'][i], self.temp_db.status_dict['n_items'][i], color=(0, 255, 255)) for i in self.temp_db.c_indices]
-        [self.draw_circle_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 0]
-        [self.draw_triangle_up_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 1]
-        [self.draw_triangle_down_marker(self.temp_db.status_dict['v_coord'][i], self.temp_db.status_dict['v_cargo'][i]) for i in self.temp_db.v_indices if self.temp_db.constants_dict['v_type'][i] == 2]
+
+        self.draw_marker_iter('node')
+        self.draw_marker_iter('vehicle')
 
         [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.temp_db.past_coord_not_transportable_v]
         [self.draw_distance_traveled(episode, step, coordinates_list) for coordinates_list in self.temp_db.past_coord_transportable_v]
@@ -355,24 +397,32 @@ class BaseVisualizer:
 
         pygame.display.flip()
 
-        '''
+        if self.temp_db.debug_mode == True:
+            self.wait_for_click()
+
+        else:
+            event_list = pygame.event.get()
+            for event in event_list:
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+            for event in event_list:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    self.wait_for_click()
+
+    def wait_for_click(self):
         event_happened = False
         while not event_happened:
             event = pygame.event.wait()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                #print(self.temp_db.status_dict)
-                event_happened = True#
+                # print(self.temp_db.status_dict)
+                event_happened = True  #
             elif event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-        '''
-
-        #wait = input()
-        
 
     def convert_to_img_array(self):
         return pygame.surfarray.array3d(self.grid_surface)
-
 
     def close(self):
         pygame.quit()

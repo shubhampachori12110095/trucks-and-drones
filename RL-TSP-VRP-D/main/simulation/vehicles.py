@@ -584,6 +584,7 @@ class BaseVehicleCreator:
                 vehicle = self.VehicleClass(self.temp_db, v_index, v_type, v_params)
                 self.temp_db.add_vehicle(vehicle, v_index, v_type)
                 v_index +=1
+            self.temp_db.vehicle_visuals.append([v_params['symbol'], v_params['color']])
             v_type += 1
 
         self.temp_db.min_max_dict['v_type'] = np.array([0, len(self.v_params_list) - 1])
