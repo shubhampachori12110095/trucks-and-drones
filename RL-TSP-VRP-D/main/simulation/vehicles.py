@@ -3,7 +3,7 @@
 '''
 import numpy as np
 
-from main.simulation.restrictions import RestrValueObject, is_None, is_not_None
+from main.simulation.restrictions import RestrValueObject, is_None, is_not_None, none_add, none_subtract
 from main.simulation.common_sim_func import param_interpret, random_coordinates
 
 
@@ -36,17 +36,6 @@ v_rate: (NoneType, int, list, tuple, np.ndarray) = 0,
 symbol: (str, NoneType) = 'circle', # 'triangle-up', 'triangle-down' 'rectangle'
 color: (str, NoneType, int, list, tuple, np.ndarray) = 'red',
 '''
-
-
-def none_add(a,b):
-    if is_None(a):
-        return a
-    return a + b
-
-def none_subtract(a,b):
-    if is_None(a):
-        return a
-    return a - b
 
 # Vehicle Class Functions:
 # ----------------------------------------------------------------------------------------------------------------
@@ -314,13 +303,16 @@ class BaseVehicleClass:
             return
 
         item_amount = np.nanmin(np.array([
+            cargo_j.cur_value(),
             none_subtract(cargo_i.check_add_value(none_add(item_amount, weight_j), in_time=False), weight_j),
             items_i.check_add_value(item_amount, in_time=False),
             cargo_j.check_subtract_value(item_amount, in_time=False),
             items_j.check_subtract_value(item_amount, in_time=False)
-        ]))
+        ], dtype=np.float))
         
-        if item_amount == 0 and np.nanmin([items_j.cur_value(),  items_i.max_restr - items_i.cur_value()])!= 0:
+        if item_amount == 0 and np.nanmin(
+                np.array([items_j.cur_value(), none_subtract(items_i.max_restr, items_i.cur_value())], dtype=np.float)
+            )!= 0:
             self.temp_db.actions_list[self.v_index].pop(0)
             self.take_action(calc_time=True)
             return
@@ -332,7 +324,9 @@ class BaseVehicleClass:
                 items_i.check_add_value(item_amount),
                 cargo_j.check_subtract_value(item_amount),
                 items_j.check_subtract_value(item_amount)
-            ]))
+            ], dtype=np.float))
+
+            self.temp_db.signals_dict['cargo_loss'][self.v_index] += abs(items_j.cur_value() - real_item_amount)
 
             if real_item_amount > 0:
                 cargo_i.add_value(real_item_amount + weight_j)
@@ -363,7 +357,7 @@ class BaseVehicleClass:
                     cargo_j.calc_time(item_amount-real_item_amount),
                     items_j.calc_time(item_amount-real_item_amount),
                     loaded_v_i.calc_time(1)
-                ]))
+                ], dtype=np.float))
 
         else:
             self.temp_db.time_till_fin[self.v_index] = np.nanmax(np.array([
@@ -372,7 +366,7 @@ class BaseVehicleClass:
                 cargo_j.calc_time(item_amount),
                 items_j.calc_time(item_amount),
                 loaded_v_i.calc_time(1)
-            ]))
+            ], dtype=np.float))
 
 
     def v_unload_v(self, v_j, item_amount=None, calc_time=False):
@@ -390,7 +384,7 @@ class BaseVehicleClass:
             items_i.check_subtract_value(item_amount, in_time=False),
             cargo_j.check_add_value(item_amount, in_time=False),
             items_j.check_add_value(item_amount, in_time=False)
-        ]))
+        ], dtype=np.float))
 
         if not item_amount is None:
             action_error = abs(item_amount-possible_item_amount)
@@ -403,7 +397,7 @@ class BaseVehicleClass:
                 items_i.check_subtract_value(item_amount),
                 cargo_j.check_add_value(item_amount),
                 items_j.check_add_value(item_amount),
-            ]))
+            ], dtype=np.float))
 
             if real_item_amount > 0:
                 cargo_i.subtract_value(real_item_amount + weight_j)
@@ -432,7 +426,7 @@ class BaseVehicleClass:
                     cargo_j.calc_time(item_amount-real_item_amount),
                     items_j.calc_time(item_amount-real_item_amount),
                     loaded_v_i.calc_time(1)
-                ]))
+                ], dtype=np.float))
 
         else:
             self.temp_db.time_till_fin[self.v_index] = np.nanmax(np.array([
@@ -441,7 +435,7 @@ class BaseVehicleClass:
                 cargo_j.calc_time(item_amount),
                 items_j.calc_time(item_amount),
                 loaded_v_i.calc_time(1)
-            ]))
+            ], dtype=np.float))
 
 
     def v_unload_items(self, n_j, item_amount=None, calc_time=False):
@@ -455,7 +449,7 @@ class BaseVehicleClass:
             cargo_i.check_subtract_value(item_amount, in_time=False),
             items_i.check_subtract_value(item_amount, in_time=False),
             items_j.check_subtract_value(item_amount, in_time=False),
-        ]))
+        ], dtype=np.float))
 
         if not item_amount is None:
             action_error = abs(item_amount-possible_item_amount)
@@ -474,7 +468,7 @@ class BaseVehicleClass:
                 cargo_i.check_subtract_value(item_amount),
                 items_i.check_subtract_value(item_amount),
                 items_j.check_subtract_value(item_amount),
-            ]))
+            ], dtype=np.float))
         
             if real_item_amount > 0:
                 cargo_i.subtract_value(real_item_amount)
@@ -497,14 +491,14 @@ class BaseVehicleClass:
                     cargo_i.calc_time(item_amount - real_item_amount),
                     items_i.calc_time(item_amount - real_item_amount),
                     items_j.calc_time(item_amount - real_item_amount),
-                ]))
+                ], dtype=np.float))
 
         else:
             self.temp_db.time_till_fin[self.v_index] = np.nanmax(np.array([
                 cargo_i.calc_time(item_amount),
                 items_i.calc_time(item_amount),
                 items_j.calc_time(item_amount),
-            ]))
+            ], dtype=np.float))
 
     def v_load_items(self, n_j, item_amount=None, calc_time=False):
 
@@ -514,10 +508,11 @@ class BaseVehicleClass:
         items_j = self.temp_db.restr_dict['n_items'][n_j]
 
         possible_item_amount = np.nanmin(np.array([
+                np.sum(self.temp_db.customers(self.temp_db.status_dict['n_items'])[0]),
                 cargo_i.check_add_value(item_amount, in_time=False),
                 items_i.check_add_value(item_amount, in_time=False),
                 items_j.check_subtract_value(item_amount, in_time=False),
-        ]))
+        ], dtype=np.float))
 
         if not item_amount is None:
             action_error = abs(item_amount-possible_item_amount)
@@ -534,7 +529,7 @@ class BaseVehicleClass:
                 cargo_i.check_add_value(item_amount),
                 items_i.check_add_value(item_amount),
                 items_j.check_subtract_value(item_amount),
-            ]))
+            ], dtype=np.float))
 
             if real_item_amount > 0:
                 cargo_i.add_value(real_item_amount)
@@ -555,14 +550,14 @@ class BaseVehicleClass:
                     cargo_i.calc_time(item_amount - real_item_amount),
                     items_i.calc_time(item_amount - real_item_amount),
                     items_j.calc_time(item_amount - real_item_amount),
-                ]))
+                ], dtype=np.float))
 
         else:
             self.temp_db.time_till_fin[self.v_index] = np.nanmax(np.array([
                 cargo_i.calc_time(item_amount),
                 items_i.calc_time(item_amount),
                 items_j.calc_time(item_amount),
-            ]))
+            ], dtype=np.float))
 
 
 # Base Vehicle Creator:

@@ -2,6 +2,7 @@
 
 """
 import sys
+import numpy as np
 import pygame
 from pygame import Surface
 
@@ -284,26 +285,47 @@ class BaseVisualizer:
         if len(surface_coordinates_list) > 1:
             pygame.draw.lines(self.travel_surface, color, False, surface_coordinates_list)
 
+    def text_draw(self, i, text, fontsize='small', i_plus=1):
+        if fontsize == 'small':
+            text = self.small_font.render(text, True, self.black)
+        elif fontsize == 'medium':
+            text = self.medium_font.render(text, True, self.black)
+
+        self.status_surface.blit(text, (5, 5 + i * 15))
+        return i+i_plus
 
     def draw_status_dict(self):
 
         i = 0
-        for key in self.temp_db.status_dict.keys():
-            text = self.small_font.render(key+': '+str(self.temp_db.status_dict[key]), True, self.black)
-            self.status_surface.blit(text,  (5, 5+i*15))
-            i += 1
+        i = self.text_draw(i, 'Vehicles: ', 'medium', 2)
+        keys = [
+            'v_coord', 'v_dest', 'v_range', 'in_time_v_range', 'v_items', 'in_time_v_items',
+            'v_cargo', 'in_time_v_cargo', 'loaded_v', 'in_time_loaded_v', 'v_free', 'v_stuck',
+            'v_to_n'
+        ]
+        for key in keys:
+            i = self.text_draw(i, (key+': '+str(np.round(self.temp_db.status_dict[key],2))))
 
-        i +=2
-        text = self.small_font.render('cur_v_index: '+str(self.temp_db.cur_v_index), True, self.black)
-        self.status_surface.blit(text,  (5, 5+i*15))
-        i +=2
-        text = self.small_font.render('cur_time_frame: '+str(self.temp_db.cur_time_frame), True, self.black)
-        self.status_surface.blit(text,  (5, 5+i*15))
-        i +=2
-        text = self.small_font.render('time_till_fin: '+str(self.temp_db.time_till_fin), True, self.black)
-        self.status_surface.blit(text,  (5, 5+i*15))
-        i +=2
-        text = self.small_font.render('time_till_fin '+str(self.temp_db.time_till_fin), True, self.black)
+        i += 1
+        i = self.text_draw(i, 'Nodes: ', 'medium', 2)
+        keys = [
+            'n_coord', 'n_waiting', 'n_items', 'in_time_n_items',
+        ]
+        for key in keys:
+            i = self.text_draw(i, (key+': '+str(np.round(self.temp_db.status_dict[key],2))))
+
+        i += 1
+        i = self.text_draw(i, 'Actions: ', 'medium', 2)
+        for v_i in range(self.temp_db.num_vehicles):
+            i = self.text_draw(i, str(self.temp_db.actions_list[v_i]))
+
+        i += 1
+        i = self.text_draw(i, 'Info: ', 'medium', 2)
+        i = self.text_draw(i, 'cur_v_index: '+str(self.temp_db.cur_v_index))
+        i = self.text_draw(i, 'cur_time_frame: '+str(self.temp_db.cur_time_frame))
+        i = self.text_draw(i, 'time_till_fin: '+str(self.temp_db.time_till_fin))
+        i = self.text_draw(i, 'total time ' + str(self.temp_db.total_time))
+        i = self.text_draw(i, 'cargo loss ' + str(self.temp_db.signals_dict['cargo_loss']))
 
 
     def visualize_step(self, episode, step):

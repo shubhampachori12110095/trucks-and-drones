@@ -16,6 +16,18 @@ def is_not_None(value):
     return not is_None(value)
 
 
+def none_add(a,b):
+    if is_None(a):
+        return a
+    return a + b
+
+
+def none_subtract(a,b):
+    if is_None(a):
+        return a
+    return a - b
+
+
 class MinToMaxRestriction:
     '''
     Used for standard restrictions.The signal list follows this order:
@@ -35,6 +47,8 @@ class MinToMaxRestriction:
         '''
         if is_None(cur_value):
             return value, 0
+        if is_None(value):
+            return None, 0
 
         new_value = cur_value + value
         
@@ -55,6 +69,8 @@ class MinToMaxRestriction:
         '''
         if is_None(cur_value):
             return value, 0
+        if is_None(value):
+            return None, 0
 
         new_value = cur_value - value
         
@@ -82,6 +98,8 @@ class MinRestriction(MinToMaxRestriction):
         '''
         if is_None(cur_value):
             return value, 0
+        if is_None(value):
+            return None, 0
         return cur_value + value, 0
 
 
@@ -98,6 +116,8 @@ class MaxRestriction(MinToMaxRestriction):
         '''
         if is_None(cur_value):
             return value, 0
+        if is_None(value):
+            return None, 0
         return cur_value - value, 0
 
 
@@ -236,7 +256,7 @@ class RestrValueObject:
         value = np.nanmin(
             np.array([value, self.temp_db.status_dict['in_time_' + self.name][self.obj_index]], dtype=np.float)
         )
-        
+
         new_value, restr_signal = self.restriction.subtract_value(
             self.temp_db.status_dict[self.name][self.obj_index], value
         )
@@ -247,7 +267,7 @@ class RestrValueObject:
 
     def check_add_value(self, value, in_time=True):
         if value is None:
-            value = self.max_restr - self.cur_value(none_to_val=0)
+            value = none_subtract(self.max_restr, self.cur_value(none_to_val=0))
         
         if in_time:
             value = np.nanmin(
@@ -257,6 +277,9 @@ class RestrValueObject:
         new_value, restr_signal = self.restriction.add_value(
             self.temp_db.status_dict[self.name][self.obj_index], value
         )
+
+        if is_None(new_value):
+            return new_value
 
         return abs(
             new_value - np.nanmax(np.array([self.temp_db.status_dict[self.name][self.obj_index], 0], dtype=np.float))
@@ -274,6 +297,9 @@ class RestrValueObject:
         new_value, restr_signal = self.restriction.subtract_value(
             self.temp_db.status_dict[self.name][self.obj_index], value
         )
+
+        if is_None(new_value):
+            return new_value
 
         return abs(
             np.nanmax(np.array([self.temp_db.status_dict[self.name][self.obj_index], 0], dtype=np.float)) - new_value

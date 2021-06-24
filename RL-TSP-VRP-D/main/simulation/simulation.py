@@ -124,6 +124,8 @@ class BaseSimulator:
         else:
             self.temp_db.cur_time_frame = 0
 
+        self.temp_db.total_time += self.temp_db.cur_time_frame
+
         for key in self.temp_db.restr_dict.keys(): [restr.in_time() for restr in self.temp_db.restr_dict[key] if restr is not None]
         [v.take_action() for v in self.temp_db.base_groups['vehicles']]
 

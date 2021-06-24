@@ -59,7 +59,7 @@ class BaseTempDatabase:
             'customers'   : ['c_coord','demand'],
             'depots'      : ['d_coord','stock'],
             'restrictions': ['battery','v_range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],
-            'action_signals': ['v_free','compare_coord','free_to_travel','unloading_v','free_to_unload_v','free_to_be_loaded_v','free_to_load_v','free_to_unload_cargo','free_to_load_cargo'],
+            'action_signals': ['cargo_loss','v_free','compare_coord','free_to_travel','unloading_v','free_to_unload_v','free_to_be_loaded_v','free_to_load_v','free_to_unload_cargo','free_to_load_cargo'],
             'restr_signals': [],
         }
 
@@ -97,6 +97,8 @@ class BaseTempDatabase:
             'travel_type': np.array([0,1]),
             'cargo_type': np.array([0,2]),
         }
+
+        self.total_time = 0
 
 
     def prep_max_min(self, name, max_restr, min_restr, rate):

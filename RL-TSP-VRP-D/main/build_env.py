@@ -54,11 +54,11 @@ class BuildEnvironment:
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'street', # alt: 'street', arial
-            speed: (int, list, tuple, np.ndarray) = 1,
+            speed: (float, int, list, tuple, np.ndarray) = 1,
             # cargo:
             cargo_type: str = 'standard', # alt: 'standard', 'standard+extra', 'standard+including'
             max_cargo: (None, int, list, tuple, np.ndarray) = None,
-            init_cargo: (str, None, int, list, tuple, np.ndarray) = 'max',
+            init_cargo: (str, None, int, list, tuple, np.ndarray) = 0,
             cargo_rate: (None, int, list, tuple, np.ndarray) = None,
             # vehicle capacity:
             max_v_cap: (None, int, list, tuple, np.ndarray) = 0,
@@ -107,15 +107,15 @@ class BuildEnvironment:
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'street', # alt: 'street', arial
-            speed: (int, list, tuple, np.ndarray) = 1,
+            speed: (float, int, list, tuple, np.ndarray) = 1,
             # cargo:
             cargo_type: str = 'standard+extra', # alt: 'standard', 'standard+extra', 'standard+including'
-            max_cargo: (None, int, list, tuple, np.ndarray) = 10,
+            max_cargo: (None, int, list, tuple, np.ndarray) = None,
             cargo_rate: (None, int, list, tuple, np.ndarray) = None,
             init_cargo: (str, None, int, list, tuple, np.ndarray) = 0,
             # vehicle capacity:
             max_v_cap: (None, int, list, tuple, np.ndarray) = 1,
-            v_rate: (None, int, list, tuple, np.ndarray) = 1,
+            v_rate: (None, int, list, tuple, np.ndarray) = None,
             # visualization:
             symbol: (str, None) = 'circle', # 'triangle-up', 'triangle-down' 'rectangle'
             color: (str, None, list, tuple, np.ndarray) = 'purple',
@@ -134,16 +134,16 @@ class BuildEnvironment:
             # range:
             range_type: str = 'simple', # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = 4,
-            max_charge: (None, int, list, tuple, np.ndarray) = 10000,
-            init_charge: (str, None, int, list, tuple, np.ndarray) = 'max',
+            max_charge: (None, int, list, tuple, np.ndarray) = None,
+            init_charge: (str, None, int, list, tuple, np.ndarray) = 0,
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'arial', # alt: 'street', arial
-            speed: (int, list, tuple, np.ndarray) = 0.5,
+            speed: (float, int, list, tuple, np.ndarray) = 1,
             # cargo:
             cargo_type: str = 'standard', # alt: 'standard', 'standard+extra', 'standard+including'
             max_cargo: (None, int, list, tuple, np.ndarray) = 1,
-            cargo_rate: (None, int, list, tuple, np.ndarray) = 1,
+            cargo_rate: (None, int, list, tuple, np.ndarray) = None,
             init_cargo: (str, None, int, list, tuple, np.ndarray) = 0,
             # vehicle capacity:
             max_v_cap: (None, int, list, tuple, np.ndarray) = 0,
@@ -171,7 +171,7 @@ class BuildEnvironment:
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'street', # alt: 'street', arial
-            speed: (int, list, tuple, np.ndarray) = 0.5,
+            speed: (float, int, list, tuple, np.ndarray) = 0.5,
             # cargo:
             cargo_type: str = 'standard', # alt: 'standard', 'standard+extra', 'standard+including'
             max_cargo: (None, int, list, tuple, np.ndarray) = 1,
@@ -195,8 +195,8 @@ class BuildEnvironment:
             # node name:
             n_name: str = 'node', # alt: 'node', 'depot', 'customer'
             # items (stock if node is depot and demand if node is customer):
-            max_items: (None, int, list, tuple, np.ndarray) = 10,
-            init_items: (str, None, int, list, tuple, np.ndarray) = 'max',
+            max_items: (None, int, list, tuple, np.ndarray) = None,
+            init_items: (str, None, int, list, tuple, np.ndarray) = None,
             item_rate: (None, int, list, tuple, np.ndarray) = None,
             item_recharge: (None, int, list, tuple, np.ndarray) = 0,
             init_items_at_step: (None, int, list, tuple, np.ndarray) = 0,
@@ -224,8 +224,8 @@ class BuildEnvironment:
             # number of nodes:
             num: (int, list, tuple, np.ndarray) = 1,
             # items (stock if node is depot and demand if node is customer):
-            max_items: (None, int, list, tuple, np.ndarray) = 1000,
-            init_items: (str, None, int, list, tuple, np.ndarray) = 'max',
+            max_items: (None, int, list, tuple, np.ndarray) = None,
+            init_items: (str, None, int, list, tuple, np.ndarray) = None,
             item_rate: (None, int, list, tuple, np.ndarray) = None,
             item_recharge: (None, int, list, tuple, np.ndarray) = 0,
             init_items_at_step: (None, int, list, tuple, np.ndarray) = 0,
