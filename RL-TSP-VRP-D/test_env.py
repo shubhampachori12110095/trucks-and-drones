@@ -5,11 +5,11 @@ from main.agents.core_agent import DummyAgent
 
 env = BuildEnvironment('test')
 
-env.trucks(4)
-env.drones(2)
-env.robots(2)
+env.trucks(1)
+env.drones(1)
+#nv.robots(2)
 
-env.depots(2)
+env.depots(1)
 env.customers([10,20])
 
 env.dummy_observations()

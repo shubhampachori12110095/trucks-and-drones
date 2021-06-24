@@ -188,6 +188,7 @@ class BaseTempDatabase:
 
         self.status_dict['n_waiting'] = np.zeros((self.num_nodes))
         self.status_dict['v_to_n'] = np.zeros((self.num_vehicles))
+        self.status_dict['v_stuck'] = np.zeros((self.num_vehicles))
         self.status_dict['v_dest'] = np.copy(self.status_dict['v_coord'])
 
         self.cur_v_index = 0
@@ -251,7 +252,6 @@ class BaseTempDatabase:
 
         if compared.size != 0:
             indices = coord_and_indices[1][np.argmin(compared)]
-            print('indices',indices)
             if isinstance(indices, int):
                 return indices
             else:
@@ -264,8 +264,6 @@ class BaseTempDatabase:
 
 
     def terminal_state(self):
-        print(self.customers(self.status_dict['n_items'])[0])
-        print(self.customers(self.status_dict['n_waiting'])[0])
 
         if np.sum(self.customers(self.status_dict['n_items'])[0]) == 0:
 
@@ -274,11 +272,9 @@ class BaseTempDatabase:
 
             all_compare = []
             for elem in v_coord:
-                print(d_coord)
-                print(elem)
                 compare = np.min(np.abs(d_coord-elem))
-                print(compare)
                 all_compare.append(compare)
+
             if np.round(np.sum(all_compare), 2) == 0:
                 return True
         return False

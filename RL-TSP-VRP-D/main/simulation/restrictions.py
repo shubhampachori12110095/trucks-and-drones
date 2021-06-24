@@ -6,7 +6,10 @@ from main.simulation.common_sim_func import param_interpret
 
 
 def is_None(value):
-    return np.isnan(value) or value is None or value == np.nan
+    try:
+        return np.isnan(value) or value is None or value == np.nan
+    except:
+        return value is None
 
 
 def is_not_None(value):
@@ -179,6 +182,12 @@ class RestrValueObject:
             return none_to_val
         return self.temp_db.status_dict[self.name][self.obj_index]
 
+    def round_cur_value(self):
+        if is_not_None(self.temp_db.status_dict[self.name][self.obj_index]):
+            self.temp_db.status_dict[self.name][self.obj_index] = int(
+                self.temp_db.status_dict[self.name][self.obj_index]
+        )
+
     def reset(self):
         self.temp_db.status_dict[self.name][self.obj_index] = self.init_value
 
@@ -192,65 +201,80 @@ class RestrValueObject:
         self.temp_db.status_dict[self.name][self.obj_index] = self.min_restr
 
     def update(self, new_value, restr_signal):
-
-        self.temp_db.status_dict['in_time_' + self.name][self.obj_index] = (
-            self.temp_db.status_dict['in_time_' + self.name][self.obj_index]
-            - np.abs(
-                np.abs(np.nanmax(np.array([self.temp_db.status_dict[self.name][self.obj_index], 0], dtype=np.float)))
-                - np.abs(new_value)
+        if is_not_None(self.temp_db.status_dict['in_time_' + self.name][self.obj_index]):
+            self.temp_db.status_dict['in_time_' + self.name][self.obj_index] = (
+                self.temp_db.status_dict['in_time_' + self.name][self.obj_index]
+                - np.abs(
+                    np.abs(np.nanmax(
+                        np.array([self.temp_db.status_dict[self.name][self.obj_index], 0], dtype=np.float))
+                    ) - np.abs(new_value)
+                )
             )
-        )
 
         if is_not_None(self.temp_db.status_dict[self.name][self.obj_index]):
             self.temp_db.status_dict[self.name][self.obj_index] = new_value
 
-        self.temp_db.signals_dict['signal_'+self.name][self.obj_index] = self.temp_db.signal_list[restr_signal]
+        self.update_signal(restr_signal)
 
     def update_signal(self, restr_signal):
         self.temp_db.signals_dict['signal_'+self.name][self.obj_index] = self.temp_db.signal_list[restr_signal]
 
     def add_value(self, value):
-        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]):
-            value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        value = np.nanmin(
+            np.array([value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index]], dtype=np.float)
+        )
         
-        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], value)
-        self.update(new_value,restr_signal)
+        new_value, restr_signal = self.restriction.add_value(
+            self.temp_db.status_dict[self.name][self.obj_index], value
+        )
+
+        self.update(new_value, restr_signal)
         
         return new_value
 
     def subtract_value(self, value):
-        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]):
-            value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        value = np.nanmin(
+            np.array([value, self.temp_db.status_dict['in_time_' + self.name][self.obj_index]], dtype=np.float)
+        )
         
-        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)
-        self.update(new_value,restr_signal)
-        return new_value
+        new_value, restr_signal = self.restriction.subtract_value(
+            self.temp_db.status_dict[self.name][self.obj_index], value
+        )
 
+        self.update(new_value, restr_signal)
+
+        return new_value
 
     def check_add_value(self, value, in_time=True):
         if value is None:
             value = self.max_restr - self.cur_value(none_to_val=0)
         
-        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and in_time:
-            value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        if in_time:
+            value = np.nanmin(
+                np.array([value, self.temp_db.status_dict['in_time_' + self.name][self.obj_index]], dtype=np.float)
+            )
         
-        new_value, restr_signal = self.restriction.add_value(self.temp_db.status_dict[self.name][self.obj_index], value)
-        
-        if is_None(self.temp_db.status_dict[self.name][self.obj_index]):
-            return new_value
-        return new_value - self.temp_db.status_dict[self.name][self.obj_index]
+        new_value, restr_signal = self.restriction.add_value(
+            self.temp_db.status_dict[self.name][self.obj_index], value
+        )
 
+        return abs(
+            new_value - np.nanmax(np.array([self.temp_db.status_dict[self.name][self.obj_index], 0], dtype=np.float))
+        )
 
     def check_subtract_value(self, value, in_time=True):
         if value is None:
             value = self.cur_value(none_to_val=self.max_restr)
 
-        if is_not_None(self.temp_db.status_dict['in_time_'+self.name][self.obj_index]) and in_time:
-            value = min(value, self.temp_db.status_dict['in_time_'+self.name][self.obj_index])
+        if in_time:
+            value = np.nanmin(
+                np.array([value, self.temp_db.status_dict['in_time_' + self.name][self.obj_index]], dtype=np.float)
+            )
         
-        new_value, restr_signal = self.restriction.subtract_value(self.temp_db.status_dict[self.name][self.obj_index], value)
-        
-        if is_None(self.temp_db.status_dict[self.name][self.obj_index]):
-            return new_value
-        return self.temp_db.status_dict[self.name][self.obj_index] - new_value
+        new_value, restr_signal = self.restriction.subtract_value(
+            self.temp_db.status_dict[self.name][self.obj_index], value
+        )
 
+        return abs(
+            np.nanmax(np.array([self.temp_db.status_dict[self.name][self.obj_index], 0], dtype=np.float)) - new_value
+        )

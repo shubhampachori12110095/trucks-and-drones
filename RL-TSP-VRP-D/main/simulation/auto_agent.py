@@ -1,3 +1,7 @@
+'''
+
+'''
+
 import numpy as np
 
 
@@ -10,26 +14,42 @@ class BaseAutoAgent:
 
     def find_destination(self):
 
-        if (self.temp_db.base_groups['vehicles'][self.temp_db.cur_v_index].v_items.cur_value() > 0
-            and 0 in self.temp_db.customers(self.temp_db.status_dict['n_waiting'])[0]
-            and np.sum(self.temp_db.customers(self.temp_db.status_dict['n_items'])[0]) != 0):
-            n_index = self.temp_db.nearest_neighbour(self.temp_db.customers(
-                self.temp_db.status_dict['n_coord'],
-                include=[[self.temp_db.status_dict['n_waiting'], 0]],
-                exclude=[[self.temp_db.status_dict['n_items'], 0]]
-            )
-        )
+        if (np.sum(self.temp_db.status_dict['v_stuck']) != 0
+            and bool(self.temp_db.constants_dict['v_is_truck'][self.temp_db.cur_v_index])
+            ):
 
-        # self.temp_db.status_dict['n_waiting'][n_index] = 1
+            v_index = self.temp_db.nearest_neighbour(self.temp_db.vehicles(
+                self.temp_db.status_dict['v_coord'],
+                include=[[self.temp_db.status_dict['v_stuck'], 1]]
+                )
+            )
+
+            if v_index is None:
+                return None
+            return self.temp_db.status_dict['v_coord'][v_index]
 
         else:
-            n_index = self.find_depot()
+            if (self.temp_db.base_groups['vehicles'][self.temp_db.cur_v_index].v_items.cur_value() > 0
+                and 0 in self.temp_db.customers(self.temp_db.status_dict['n_waiting'])[0]
+                and np.sum(self.temp_db.customers(self.temp_db.status_dict['n_items'])[0]) != 0
+                ):
 
-        self.temp_db.status_dict['v_to_n'][self.temp_db.cur_v_index] = n_index
-        if n_index is None:
-            return None
+                n_index = self.temp_db.nearest_neighbour(self.temp_db.customers(
+                    self.temp_db.status_dict['n_coord'],
+                    include=[[self.temp_db.status_dict['n_waiting'], 0]],
+                    exclude=[[self.temp_db.status_dict['n_items'], 0]]
+                    )
+                )
 
-        return self.temp_db.status_dict['n_coord'][n_index]
+            else:
+                n_index = self.find_depot()
+                self.temp_db.status_dict['v_to_n'][self.temp_db.cur_v_index] = n_index
+
+            self.temp_db.status_dict['v_to_n'][self.temp_db.cur_v_index] = n_index
+
+            if n_index is None:
+                return None
+            return self.temp_db.status_dict['n_coord'][n_index]
 
 
     def find_v_to_unload(self):

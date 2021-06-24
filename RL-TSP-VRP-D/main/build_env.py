@@ -20,12 +20,14 @@ class BuildEnvironment:
     def __init__(self, 
             name: str, 
             grid: (list, tuple, np.ndarray) = [10,10],
-            reward_signals: (list, tuple, np.ndarray) = [1,1,-1]
+            reward_signals: (list, tuple, np.ndarray) = [1,1,-1],
+            max_steps_per_episode: int = 1000,
         ):
 
         self.name = name
         self.grid = grid
         self.reward_signals = reward_signals
+        self.max_steps_per_episode = max_steps_per_episode
 
         self.vehicle_params = []
         self.node_params = []
@@ -131,13 +133,13 @@ class BuildEnvironment:
             weight: (None, int, list, tuple, np.ndarray) = 0,
             # range:
             range_type: str = 'simple', # alt: 'simple', 'battery'
-            max_range: (None, int, list, tuple, np.ndarray) = None,
+            max_range: (None, int, list, tuple, np.ndarray) = 4,
             max_charge: (None, int, list, tuple, np.ndarray) = 10000,
             init_charge: (str, None, int, list, tuple, np.ndarray) = 'max',
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
             travel_type: str = 'arial', # alt: 'street', arial
-            speed: (int, list, tuple, np.ndarray) = 1,
+            speed: (int, list, tuple, np.ndarray) = 0.5,
             # cargo:
             cargo_type: str = 'standard', # alt: 'standard', 'standard+extra', 'standard+including'
             max_cargo: (None, int, list, tuple, np.ndarray) = 1,
@@ -441,5 +443,6 @@ class BuildEnvironment:
     def build(self) -> gym.Env:
 
         return CustomEnv(
-            self.name, self.simulation, self.visualizor, self.obs_encoder, self.act_decoder, self.reward_calc
+            self.name, self.max_steps_per_episode,
+            self.simulation, self.visualizor, self.obs_encoder, self.act_decoder, self.reward_calc
         )

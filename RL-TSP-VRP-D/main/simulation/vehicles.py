@@ -37,6 +37,17 @@ symbol: (str, NoneType) = 'circle', # 'triangle-up', 'triangle-down' 'rectangle'
 color: (str, NoneType, int, list, tuple, np.ndarray) = 'red',
 '''
 
+
+def none_add(a,b):
+    if is_None(a):
+        return a
+    return a + b
+
+def none_subtract(a,b):
+    if is_None(a):
+        return a
+    return a - b
+
 # Vehicle Class Functions:
 # ----------------------------------------------------------------------------------------------------------------
 
@@ -232,62 +243,56 @@ class BaseVehicleClass:
 
     def v_move(self, calc_time=False):
 
-        print('move', calc_time)
-
         direction = self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
         distance = self.calc_distance(direction)
 
-        if distance == 0:
+        if np.round(np.array([distance]), 3) == 0:
+            self.temp_db.status_dict['v_coord'][self.v_index] = self.temp_db.status_dict['v_dest'][self.v_index]
             self.temp_db.actions_list[self.v_index].pop(0)
-            '''
-            c_coord = self.temp_db.nearest_neighbour(self.temp_db.customers(
-                    self.temp_db.status_dict['n_coord'],
-                    include=[[self.temp_db.status_dict['n_waiting'], 1]]
-                )
-            )
-            if self.temp_db.same_coord(self.temp_db.status_dict['n_coord'][c_coord]):
-                self.temp_db.status_dict['n_waiting'] = 0
-            '''
             self.take_action(calc_time=True)
             return
 
+        if bool(self.temp_db.status_dict['v_stuck'][self.v_index]):
+            self.temp_db.actions_list[self.v_index].pop(0)
+            self.take_action(calc_time=True)
+            return
 
         if not calc_time:
 
             real_distance = self.range_restr.check_subtract_value(distance)
-            
+
             if real_distance != 0:
                 self.range_restr.subtract_value(distance)
-                self.temp_db.status_dict['v_coord'][self.v_index] = direction * (real_distance/distance) + self.temp_db.status_dict['v_coord'][self.v_index]
+                self.temp_db.status_dict['v_coord'][self.v_index] = (
+                    direction * (real_distance/distance) + self.temp_db.status_dict['v_coord'][self.v_index]
+                )
                 
                 for i in self.temp_db.v_transporting_v[self.v_index]:
                     self.temp_db.status_dict['v_coord'][i] = self.temp_db.status_dict['v_coord'][self.v_index]
 
-            if real_distance == distance:
+            if np.round(real_distance - distance, 3) == 0:
                 self.temp_db.actions_list[self.v_index].pop(0)
-
-                '''
-                c_coord = self.temp_db.nearest_neighbour(self.temp_db.customers(
-                        self.temp_db.status_dict['n_coord'],
-                        exclude=[[self.temp_db.status_dict['n_waiting'], 0]]
-                    )
-                )
-                if self.temp_db.same_coord(self.temp_db.status_dict['n_coord'][c_coord]):
-                    self.temp_db.status_dict['n_waiting'] = 0
-                '''
                 self.take_action(calc_time=True)
                 return
 
+            elif self.temp_db.cur_time_frame != 0:
+                self.temp_db.time_till_fin[self.v_index] = (real_distance / self.temp_db.cur_time_frame) * (
+                            distance - real_distance)
+                if real_distance == 0:
+                    self.temp_db.status_dict['v_stuck'][self.v_index] = 1
+
             else:
-                self.temp_db.time_till_fin[self.v_index] = np.nanmax(self.range_restr.calc_time(distance - real_distance), 0)
+                self.temp_db.time_till_fin[self.v_index] = np.nanmax(
+                    self.range_restr.calc_time(distance - real_distance), 0
+                )
 
         else:
-            self.temp_db.time_till_fin[self.v_index] = np.nanmax(self.range_restr.calc_time(distance), 0)
+            self.temp_db.time_till_fin[self.v_index] = np.nanmax(
+                self.range_restr.calc_time(distance), 0
+            )
 
 
     def v_load_v(self, v_j, item_amount=None, calc_time=False):
-
-        print('v_load_v', calc_time)
 
         cargo_i = self.v_cargo
         items_i = self.v_items
@@ -297,9 +302,9 @@ class BaseVehicleClass:
         items_j = self.temp_db.restr_dict['v_items'][v_j]
         weight_j = self.temp_db.constants_dict['v_weight'][v_j]
 
-        if (items_i.max_restr - items_i.cur_value() < cargo_j.cur_value()
-                or bool(self.temp_db.constants_dict['v_loadable'][v_j])
-                or bool(self.temp_db.status_dict['v_free'][v_j])
+        if (not bool(self.temp_db.constants_dict['v_loadable'][v_j])
+                #or items_i.max_restr - items_i.cur_value() < cargo_j.cur_value()
+                or not bool(self.temp_db.status_dict['v_free'][v_j])
                 or not self.is_truck
                 or loaded_v_i.rate == 0
                 or not loaded_v_i.check_add_value(1, in_time=False) == 1
@@ -309,21 +314,21 @@ class BaseVehicleClass:
             return
 
         item_amount = np.nanmin(np.array([
-            cargo_i.check_add_value(item_amount + weight_j, in_time=False) - weight_j,
+            none_subtract(cargo_i.check_add_value(none_add(item_amount, weight_j), in_time=False), weight_j),
             items_i.check_add_value(item_amount, in_time=False),
             cargo_j.check_subtract_value(item_amount, in_time=False),
             items_j.check_subtract_value(item_amount, in_time=False)
         ]))
         
-        if item_amount == 0 and items_i.cur_value() != 0:
+        if item_amount == 0 and np.nanmin([items_j.cur_value(),  items_i.max_restr - items_i.cur_value()])!= 0:
             self.temp_db.actions_list[self.v_index].pop(0)
             self.take_action(calc_time=True)
             return
-        
+
         if not calc_time and loaded_v_i.check_add_value(1) == 1:
                 
             real_item_amount = np.nanmin(np.array([
-                cargo_i.check_add_value(item_amount + weight_j) - weight_j,
+                none_subtract(cargo_i.check_add_value(none_add(item_amount, weight_j)), weight_j),
                 items_i.check_add_value(item_amount),
                 cargo_j.check_subtract_value(item_amount),
                 items_j.check_subtract_value(item_amount)
@@ -335,10 +340,17 @@ class BaseVehicleClass:
                 cargo_j.subtract_value(real_item_amount)
                 items_j.subtract_value(real_item_amount)
 
-            if real_item_amount == item_amount:
+            if np.round(real_item_amount, 3) == np.round(item_amount, 3):
+                cargo_i.round_cur_value()
+                items_i.round_cur_value()
+                cargo_j.round_cur_value()
+                items_j.round_cur_value()
+
                 loaded_v_i.add_value(1)
                 self.temp_db.v_transporting_v[self.v_index].append(v_j)
                 self.temp_db.status_dict['v_free'][v_j] = 0
+                self.temp_db.status_dict['v_to_n'][v_j] = None
+
                 
                 self.temp_db.actions_list[self.v_index].pop(0)
                 self.take_action(calc_time=True)
@@ -365,8 +377,6 @@ class BaseVehicleClass:
 
     def v_unload_v(self, v_j, item_amount=None, calc_time=False):
 
-        print('v_unload_v',calc_time)
-
         cargo_i = self.v_cargo
         items_i = self.v_items
         loaded_v_i = self.loaded_v
@@ -376,7 +386,7 @@ class BaseVehicleClass:
         weight_j = self.temp_db.constants_dict['v_weight'][v_j]
 
         possible_item_amount = np.nanmin(np.array([
-            cargo_i.check_subtract_value(item_amount + weight_j, in_time=False) - weight_j,
+            none_subtract(cargo_i.check_subtract_value(none_add(item_amount, weight_j), in_time=False), weight_j),
             items_i.check_subtract_value(item_amount, in_time=False),
             cargo_j.check_add_value(item_amount, in_time=False),
             items_j.check_add_value(item_amount, in_time=False)
@@ -389,7 +399,7 @@ class BaseVehicleClass:
         if not calc_time and loaded_v_i.check_subtract_value(1) == 1:
         
             real_item_amount = np.nanmin(np.array([
-                cargo_i.check_subtract_value(item_amount + weight_j) - weight_j,
+                none_subtract(cargo_i.check_subtract_value(none_add(item_amount, weight_j)), weight_j),
                 items_i.check_subtract_value(item_amount),
                 cargo_j.check_add_value(item_amount),
                 items_j.check_add_value(item_amount),
@@ -401,8 +411,11 @@ class BaseVehicleClass:
                 cargo_j.add_value(real_item_amount)
                 items_j.add_value(real_item_amount)
 
-
-            if real_item_amount == item_amount:
+            if np.round(real_item_amount, 3) == np.round(item_amount, 3):
+                cargo_i.round_cur_value()
+                items_i.round_cur_value()
+                cargo_j.round_cur_value()
+                items_j.round_cur_value()
                 loaded_v_i.subtract_value(1)
                 
                 self.temp_db.v_transporting_v[self.v_index].pop(self.temp_db.v_transporting_v[self.v_index].index(v_j))
@@ -432,8 +445,6 @@ class BaseVehicleClass:
 
 
     def v_unload_items(self, n_j, item_amount=None, calc_time=False):
-
-        print('v_unload_i',calc_time)
 
         cargo_i = self.v_cargo
         items_i = self.v_items
@@ -470,7 +481,11 @@ class BaseVehicleClass:
                 items_i.subtract_value(real_item_amount)
                 items_j.subtract_value(real_item_amount)
 
-            if real_item_amount == item_amount:
+            if np.round(real_item_amount, 3) == np.round(item_amount, 3):
+                cargo_i.round_cur_value()
+                items_i.round_cur_value()
+                items_j.round_cur_value()
+
                 self.temp_db.status_dict['n_waiting'][n_j] = 0
                 
                 self.temp_db.actions_list[self.v_index].pop(0)
@@ -492,8 +507,6 @@ class BaseVehicleClass:
             ]))
 
     def v_load_items(self, n_j, item_amount=None, calc_time=False):
-        
-        print('v_load_i',calc_time)
 
         cargo_i = self.v_cargo
         items_i = self.v_items
@@ -505,8 +518,6 @@ class BaseVehicleClass:
                 items_i.check_add_value(item_amount, in_time=False),
                 items_j.check_subtract_value(item_amount, in_time=False),
         ]))
-
-        print('possible_item_amount', possible_item_amount)
 
         if not item_amount is None:
             action_error = abs(item_amount-possible_item_amount)
@@ -525,15 +536,16 @@ class BaseVehicleClass:
                 items_j.check_subtract_value(item_amount),
             ]))
 
-            print('real_item_amount', real_item_amount)
-
-
             if real_item_amount > 0:
                 cargo_i.add_value(real_item_amount)
                 items_i.add_value(real_item_amount)
                 items_j.subtract_value(real_item_amount)
 
-            if real_item_amount == item_amount:
+            if np.round(real_item_amount, 3) == np.round(item_amount, 3):
+                cargo_i.round_cur_value()
+                items_i.round_cur_value()
+                items_j.round_cur_value()
+
                 self.temp_db.actions_list[self.v_index].pop(0)
                 self.take_action(calc_time=True)
                 return
@@ -544,8 +556,6 @@ class BaseVehicleClass:
                     items_i.calc_time(item_amount - real_item_amount),
                     items_j.calc_time(item_amount - real_item_amount),
                 ]))
-
-                print('time_till_fin', self.temp_db.time_till_fin[self.v_index])
 
         else:
             self.temp_db.time_till_fin[self.v_index] = np.nanmax(np.array([
