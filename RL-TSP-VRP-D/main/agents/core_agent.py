@@ -12,12 +12,16 @@ from main.agents.agents import BaseAgent
 class BaseAgentBuilder:
 
     def __init__(self, env, name):
+
         self.env = env
         self.name = name
+
         if hasattr(self.env.action_space, '__iter__'):
-            self.acts_list = [[] for i in range(self.env.action_space)]
+            self.outputs_list = [[] for i in range(self.env.action_space)]
+            self.act_list = [elem.shape for elem in range(self.env.action_space)]
         else:
-           self.acts_list = [[]]
+           self.outputs_list = [[]]
+           self.inputs_list = [self.env.action_space.shape]
 
         if hasattr(self.env.observation_space, '__iter__'):
             self.inputs_list = [elem.shape for elem in range(self.env.observation_space)]
@@ -31,7 +35,7 @@ class BaseAgentBuilder:
             optimizer_grad: (None, optimizer_v2.OptimizerV2) = None,
             optimizer_val: (None, optimizer_v2.OptimizerV2) = None,
             activation_q: (None, str) = None,
-            activation_grad: (None, str) = None,
+            activation_grad: (None, str, list, tuple, np.ndarray) = None,
             activation_val: (None, str) = None,
             loss_q: (None, str) = 'mse',  # 'mse'
             loss_grad: (None, str) = 'huber',  # 'huber'
@@ -84,12 +88,53 @@ class BaseAgentBuilder:
                 if action['optimizer_grad'] is None and action['optimizer_val'] is None:
                     # DQN
                     self.agents.append(DQNAgent(action, actor_index))
-                    self.outputs_list.append([action['num_outputs']])
+
+                    if isinstance(self.acts_list[actor_index], spaces.Discrete):
+                        self.outputs_list.append([[self.acts_list[actor_index].shape]])
+                        self.activations.append([[action['activation_q']]])
+                    else:
+                        raise Exception('''
+                                        Action with index {} was assigned to a DQN, but is not discrete.
+                                        '''.format(actor_index)
+                                        )
 
                 elif not action['optimizer_grad'] is None and not action['optimizer_val'] is None:
                     # SAC
                     self.agents.append(SACAgent(action, actor_index))
-                    self.outputs_list.append([action['num_outputs'], action['num_outputs'], [1]])
+
+                    if isinstance(self.acts_list[actor_index], spaces.Discrete):
+                        self.outputs_list.append([
+                            [self.acts_list[actor_index].shape],
+                            [self.acts_list[actor_index].shape],
+                            [1]
+                        ])
+
+                        self.activations.append([
+                            [action['activation_q']],
+                            [action['activation_grad']],
+                            [action['activation_val']],
+                        ])
+
+                    elif isinstance(self.acts_list[actor_index], spaces.Box):
+                        self.outputs_list.append([
+                            [self.acts_list[actor_index].shape],
+                            [self.acts_list[actor_index].shape],
+                            [self.acts_list[actor_index].shape],
+                            [1]
+                        ])
+
+                        self.activations.append([
+                            [action['activation_q']],
+                            [action['activation_grad'][0]],
+                            [action['activation_grad'][1]],
+                            [action['activation_val']],
+                        ])
+
+                    else:
+                        raise Exception('''
+                                        Action with index {} was assigned to a SAC, but is not discrete or contin.
+                                        '''.format(actor_index)
+                                        )
 
                 else:
                     raise Exception("""
@@ -108,13 +153,40 @@ class BaseAgentBuilder:
                 else:
                     # A2C
                     self.agents.append(A2CAgent(action, actor_index))
-                    self.outputs_list.append([action['num_outputs'], [1]])
+
+                    if isinstance(self.acts_list[actor_index], spaces.Discrete):
+                        self.outputs_list.append([
+                            [self.acts_list[actor_index].shape],
+                            [1]
+                        ])
+
+                        self.activations.append([
+                            [action['activation_grad']],
+                            [action['activation_val']],
+                        ])
+
+                    elif isinstance(self.acts_list[actor_index], spaces.Box):
+                        self.outputs_list.append([
+                            [self.acts_list[actor_index].shape],
+                            [self.acts_list[actor_index].shape],
+                            [1]
+                        ])
+
+                        self.activations.append([
+                            [action['activation_grad'][0]],
+                            [action['activation_grad'][1]],
+                            [action['activation_val']],
+                        ])
+
+                    else:
+                        raise Exception('''
+                                        Action with index {} was assigned to a A2C, but is not discrete or contin.
+                                        '''.format(actor_index)
+                                        )
 
             actor_index += 1
 
         # ergänze supervised für model based ansätze
-
-        self.outputs_list = outputs_list
 
     def seperate_input_layer(self):
 
