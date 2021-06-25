@@ -1,20 +1,38 @@
+'''
+
+'''
 import tensorflow as tf
+import tensorflow.keras as keras
+from tensorflow.keras import layers
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 
+from main.agents.agents import BaseAgent
 
-class Agents:
+
+class BaseAgentBuilder:
 
     def __init__(self, env, name):
         self.env = env
         self.name = name
-        self.action_outputs = []
+        if hasattr(self.env.action_space, '__iter__'):
+            self.acts_list = [[] for i in range(self.env.action_space)]
+        else:
+           self.acts_list = [[]]
 
-    def add_action(
+        if hasattr(self.env.observation_space, '__iter__'):
+            self.inputs_list = [elem.shape for elem in range(self.env.observation_space)]
+        else:
+            self.inputs_list = [self.env.observation_space.shape]
+
+    def assign_agent_to_act(
             self,
-            space: str = 'discrete',  # 'discrete', 'contin'
+            act_index: int = 0,
             optimizer_q: (None, optimizer_v2.OptimizerV2) = None,
             optimizer_grad: (None, optimizer_v2.OptimizerV2) = None,
             optimizer_val: (None, optimizer_v2.OptimizerV2) = None,
+            activation_q: (None, str) = None,
+            activation_grad: (None, str) = None,
+            activation_val: (None, str) = None,
             loss_q: (None, str) = 'mse',  # 'mse'
             loss_grad: (None, str) = 'huber',  # 'huber'
             loss_val: (None, str) = 'mse',  # 'mse'
@@ -30,11 +48,13 @@ class Agents:
             gamme_v: (None, float, int) = None,
             ):
 
-        self.action_outputs.append({
-            'space': space,
+        self.action_outputs.insert(act_index ,{
             'optimizer_q': optimizer_q,
             'optimizer_grad': optimizer_grad,
             'optimizer_val': optimizer_val,
+            'activation_q': activation_q,
+            'activation_grad': activation_grad,
+            'activation_val': activation_val,
             'loss_q': loss_q,
             'loss_grad': loss_grad,
             'loss_val': loss_val,
@@ -50,11 +70,12 @@ class Agents:
             'gamma_v': gamme_v,
             })
 
-    def compile(
-            self,
-            tau: (None, float, int) = None,
-            update_target: int = 100,
-            ):
+    def compile_agents(self):
+
+        self.agents = []
+        self.outputs_list = []
+        self.activations = []
+        actor_index = 0
 
         for action in self.action_outputs:
 
@@ -62,14 +83,18 @@ class Agents:
 
                 if action['optimizer_grad'] is None and action['optimizer_val'] is None:
                     # DQN
-                    agent = CoreAgent('dqn')
+                    self.agents.append(DQNAgent(action, actor_index))
+                    self.outputs_list.append([action['num_outputs']])
 
                 elif not action['optimizer_grad'] is None and not action['optimizer_val'] is None:
                     # SAC
-                    agent = CoreAgent('sac')
+                    self.agents.append(SACAgent(action, actor_index))
+                    self.outputs_list.append([action['num_outputs'], action['num_outputs'], [1]])
+
                 else:
                     raise Exception("""
-                                    'Either optimizer_grad' was {} and 'optimizer_val' was {}, but both must be None or not None,
+                                    'Either optimizer_grad' was {} and 'optimizer_val' was {}, 
+                                    but both must be None or not None, 
                                     when 'optimizer_q' is not None.
                                     """.format(action['optimizer_grad'], action['optimizer_val']))
 
@@ -77,17 +102,79 @@ class Agents:
 
                 if action['optimizer_grad'] is None or action['optimizer_val'] is None:
                     raise Exception("""
-                                    'optimizer_grad' was {} or 'optimizer_val' was {}, but can't be None, when 'optimizer_q' is None.
+                                    'optimizer_grad' was {} or 'optimizer_val' was {}, 
+                                    but can't be None, when 'optimizer_q' is None.
                                     """.format(action['optimizer_grad'],action['optimizer_val']))
                 else:
-                    #A2C
-                    agent = CoreAgent('a2c')
+                    # A2C
+                    self.agents.append(A2CAgent(action, actor_index))
+                    self.outputs_list.append([action['num_outputs'], [1]])
+
+            actor_index += 1
+
+        # ergänze supervised für model based ansätze
+
+        self.outputs_list = outputs_list
+
+    def seperate_input_layer(self):
+
+        self.input_layers = []
+        for num_inputs in self.inputs_list:
+            self.input_layers.append(layers.Dense(num_inputs, activation="relu"))
+        self.all_layers = [self.input_layers]
+
+    def add_hidden_to_each_input(self, num_neurons_factor=2):
+
+        new_layers = []
+        for prev_layer in self.all_layers[-1]:
+            new_layers.append(layers.Dense(int(prev_layer.shape * num_neurons_factor), activation="relu")(prev_layer))
+        self.all_layers.append(new_layers)
+
+    def add_combined_layer(self, num_neurons_factor=1.5):
+        self.all_layers.append(layers.Concatenate(axis=-1)(self.all_layers[-1]))
+        self.all_layers.append(layers.Dense(
+            int(self.all_layers[-1].shape * num_neurons_factor), activation="relu")(self.all_layers[-1]))
+
+    def add_sum_output_neurons_layer(self, num_neurons_factor=0.5):
+        self.all_layers.append(layers.Dense(
+            int(np.sum(self.outputs_list) * num_neurons_factor), activation="relu")(self.all_layers[-1]))
+
+    def add_output_networks(self, num_layers, num_neurons_factor=1.5):
+
+        self.output_layers = []
+        for i in range(self.outputs_list):
+
+            outputs = self.outputs_list[i]
+            sum_neurons = sum(outputs)
+            net_input = layers.Dense(
+                int(num_layers * num_neurons_factor * sum_neurons), activation="relu")(self.all_layers[-1])
+
+            hidden = net_input
+            if num_layers > 1:
+                for i in range(num_layers - 2):
+                    hidden = layers.Dense(
+                        int((num_layers - i - 1) * num_neurons_factor * sum_neurons), activation="relu")(hidden)
+
+            for j in range(outputs):
+                self.output_layers.append(layer.Dense(outputs[j], activation=self.activations[i][j]))
+
+    def build(self, Agent: BaseAgent = Basegent):
+        return Agent(self.name, self.env, self.agents, keras.Model(self.input_layers, self.output_layers))
 
 
 class CoreAgent:
 
     def __init__(self, agent_type):
         self.agent_type = agent_type
+
+    def random_act(self):
+        return env.action_space.sample()
+
+    def random_auto_act(self):
+        return None
+
+    def random_act_by_prob(self):
+        return tf.random.categorical(action_logits_t, 1)[0, 0]
 
     def greedy_epsilon(self, actions):
         self.greed_eps *= self.greed_eps_decay
@@ -112,34 +199,4 @@ class CoreAgent:
 
 
 
-class DummyAgent:
 
-    def __init__(self, env, name='DummyAgent'):
-
-        self.name = name
-        self.env = env
-
-    def train_agent(self, num_episodes):
-
-        actions = []
-
-        for e in range(num_episodes):
-
-            state = self.env.reset()
-            done = False
-
-            while not done:
-                state, reward, done, _ = self.env.step(actions)
-
-    def test_agent(self, num_episodes):
-
-        actions = []
-
-        for e in range(num_episodes):
-
-            state = self.env.reset()
-            done = False
-
-            while not done:
-                self.env.render()
-                state, reward, done, _ = self.env.step(actions)
