@@ -30,7 +30,9 @@ class DummyAgent:
                 self.env.render()
                 state, reward, done, _ = self.env.step(actions)
 
-
+'''
 class BaseAgent:
 
     def __init__(self, env)
+        
+'''
