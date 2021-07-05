@@ -15,7 +15,6 @@ class CustomEnv(gym.Env):
 
     def __init__(self, 
             name,
-            max_steps_per_episode,
             simulation,
             visualizor,
             obs_encoder,
@@ -26,7 +25,6 @@ class CustomEnv(gym.Env):
         super(CustomEnv, self).__init__()
 
         self.name = name
-        self.max_steps_per_episode = max_steps_per_episode
 
         # Init simulator
         self.simulation = simulation
@@ -72,7 +70,6 @@ class CustomEnv(gym.Env):
         self.count_steps_of_episode += 1
         self.count_total_steps      += 1
 
-        done = done or self.max_steps_per_episode <= self.count_steps_of_episode
 
         if done:
             self.count_episodes     += 1
