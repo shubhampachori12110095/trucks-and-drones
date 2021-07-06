@@ -1,6 +1,7 @@
 '''
 
 '''
+import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras import layers
@@ -50,7 +51,7 @@ class BaseAgentBuilder:
             run_factor: (None, float, int) = None,
             entropy: (None, float, int) = None,
             gamma_q: (None, float, int) = None,
-            gamme_v: (None, float, int) = None,
+            gamma_v: (None, float, int) = None,
             ):
 
         self.action_outputs.insert(act_index,{
@@ -74,7 +75,7 @@ class BaseAgentBuilder:
             'run_factor': run_factor,
             'entropy': entropy,
             'gamma_q': gamma_q,
-            'gamma_v': gamme_v,
+            'gamma_v': gamma_v,
             })
 
     def add_supervised_outputs(
@@ -197,7 +198,7 @@ class BaseAgentBuilder:
         for sup_output in self.supervised_outputs:
 
             self.agents.append(SupervisedOutputs(sup_output))
-            self.outputs_list.append([[sup_output['num_outputs']])
+            self.outputs_list.append([[sup_output['num_outputs']]])
             self.activations.append([[sup_output['activation']]])
 
     def seperate_input_layer(self):
@@ -242,7 +243,7 @@ class BaseAgentBuilder:
             for j in range(outputs):
                 self.output_layers.append(layer.Dense(outputs[j], activation=self.activations[i][j]))
 
-    def build(self, Agent: BaseAgent = Basegent):
+    def build(self, Agent: BaseAgent = BaseAgent):
         return Agent(self.name, self.env, self.agents, keras.Model(self.input_layers, self.output_layers))
 
 

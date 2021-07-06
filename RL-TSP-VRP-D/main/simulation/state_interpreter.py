@@ -93,7 +93,7 @@ class BaseObsEncoder:
 
     def coord_to_contin(self, key):
         ''' Normalizes list of Coordinates'''
-        coord_list = self.temp_db.status_dict[key]
+        coord_list = self.temp_db.get_val(key)
 
         array_x = np.array([elem[0]/self.temp_db.grid[0] for elem in coord_list])
         array_y = np.array([elem[1]/self.temp_db.grid[1] for elem in coord_list])
@@ -105,7 +105,7 @@ class BaseObsEncoder:
         ''' Normalizes list of Values'''
         max_value = self.temp_db.max_values_dict[key]
         min_value = self.temp_db.min_values_dict[key]
-        value_list = self.temp_db.status_dict[key]
+        value_list = self.temp_db.get_val(key)
         
         if max_value is None:
             return np.one((len(value_list)))
@@ -115,7 +115,7 @@ class BaseObsEncoder:
 
     def coord_to_discrete(self, key):
         ''' Converts list of Coordinates to discrete'''
-        coord_list = self.temp_db.status_dict[key]
+        coord_list = self.temp_db.get_val(key)
         
         array_x = np.zeros((len(coord_list), self.temp_db.grid[0]))
         array_y = np.zeros((len(coord_list), self.temp_db.grid[1]))
@@ -128,17 +128,19 @@ class BaseObsEncoder:
 
     def binary_to_discrete(self, key):
         ''' Converts list of binary values to discrete'''
-        binary_list = self.temp_db.status_dict[key]
-        
+        binary_list = self.temp_db.get_val(key)
+        print(key)
+        print(binary_list)
         array_binary = np.zeros((len(binary_list), 2))
-        array_binary[np.arange(len(binary_list)), np.array(binary_list)] = 1
+        array_binary[np.arange(len(binary_list)), np.array(binary_list, dtype=np.int)] = 1
+        print(array_binary)
 
         return array_binary
 
 
     def value_to_discrete(self, key):
         ''' Converts list of Values to discrete'''
-        value_list = self.temp_db.status_dict[key]
+        value_list = self.temp_db.get_val(key)
         
         array_value = np.zeros((len(value_list), self.discrete_dims))
 
@@ -193,10 +195,11 @@ class BaseObsEncoder:
         return np.ravel(to_combine)
 
 
+
     def observe_state(self):
 
         for key in self.contin_coord : self.contin_dict[key] = self.coord_to_contin(key)
-        for key in self.contin_binary: self.contin_dict[key] = np.array(self.temp_db.status_dict[key])
+        for key in self.contin_binary: self.contin_dict[key] = np.array(self.temp_db.get_val(key))
         for key in self.contin_value : self.contin_dict[key] = self.value_to_contin(key)
 
         for key in self.discrete_coord : self.discrete_dict[key] = self.coord_to_discrete(key)

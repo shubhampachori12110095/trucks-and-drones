@@ -57,14 +57,28 @@ class BaseTempDatabase:
 
         self.debug_mode = debug_mode
 
+        status_dict_keys = ['n_items', 'in_time_n_items', 'n_coord', 'v_range', 'in_time_v_range', 'v_items',
+                'in_time_v_items', 'v_cargo', 'in_time_v_cargo', 'loaded_v', 'in_time_loaded_v',
+                'v_free', 'v_coord', 'n_waiting', 'v_to_n', 'v_stuck', 'v_dest']
+
+        constants_dict_keys = ['max_n_items', 'min_n_items', 'init_n_items', 'rate_n_items', 'n_type',
+                               'max_v_range', 'min_v_range', 'init_v_range', 'rate_v_range', 'max_v_items',
+                               'min_v_items', 'init_v_items', 'rate_v_items', 'max_v_cargo', 'min_v_cargo',
+                               'init_v_cargo', 'rate_v_cargo', 'max_loaded_v', 'min_loaded_v', 'init_loaded_v',
+                               'rate_loaded_v', 'v_range_type', 'v_travel_type', 'v_cargo_type',
+                               'v_is_truck', 'v_loadable', 'v_weight', 'v_type']
+
         self.key_groups_dict = {
             'coordinates' : ['v_coord','c_coord','d_coord'],
-            'binary'      : ['v_free','v_stuck','v_loaded','v_type','v_loadable'],
-            'values'      : ['battery','v_range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],
-            'vehicles'    : ['v_coord','battery','v_range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','v_free','v_stuck','v_loaded','v_type','v_loadable'],
+            'binary'      : ['v_free','v_stuck','loaded_v','v_loadable', 'v_is_truck'],
+            'values'      : ['v_range'],
+            'vehicles'    : ['v_range','v_items','v_cargo', 'loaded_v','v_free','v_coord','v_to_n', 'v_stuck', 'v_dest',
+                             'rate_loaded_v', 'v_range_type', 'v_travel_type', 'v_cargo_type', 'v_is_truck',
+                             'v_loadable', 'v_weight', 'v_type', 'rate_v_cargo', 'rate_v_items', 'rate_v_range'
+                             ],
             'customers'   : ['c_coord','demand'],
             'depots'      : ['d_coord','stock'],
-            'restrictions': ['battery','v_range','cargo','cargo_rate','cargo_UV','cargo_UV_rate','stock','demand'],
+            'restrictions': ['v_range'],
             'action_signals': ['cargo_loss','v_free','compare_coord','free_to_travel','unloading_v','free_to_unload_v','free_to_be_loaded_v','free_to_load_v','free_to_unload_cargo','free_to_load_cargo'],
             'restr_signals': [],
         }
@@ -118,6 +132,10 @@ class BaseTempDatabase:
 
         #print(self.min_max_dict)
 
+    def add_key_to(self, group, key):
+        if not any(key in elem for elem in self.key_groups_dict[group]):
+            self.key_groups_dict[group].append(key)
+
     def add_restriction(self, restr_obj, name, list_index, index_type):
 
         if index_type == 'vehicle':
@@ -134,9 +152,16 @@ class BaseTempDatabase:
 
         # Constants at Constants Dict:
         insert_at_array(self.constants_dict, 'max_'+name, restr_obj.max_restr, list_index, num_objs)
+        self.add_key_to('values', 'max_'+name)
+
         insert_at_array(self.constants_dict, 'min_'+name, restr_obj.min_restr, list_index, num_objs)
+        self.add_key_to('values', 'min_'+name)
+
         insert_at_array(self.constants_dict, 'init_'+name, restr_obj.init_value, list_index, num_objs)
+
         insert_at_array(self.constants_dict, 'rate_'+name, restr_obj.rate, list_index, num_objs)
+        self.add_key_to('values', 'rate_'+name)
+
         
         # Signals at Signals Dict:
         insert_at_array(self.signals_dict, 'signal_'+name, 0, list_index, num_objs)
@@ -151,9 +176,11 @@ class BaseTempDatabase:
         
         # Variables at Status Dict:
         insert_at_coord(self.status_dict, 'n_coord', random_coordinates(self.grid), n_index, self.num_nodes)
+        self.add_key_to('coordinates', 'n_coord')
 
         # Constants at Constants Dict:
         insert_at_array(self.constants_dict, 'n_type', n_type, n_index, self.num_nodes)
+        self.add_key_to('values', 'n_type')
 
         if node.n_name == 'depot':
             self.d_indices.append(n_index)
@@ -167,16 +194,40 @@ class BaseTempDatabase:
 
         # Variables at Status Dict:
         insert_at_array(self.status_dict, 'v_free', 1, v_index, self.num_vehicles)
+        self.add_key_to('binary', 'v_free')
+        self.add_key_to('vehicles', 'v_free')
+
         insert_at_coord(self.status_dict, 'v_coord', random.sample(list(self.depots(self.status_dict['n_coord'])[0]), 1)[0], v_index, self.num_vehicles)
-        
+        self.add_key_to('coordinates', 'v_coord')
+
         # Constants at Constants Dict:
         insert_at_array(self.constants_dict, 'v_range_type', ['simple', 'battery'].index(vehicle.range_type), v_index, self.num_vehicles)
+        self.add_key_to('binary', 'v_range_type')
+        self.add_key_to('vehicles', 'v_range_type')
+
         insert_at_array(self.constants_dict, 'v_travel_type', ['street', 'arial'].index(vehicle.travel_type), v_index, self.num_vehicles)
+        self.add_key_to('binary', 'v_travel_type')
+        self.add_key_to('vehicles', 'v_travel_type')
+
         insert_at_array(self.constants_dict, 'v_cargo_type', ['standard', 'standard+extra', 'standard+including'].index(vehicle.cargo_type), v_index, self.num_vehicles)
+        self.add_key_to('binary', 'v_cargo_type')
+        self.add_key_to('vehicles', 'v_cargo_type')
+
         insert_at_array(self.constants_dict, 'v_is_truck', int(vehicle.is_truck), v_index, self.num_vehicles)
+        self.add_key_to('binary', 'v_is_truck')
+        self.add_key_to('vehicles', 'v_is_truck')
+
         insert_at_array(self.constants_dict, 'v_loadable', int(vehicle.v_loadable), v_index, self.num_vehicles)
+        self.add_key_to('binary', 'v_loadable')
+        self.add_key_to('vehicles', 'v_loadable')
+
         insert_at_array(self.constants_dict, 'v_weight', int(vehicle.v_weight), v_index, self.num_vehicles)
+        self.add_key_to('values', 'v_weight')
+        self.add_key_to('vehicles', 'v_weight')
+
         insert_at_array(self.constants_dict, 'v_type', v_type, v_index, self.num_vehicles)
+        self.add_key_to('values', 'v_type')
+        self.add_key_to('vehicles', 'v_type')
 
         self.v_indices.append(v_index)
 
@@ -276,3 +327,17 @@ class BaseTempDatabase:
             if np.round(np.sum(all_compare), 2) == 0:
                 return True
         return False
+
+    def get_val(self, key):
+        if key == 'c_coord':
+            return self.customers(self.status_dict['n_coord'])[0]
+        if key == 'd_coord':
+            return self.depots(self.status_dict['n_coord'])[0]
+        if key == 'demand':
+            return self.customers(self.status_dict['n_items'])[0]
+        if key == 'stock':
+            return self.depots(self.status_dict['n_items'])[0]
+        try:
+            return self.status_dict[key]
+        except:
+            return self.constants_dict[key]

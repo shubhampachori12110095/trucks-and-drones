@@ -15,43 +15,43 @@ class BaseActDecoder:
 
         binary_outputs = ['move','load_unload','v_load_unload','load_sep_unload','v_load_sep_unload']
 
-        value_outputs = ['amount','v_amount', 'load_sep_unload', 'v_load_sep_unload', 'v_to_load_index']
+        value_outputs = ['coord', 'node', 'amount','v_amount', 'load_sep_unload', 'v_load_sep_unload', 'v_to_load_index']
 
-        coord_outputs = ['coord', 'nodes']
+        coord_outputs = ['coord', 'node']
 
         if len(list(set(self.contin_outputs) & set(self.discrete_outputs) & set(self.binary_discrete) & set(self.binary_contin))) > 0:
             raise Exception(list(set(self.contin_outputs) & set(self.discrete_outputs) & set(self.binary_discrete) & set(self.binary_contin))+' were dublicates, but must only be used once as outputs.')
 
-        val_output_set = set(self.contin_outputs+self.discrete_outputs)
-        binary_output_set = set(self.binary_contin+self.binary_discrete)
+        self.val_output_set = set(self.contin_outputs+self.discrete_outputs)
+        self.binary_output_set = set(self.binary_contin+self.binary_discrete)
 
         self.discrete_set = set(self.discrete_outputs+self.binary_discrete)
         self.contin_set = set(self.contin_outputs+self.binary_contin)
         
 
-        if 'amount' in val_output_set:
-            if 'load_sep_unload' in val_output_set:
+        if 'amount' in self.val_output_set:
+            if 'load_sep_unload' in self.val_output_set:
                 raise Exception('"amount" and "load_sep_unload" can not be both value outputs, set "load_sep_unload" to binary.')
 
-        if 'v_amount' in val_output_set:
-            if 'v_load_sep_unload' in val_output_set:
+        if 'v_amount' in self.val_output_set:
+            if 'v_load_sep_unload' in self.val_output_set:
                 raise Exception('"v_amount" and "v_load_sep_unload" can not be both value outputs, set "v_load_sep_unload" to binary.')
 
-        for elem in list(val_output_set):
+        for elem in list(self.val_output_set):
             if elem not in set(value_outputs):
                 raise Exception('{} is not accepted as value output, use any of: {}'.format(elem, value_outputs))
 
-        for elem in list(binary_output_set):
+        for elem in list(self.binary_output_set):
             if elem not in set(binary_outputs):
                 raise Exception('{} is not accepted as value output, use any of: {}'.format(elem, binary_outputs))
 
-        if 'load_sep_unload' in binary_output_set  and 'load_unload' in binary_output_set:
+        if 'load_sep_unload' in self.binary_output_set  and 'load_unload' in self.binary_output_set:
             raise Exception("'load_sep_unload' and 'load_unload' can't be both binary outputs")
 
-        if 'v_load_sep_unload' in binary_output_set  and 'v_load_unload' in binary_output_set:
+        if 'v_load_sep_unload' in self.binary_output_set  and 'v_load_unload' in self.binary_output_set:
             raise Exception("'v_load_sep_unload' and 'v_load_unload' can't be both binary outputs")
 
-        if 'v_and_single_v' in value_outputs  and 'v_and_multi_v' in value_outputs:
+        if 'v_and_single_v' in self.val_output_set  and 'v_and_multi_v' in self.val_output_set:
             raise Exception("'v_and_single_v' and 'v_and_multi_v' can't be both outputs")
 
 
@@ -59,6 +59,9 @@ class BaseActDecoder:
         self.discrete_bins = np.array([])
         self.discrete_max_val = np.array([])
         self.contin_max_val = np.array([])
+
+        self.discrete_keys = []
+        self.contin_keys = []
 
         
         self.func_dict = {}
@@ -78,9 +81,11 @@ class BaseActDecoder:
             'v_unload': None,
         }
 
-        self.init_coord_act(val_output_set, binary_output_set)
-        self.init_cargo_act(val_output_set, binary_output_set)
-        self.init_v_transport_act(val_output_set, binary_output_set)
+    def finish_init(self):
+
+        self.init_coord_act(self.val_output_set, self.binary_output_set)
+        self.init_cargo_act(self.val_output_set, self.binary_output_set)
+        self.init_v_transport_act(self.val_output_set, self.binary_output_set)
 
         self.index_dict = {}
         all_keys = list(self.discrete_set) + list(self.contin_set)
@@ -93,16 +98,19 @@ class BaseActDecoder:
 
 
 
-    def prep_action(name, max_val, key=None, act_func=None):
+    def prep_action(self, name, max_val, key=None, act_func=None):
         
         if name in self.discrete_set:
-            
+
+            print(name)
+
             if isinstance(max_val, (list, tuple, np.ndarray)):
                 for elem in max_val:
-                    self.discrete_bins = np.append(self.discrete_bins, min(elem, self.discrete_bins))
+
+                    self.discrete_bins = np.append(self.discrete_bins, min(elem, self.num_discrete_bins))
                     self.discrete_max_val = np.append(self.discrete_max_val, elem)
             else:
-                self.discrete_bins = np.append(self.discrete_bins, min(max_val, self.discrete_bins))
+                self.discrete_bins = np.append(self.discrete_bins, min(max_val, self.num_discrete_bins))
                 self.discrete_max_val = np.append(self.discrete_max_val, max_val)
             self.discrete_keys.append(key)
 
@@ -115,7 +123,11 @@ class BaseActDecoder:
             self.contin_keys.append(key)
         
         if act_func is not None:
-            self.func_dict[key] = act_func
+            if isinstance(key, (list, tuple, np.ndarray)):
+                for k in key:
+                    self.func_dict[k] = act_func
+            else:
+                self.func_dict[key] = act_func
 
 
     def init_coord_act(self, val_output_set, binary_output_set):
@@ -178,14 +190,14 @@ class BaseActDecoder:
 
         # only 'amount'
         if 'amount' in val_output_set:
-            max_val = max(self.temp_db.outputs_max['load'], self.temp_db.outputs_max['unload'])
+            max_val = max(self.temp_db.min_max_dict['load'][1], self.temp_db.outputs_max['unload'])
             self.prep_action('amount', max_val, ['load','unload'], self.one_value)
 
 
         # only 'load_sep_unload'
         elif 'load_sep_unload' in val_output_set:
-            self.prep_action('load_sep_unload', self.temp_db.outputs_max['load'], 'load', self.one_value)
-            self.prep_action('load_sep_unload', self.temp_db.outputs_max['unload'], 'unload', self.one_value)
+            self.prep_action('load_sep_unload', self.temp_db.min_max_dict['load'][1], 'load', self.one_value)
+            self.prep_action('load_sep_unload', self.temp_db.min_max_dict['unload'][1], 'unload', self.one_value)
 
 
         # automate

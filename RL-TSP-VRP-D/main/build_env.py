@@ -318,7 +318,7 @@ class BuildEnvironment:
             discrete_outputs: (None, list, tuple, np.ndarray) = ['nodes', 'v_to_load'],
             binary_discrete: (None, list, tuple, np.ndarray) = ['move', 'load_unload', 'v_load_unload'],
             binary_contin: (None, list, tuple, np.ndarray) = [],
-            discrete_bins: int = 20,
+            num_discrete_bins: int = 20,
             combine: (str, None, list, tuple, np.ndarray) = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
         ):
 
@@ -329,7 +329,7 @@ class BuildEnvironment:
             'discrete_outputs': discrete_outputs,
             'binary_discrete': binary_discrete,
             'binary_contin': binary_contin,
-            'discrete_bins': discrete_bins,
+            'num_discrete_bins': num_discrete_bins,
             'combine': combine,
         }
 
@@ -442,6 +442,6 @@ class BuildEnvironment:
     def build(self) -> gym.Env:
 
         return CustomEnv(
-            self.name, self.max_steps_per_episode,
+            self.name,
             self.simulation, self.visualizor, self.obs_encoder, self.act_decoder, self.reward_calc
         )

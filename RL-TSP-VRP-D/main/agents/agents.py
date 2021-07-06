@@ -110,7 +110,7 @@ class BaseAgent:
                 self.model.save(self.save_path)
 
 
-    def env_step(self, action: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def env_step(self, action: np.ndarray):
         """Returns state, reward and done flag given an action."""
 
         state, reward, done, _ = env.step(action)
@@ -118,7 +118,7 @@ class BaseAgent:
                 np.array(reward, np.int32),
                 np.array(done, np.int32))
 
-    def tf_env_step(self, action: List[tf.Tensor]) -> List[tf.Tensor]:
+    def tf_env_step(self, action):
         return tf.numpy_function(self.env_step, [action],
                                  [tf.float32, tf.int32, tf.int32])
 
@@ -126,11 +126,10 @@ class BaseAgent:
 
 class DQNAgent:
 
-    def __init__(self, params)
+    def __init__(self, params):
 
         self.agent_type = 'dqn'
         self.agent_index = params['act_index']
-        self.optimizer_q = params['optimizer_q']
         self.activation_q = params['activation_q']
         self.loss_q = params['loss_q']
         self.greed_eps = params['greed_eps']
@@ -171,7 +170,95 @@ class DQNAgent:
         return self.alpha * self.loss_function(targets, (rewards + Q_futures * self.gamma_q))
 
 
+class DiscreteA2CAgent:
 
+    def __init__(self, params):
+
+        self.agent_type = 'dqn'
+        self.agent_index = params['act_index']
+        self.activation_grad = params['activation_grad']
+        self.activation_val = params['activation_val']
+        self.loss_grad = params['loss_grad']
+        self.loss_val = params['loss_val']
+        self.greed_eps = params['greed_eps']
+        self.greed_eps_decay = params['greed_eps_decay']
+        self.greed_eps_min = params['greed_eps_min']
+        self.gamma_v= params['gamma_v']
+        self.alpha_grad = params['alpha_grad']
+        self.alpha_val = params['alpha_val']
+
+        self.loss_val = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
+
+        self.values = tf.TensorArray(dtype=tf.int32, size=0, dynamic_size=True, clear_after_read=True)
+        self.rewards = tf.TensorArray(dtype=tf.int32, size=0, dynamic_size=True, clear_after_read=True)
+        self.act_probs = tf.TensorArray(dtype=tf.int32, size=0, dynamic_size=True, clear_after_read=True)
+
+    def act(self, actions, t):
+
+        action_logits_t, value = actions[0], actions[1]
+
+        # Sample next action from the action probability distribution
+
+        action_probs_t = tf.nn.softmax(action_logits_t)
+
+        self.greed_eps *= self.greed_eps_decay
+        self.greed_eps = max(self.greed_eps, self.greed_eps_min)
+
+        if np.random.random() < self.greed_eps:
+            action = tf.random.categorical(action_logits_t, 1)[0, 0]
+        else:
+            action = tf.math.argmax(action_logits_t)
+
+        self.values = self.values.write(t, tf.squeeze(value))
+        self.act_probs = self.act_probs.write(t,tf.nn.softmax(action_logits_t)[0, action])
+        return action
+
+    def reward(self, rew):
+        self.rewards = self.rewards.write(t, rew)
+
+    def get_expected_return(self):
+        """Compute expected returns per timestep."""
+
+        n = tf.shape(self.rewards)[0]
+        returns = tf.TensorArray(dtype=tf.float32, size=n)
+
+        # Start from the end of `rewards` and accumulate reward sums
+        # into the `returns` array
+        rewards = tf.cast(self.rewards[::-1], dtype=tf.float32)
+        discounted_sum = tf.constant(0.0)
+        discounted_sum_shape = discounted_sum.shape
+        for i in tf.range(n):
+            reward = rewards[i]
+            discounted_sum = reward + self.gamma * discounted_sum
+            discounted_sum.set_shape(discounted_sum_shape)
+            returns = returns.write(i, discounted_sum)
+        returns = returns.stack()[::-1]
+
+        if self.standardize:
+            returns = ((returns - tf.math.reduce_mean(returns)) /
+                       (tf.math.reduce_std(returns) + eps))
+
+        return returns
+
+    def calc_loss(self):
+        self.values = self.targets.stack()
+        self.rewards = self.rewards.stack()
+        self.act_probs = self.Q_futures.stack()
+
+        # Calculate expected returns
+        returns = get_expected_return()
+
+        # Convert training data to appropriate TF tensor shapes
+        action_probs, values, returns = [tf.expand_dims(x, 1) for x in [self.act_probs, self.values, returns]]
+
+        advantage = returns - values
+
+        action_log_probs = tf.math.log(action_probs)
+        actor_loss = -tf.math.reduce_sum(action_log_probs * advantage)
+
+        critic_loss = huber_loss(values, returns)
+
+        return self.alpha_val*critic_loss + self.alpha_grad*actor_loss
 
 
 

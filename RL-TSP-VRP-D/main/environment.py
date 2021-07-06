@@ -45,8 +45,10 @@ class CustomEnv(gym.Env):
 
         # Init gym spaces:
         self.reset()
-        #self.action_space      = self.act_decoder.action_space()
-        #self.observation_space = self.obs_encoder.obs_space()
+        self.act_decoder.finish_init()
+
+        self.action_space      = self.act_decoder.action_space()
+        self.observation_space = self.obs_encoder.obs_space()
 
         # Init Counter:
         self.count_episodes    = 0
