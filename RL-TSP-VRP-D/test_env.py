@@ -18,8 +18,8 @@ env.actions(
     mode = 'single_vehicle',  # 'multi_vehicle'
     flattened= 'per_output',  # 'per_vehicle', #'all'
     contin_outputs= [],
-    discrete_outputs = ['node', 'coord'],
-    binary_discrete= ['move', 'load_unload','v_load_unload'],
+    discrete_outputs = ['nodes', 'coord'],
+    binary_discrete= ['move', 'v_load_sep_unload'],
     binary_contin= [],
     num_discrete_bins = 20,
     combine = 'contin',  # 'discrete', 'by_categ', 'all', list of lists of output names
@@ -30,7 +30,9 @@ env.compile()
 #agent = DummyAgent(env.build())
 agent = BaseAgentBuilder(env.build(), 'test')
 
-agent.assign_agent_to_act()
+print(agent.action_outputs)
+[agent.assign_agent_to_act(act_index=i) for i in range(len(agent.action_outputs))]
+print(agent.action_outputs)
 
 agent.compile_agents()
 agent.seperate_input_layer()

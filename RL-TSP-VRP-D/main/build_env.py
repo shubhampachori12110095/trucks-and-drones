@@ -270,7 +270,7 @@ class BuildEnvironment:
 
     def observations(
             self,
-            image_input: (None, list, tuple, np.ndarray) = ['grid'],
+            image_input: (None, list, tuple, np.ndarray) = [],
             contin_inputs: (None, list, tuple, np.ndarray) = ['coordinates','values','vehicles','customers','depots'],
             discrete_inputs: (None, list, tuple, np.ndarray) = ['binary'],
             discrete_bins: int = 20, #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

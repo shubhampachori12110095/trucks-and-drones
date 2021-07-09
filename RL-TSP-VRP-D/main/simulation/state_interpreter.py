@@ -231,7 +231,7 @@ class BaseObsEncoder:
         if isinstance(all_inputs, np.ndarray):
             return spaces.Box(low=0, high=1, shape=np.shape(all_inputs), dtype=np.uint8)
         if isinstance(all_inputs, list):
-            return [spaces.Box(low=0, high=1, shape=np.shape(elem), dtype=np.uint8) for elem in all_inputs]
+            return spaces.Tuple(tuple([spaces.Box(low=0, high=1, shape=np.shape(elem), dtype=np.uint8) for elem in all_inputs]))
 
 
 

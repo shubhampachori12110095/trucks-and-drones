@@ -187,6 +187,7 @@ class DiscreteA2CAgent:
         self.alpha_grad = params['alpha_grad']
         self.alpha_val = params['alpha_val']
 
+
         self.loss_val = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
 
         self.values = tf.TensorArray(dtype=tf.int32, size=0, dynamic_size=True, clear_after_read=True)

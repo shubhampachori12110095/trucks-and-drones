@@ -15,9 +15,9 @@ class BaseActDecoder:
 
         binary_outputs = ['move','load_unload','v_load_unload','load_sep_unload','v_load_sep_unload']
 
-        value_outputs = ['coord', 'node', 'amount','v_amount', 'load_sep_unload', 'v_load_sep_unload', 'v_to_load_index']
+        value_outputs = ['coord', 'nodes', 'amount','v_amount', 'load_sep_unload', 'v_load_sep_unload', 'v_to_load_index']
 
-        coord_outputs = ['coord', 'node']
+        coord_outputs = ['coord', 'nodes']
 
         if len(list(set(self.contin_outputs) & set(self.discrete_outputs) & set(self.binary_discrete) & set(self.binary_contin))) > 0:
             raise Exception(list(set(self.contin_outputs) & set(self.discrete_outputs) & set(self.binary_discrete) & set(self.binary_contin))+' were dublicates, but must only be used once as outputs.')
@@ -27,7 +27,14 @@ class BaseActDecoder:
 
         self.discrete_set = set(self.discrete_outputs+self.binary_discrete)
         self.contin_set = set(self.contin_outputs+self.binary_contin)
-        
+
+        print('discrete_outputs',self.discrete_outputs)
+        print('binary_discrete',self.binary_discrete)
+        print('discrete_set', self.discrete_set)
+        print('contin_outputs',self.contin_outputs)
+        print('binary_contin',self.binary_contin)
+        print('contin_set', self.contin_set)
+
 
         if 'amount' in self.val_output_set:
             if 'load_sep_unload' in self.val_output_set:
@@ -96,13 +103,31 @@ class BaseActDecoder:
                 else:
                     self.index_dict[all_keys[i]] = i
 
+        print('contin_max_val',self.contin_max_val)
+        print('discrete_max_val',self.discrete_max_val)
+        print('discrete_bins',self.discrete_bins)
+
+    def action_space(self):
+
+
+
+        spaces_list = []
+        if len(self.contin_max_val) > 0:
+            spaces_list.append(spaces.Box(low=0,high=1,shape=(len(self.contin_max_val),)))
+
+        for n in self.discrete_bins:
+            spaces_list.append(spaces.Discrete(n))
+
+        print(spaces_list)
+        return spaces.Tuple(tuple(spaces_list))
 
 
     def prep_action(self, name, max_val, key=None, act_func=None):
-        
-        if name in self.discrete_set:
 
-            print(name)
+        print(name)
+
+        if name in self.discrete_set:
+            print('discrete')
 
             if isinstance(max_val, (list, tuple, np.ndarray)):
                 for elem in max_val:
@@ -115,6 +140,7 @@ class BaseActDecoder:
             self.discrete_keys.append(key)
 
         else:
+            print('contin')
             if isinstance(max_val, (list, tuple, np.ndarray)):
                 for elem in max_val:
                     self.contin_max_val = np.append(self.contin_max_val, elem)

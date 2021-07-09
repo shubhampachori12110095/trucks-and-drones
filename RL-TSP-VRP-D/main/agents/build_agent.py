@@ -6,8 +6,10 @@ import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras import layers
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from gym import spaces
 
-from main.agents.agents import BaseAgent
+from main.agents.agents import BaseAgent, DQNAgent, DiscreteA2CAgent
+
 
 
 class BaseAgentBuilder:
@@ -17,17 +19,19 @@ class BaseAgentBuilder:
         self.env = env
         self.name = name
 
-        if hasattr(self.env.action_space, '__iter__'):
-            self.outputs_list = [[] for i in range(self.env.action_space)]
-            self.act_list = [elem.shape for elem in range(self.env.action_space)]
+        if isinstance(self.env.action_space, spaces.Tuple):
+            self.action_outputs = [[] for i in range(len(self.env.action_space))]
+            self.acts_list = [elem for elem in self.env.action_space]
         else:
-           self.outputs_list = [[]]
-           self.inputs_list = [self.env.action_space.shape]
+           self.action_outputs = [[]]
+           self.inputs_list = [self.env.action_space]
 
-        if hasattr(self.env.observation_space, '__iter__'):
-            self.inputs_list = [elem.shape for elem in range(self.env.observation_space)]
+        if isinstance(self.env.observation_space, spaces.Tuple):
+            self.inputs_list = [elem.shape for elem in self.env.observation_space]
         else:
             self.inputs_list = [self.env.observation_space.shape]
+
+        self.supervised_outputs = []
 
     def assign_agent_to_act(
             self,
@@ -52,9 +56,12 @@ class BaseAgentBuilder:
             entropy: (None, float, int) = None,
             gamma_q: (None, float, int) = None,
             gamma_v: (None, float, int) = None,
+            alpha_grad: (None, float, int) = 0.01,
+            alpha_val: (None, float, int) = 0.01,
+            alpha_q: (None, float, int) = 0.01,
             ):
 
-        self.action_outputs.insert(act_index,{
+        self.action_outputs[act_index] = {
             'agent': agent,
             'act_index': act_index,
             'optimizer_q': optimizer_q,
@@ -76,7 +83,10 @@ class BaseAgentBuilder:
             'entropy': entropy,
             'gamma_q': gamma_q,
             'gamma_v': gamma_v,
-            })
+            'alpha_grad': alpha_grad,
+            'alpha_val': alpha_val,
+            'alpha_q': alpha_q,
+        }
 
     def add_supervised_outputs(
             self,
@@ -102,12 +112,15 @@ class BaseAgentBuilder:
 
         for action in self.action_outputs:
 
+            if isinstance(action, list):
+                raise Exception('Action with index {} was not assigned to an actor.'.format(actor_index))
+
             if action['agent'] == 'dqn':
                 # DQN
-                self.agents.append(DQNAgent(action, actor_index))
+                self.agents.append(DQNAgent(action))
 
                 if isinstance(self.acts_list[actor_index], spaces.Discrete):
-                    self.outputs_list.append([[self.acts_list[actor_index].shape]])
+                    self.outputs_list.append([[self.acts_list[actor_index].n]])
                     self.activations.append([[action['activation_q']]])
                 else:
                     raise Exception('''
@@ -118,7 +131,7 @@ class BaseAgentBuilder:
             if action['agent'] == 'sac':
 
                 if isinstance(self.acts_list[actor_index], spaces.Discrete):
-                    self.agents.append(DiscreteSACAgent(action, actor_index))
+                    self.agents.append(DiscreteSACAgent(action))
 
                     self.outputs_list.append([
                         [self.acts_list[actor_index].shape],
@@ -133,7 +146,7 @@ class BaseAgentBuilder:
                     ])
 
                 elif isinstance(self.acts_list[actor_index], spaces.Box):
-                    self.agents.append(ContinSACAgent(action, actor_index))
+                    self.agents.append(ContinSACAgent(action))
 
                     self.outputs_list.append([
                         [self.acts_list[actor_index].shape],
@@ -159,7 +172,7 @@ class BaseAgentBuilder:
 
                 if isinstance(self.acts_list[actor_index], spaces.Discrete):
 
-                    self.agents.append(DiscreteA2CAgent(action, actor_index))
+                    self.agents.append(DiscreteA2CAgent(action))
 
                     self.outputs_list.append([
                         [self.acts_list[actor_index].shape],
@@ -173,7 +186,7 @@ class BaseAgentBuilder:
 
                 elif isinstance(self.acts_list[actor_index], spaces.Box):
 
-                    self.agents.append(ContinA2CAgent(action, actor_index))
+                    self.agents.append(ContinA2CAgent(action))
 
                     self.outputs_list.append([
                         [self.acts_list[actor_index].shape],
@@ -203,32 +216,41 @@ class BaseAgentBuilder:
 
     def seperate_input_layer(self):
 
+        first_hiddens = []
         self.input_layers = []
-        for num_inputs in self.inputs_list:
-            self.input_layers.append(layers.Dense(num_inputs, activation="relu"))
-        self.all_layers = [self.input_layers]
+        for input_shape in self.inputs_list:
+            print(input_shape)
+            self.input_layers.append(layers.Input(shape=input_shape))
+            flattened = layers.Flatten()(self.input_layers[-1])
+            print(flattened)
+            first_hiddens.append(layers.Dense(int(flattened.shape.as_list()[-1]), activation="relu")(flattened))
+            print(first_hiddens[-1])
+        self.all_layers = [first_hiddens]
 
     def add_hidden_to_each_input(self, num_neurons_factor=2):
 
         new_layers = []
         for prev_layer in self.all_layers[-1]:
-            new_layers.append(layers.Dense(int(prev_layer.shape * num_neurons_factor), activation="relu")(prev_layer))
+            print(prev_layer.shape.as_list()[-1])
+            print(prev_layer)
+            new_layers.append(layers.Dense(int(prev_layer.shape.as_list()[-1] * num_neurons_factor), activation="relu")(prev_layer))
         self.all_layers.append(new_layers)
 
     def add_combined_layer(self, num_neurons_factor=1.5):
         self.all_layers.append(layers.Concatenate(axis=-1)(self.all_layers[-1]))
         self.all_layers.append(layers.Dense(
-            int(self.all_layers[-1].shape * num_neurons_factor), activation="relu")(self.all_layers[-1]))
+            int(self.all_layers[-1].shape.as_list()[-1] * num_neurons_factor), activation="relu")(self.all_layers[-1]))
 
     def add_sum_output_neurons_layer(self, num_neurons_factor=0.5):
         self.all_layers.append(layers.Dense(
             int(np.sum(self.outputs_list) * num_neurons_factor), activation="relu")(self.all_layers[-1]))
 
-    def add_output_networks(self, num_layers, num_neurons_factor=1.5):
+    def add_output_networks(self, num_layers=3, num_neurons_factor=1.5):
 
         self.output_layers = []
-        for i in range(self.outputs_list):
+        for i in range(len(self.outputs_list)):
 
+            print(self.outputs_list)
             outputs = self.outputs_list[i]
             sum_neurons = sum(outputs)
             net_input = layers.Dense(
