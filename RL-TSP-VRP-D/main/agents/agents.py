@@ -45,7 +45,7 @@ class DummyAgent:
 
 class BaseAgent:
 
-    def __init__(self, name, env, agents, model, optimizer, tau, use_target_model=True, target_update=1, max_steps_per_episode=1000):
+    def __init__(self, name, env, agents, model, out_ind, q_out_ind, optimizer, tau, use_target_model=True, target_update=1, max_steps_per_episode=1000):
 
         self.name = name
         self.env = env
@@ -60,15 +60,15 @@ class BaseAgent:
         self.save_path = '/models'
 
         if self.use_target_model:
-            self.target_model = model.copy()
+            self.target_model = tf.keras.models.clone_model(model)
 
         self.max_steps_per_episode = max_steps_per_episode
 
-        self.out_ind = [agent.indices() for agent in self.agents]
+        self.out_ind = out_ind
         self.q_ind = [agent.agent_index for agent in self.agents if agent.agent_type == 'dqn' or agent.agent_type == 'sac']
-        self.q_out_ind = [self.agents[i].indices() for i in self.q_ind]
+        self.q_out_ind = q_out_ind
 
-    @tf.function
+    #@tf.function
     def train_agent(self, num_episodes):
 
         for e in range(num_episodes):
@@ -77,18 +77,23 @@ class BaseAgent:
 
             with tf.GradientTape() as tape:
 
-                for t in tf.range(self.max_steps_per_episode):
-                    outputs_list = [self.model(tf.expand_dims(state,0))]
-                    actions_list = [self.agents[i].act(outputs_list[self.out_ind[i]], t) for i in range(len(self.agents))]
-                    state, rewards, done, _ = self.tf_env_step(actions_list)
-                    [self.agents[i].reward(rewards[i], t) for i in range(len(self.agents))]
+                for t in range(self.max_steps_per_episode):
+
+                    outputs_list = self.model([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in state])
+                    actions_list = [self.agents[i].act([outputs_list[j] for j in self.out_ind[i]], t) for i in range(len(self.agents))]
+                    actions_list = [elem.numpy() for elem in actions_list]
+                    print(actions_list)
+                    state, rewards, done, _ = self.env.step(actions_list)
+                    self.env.render()
+                    [self.agents[i].reward(rewards, t) for i in range(len(self.agents))]
 
                     if tf.cast(self.use_target_model, tf.bool):
                         if tf.cast(done, tf.bool):
-                            [self.agents[i].q_future(0) for i in self.q_ind]
+                            [self.agents[i].q_future(0, t) for i in self.q_ind]
                         else:
-                            outputs_list = [self.target_model(tf.expand_dims(state, 0))]
-                            [self.agents[i].q_future(outputs_list[self.q_out_ind[i]]) for i in self.q_ind]
+                            outputs_list = [self.target_model([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in state])]
+                            q_future_list = [tf.math.reduce_max(tf.squeeze(elem)) for elem in actions_list]
+                            [self.agents[i].q_future([q_future_list[j] for j in self.q_out_ind[i]], t) for i in self.q_ind]
 
                     if tf.cast(done, tf.bool):
                         break
@@ -106,14 +111,14 @@ class BaseAgent:
                         target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
                     self.target_model.set_weights(target_weights)
 
-            if e == num_episodes - 1 or e % self.save_interval == 0:
-                self.model.save(self.save_path)
+            #if e == num_episodes - 1 or e % self.save_interval == 0:
+                #self.model.save(self.save_path)
 
 
     def env_step(self, action: np.ndarray):
         """Returns state, reward and done flag given an action."""
 
-        state, reward, done, _ = env.step(action)
+        state, reward, done, _ = self.env.step(action)
         return (state.astype(np.float32),
                 np.array(reward, np.int32),
                 np.array(done, np.int32))
@@ -138,36 +143,58 @@ class DQNAgent:
         self.gamma_q = params['gamma_q']
         self.alpha = params['alpha_q']
 
+        self.alpha = 1
+        self.gamma_q = 0.99
+
         self.loss_function = tf.keras.losses.MeanSquaredError()
 
-        self.targets = tf.TensorArray(dtype=tf.int32, size=0, dynamic_size=True, clear_after_read=True)
-        self.rewards = tf.TensorArray(dtype=tf.int32, size=0, dynamic_size=True, clear_after_read=True)
-        self.Q_futures = tf.TensorArray(dtype=tf.int32, size=0, dynamic_size=True, clear_after_read=True)
+        self.targets = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
+        self.rewards = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
+        self.Q_futures = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
+
+        self.num_actions = 0
+
+    def indices(self):
+        return [self.agent_index + i for i in range(3)]
 
     def act(self, actions, t):
         self.greed_eps *= self.greed_eps_decay
         self.greed_eps = max(self.greed_eps, self.greed_eps_min)
+        actions = tf.squeeze(actions[0])
+        #print(actions)
+        #actions = tf.make_ndarray(actions)
 
         if np.random.random() < self.greed_eps:
-            action = np.random.choice(self.num_actions)
+            action = tf.convert_to_tensor(np.random.choice(self.num_actions))
         else:
-            action = np.argmax(np.squeeze(actions))
+            action = tf.math.argmax(actions)
+
+        print('action',action)
+        print(actions)
+        print(actions[action])
 
         self.targets = self.targets.write(t, actions[action])
 
         return action
 
-    def reward(self, rew):
+    def reward(self, rew, t):
         self.rewards = self.rewards.write(t, rew)
 
-    def q_future(self, q_fut):
-        self.Q_futures = self.Q_futures.write(t, q_fut)
+    def q_future(self, q_fut, t):
+        #print(q_fut)
+        self.Q_futures = self.Q_futures.write(t, tf.cast(tf.squeeze(q_fut), dtype=tf.float32))
 
     def calc_loss(self):
         self.targets = self.targets.stack()
         self.rewards = self.rewards.stack()
         self.Q_futures = self.Q_futures.stack()
-        return self.alpha * self.loss_function(targets, (rewards + Q_futures * self.gamma_q))
+
+        loss =  self.alpha * self.loss_function(self.targets, (self.rewards + tf.squeeze(self.Q_futures) * self.gamma_q))
+
+        self.targets = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
+        self.rewards = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
+        self.Q_futures = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
+        return loss
 
 
 class DiscreteA2CAgent:
@@ -247,7 +274,7 @@ class DiscreteA2CAgent:
         self.act_probs = self.Q_futures.stack()
 
         # Calculate expected returns
-        returns = get_expected_return()
+        returns = self.get_expected_return()
 
         # Convert training data to appropriate TF tensor shapes
         action_probs, values, returns = [tf.expand_dims(x, 1) for x in [self.act_probs, self.values, returns]]

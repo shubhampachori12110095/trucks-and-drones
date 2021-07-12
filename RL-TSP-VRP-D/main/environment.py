@@ -43,16 +43,20 @@ class CustomEnv(gym.Env):
         #self.logger        = TrainingLogger()
         #self.test_logger   = TestingLogger()
 
+        # Init Counter:
+        self.count_episodes    = 0
+        self.count_total_steps = 0
+
         # Init gym spaces:
         self.reset()
         self.act_decoder.finish_init()
 
         self.action_space      = self.act_decoder.action_space()
         self.observation_space = self.obs_encoder.obs_space()
+        print(self.obs_encoder.obs_space())
+        print(self.obs_encoder.obs_space())
 
-        # Init Counter:
-        self.count_episodes    = 0
-        self.count_total_steps = 0
+
 
     def step(self, actions):
         
@@ -72,10 +76,6 @@ class CustomEnv(gym.Env):
         self.count_steps_of_episode += 1
         self.count_total_steps      += 1
 
-
-        if done:
-            self.count_episodes     += 1
-
         return observation, reward, done, {}
 
 
@@ -83,6 +83,7 @@ class CustomEnv(gym.Env):
 
         # reset counter:
         self.count_steps_of_episode = 0
+        self.count_episodes += 1
 
         self.simulation.reset_simulation()
 

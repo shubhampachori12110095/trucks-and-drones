@@ -70,9 +70,9 @@ class BaseObsEncoder:
         self.discrete_binary = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['binary']))
         self.discrete_value  = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['values']))
 
-        self.contin_coord  = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['coordinates']))
-        self.contin_binary = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['binary']))
-        self.contin_value  = list(set(flatten_list(self.discrete_inputs)) & set(self.temp_db.key_groups_dict['values']))
+        self.contin_coord  = list(set(flatten_list(self.contin_inputs)) & set(self.temp_db.key_groups_dict['coordinates']))
+        self.contin_binary = list(set(flatten_list(self.contin_inputs)) & set(self.temp_db.key_groups_dict['binary']))
+        self.contin_value  = list(set(flatten_list(self.contin_inputs)) & set(self.temp_db.key_groups_dict['values']))
 
 
         # Prepare input combinations to use
@@ -98,44 +98,43 @@ class BaseObsEncoder:
         array_x = np.array([elem[0]/self.temp_db.grid[0] for elem in coord_list])
         array_y = np.array([elem[1]/self.temp_db.grid[1] for elem in coord_list])
 
-        return np.concatenate((array_x, array_y), axis=1)
+        return np.nan_to_num(np.concatenate((array_x, array_y), axis=1))
 
 
     def value_to_contin(self, key):
         ''' Normalizes list of Values'''
-        max_value = self.temp_db.max_values_dict[key]
-        min_value = self.temp_db.min_values_dict[key]
+        max_value = self.temp_db.min_max_dict[key][1]
+        min_value = self.temp_db.min_max_dict[key][0]
         value_list = self.temp_db.get_val(key)
         
         if max_value is None:
-            return np.one((len(value_list)))
-        
-        return (np.array(value_list) - min_value) / (max_value - min_value)
+            return np.ones((len(value_list)))
+        if (max_value - min_value) == 0:
+            return np.zeros((len(value_list)))
+        return np.nan_to_num((np.array(value_list) - min_value) / (max_value - min_value))
 
 
     def coord_to_discrete(self, key):
         ''' Converts list of Coordinates to discrete'''
         coord_list = self.temp_db.get_val(key)
-        
-        array_x = np.zeros((len(coord_list), self.temp_db.grid[0]))
-        array_y = np.zeros((len(coord_list), self.temp_db.grid[1]))
+
+        array_x = np.zeros((len(coord_list), self.temp_db.grid[0]+1))
+        array_y = np.zeros((len(coord_list), self.temp_db.grid[1]+1))
 
         array_x[np.arange(len(coord_list)), np.array([int(elem[0]) for elem in coord_list])] = 1
         array_y[np.arange(len(coord_list)), np.array([int(elem[1]) for elem in coord_list])] = 1
 
-        return np.concatenate((array_x, array_y), axis=1)
+        return np.nan_to_num(np.concatenate((array_x, array_y), axis=1))
 
 
     def binary_to_discrete(self, key):
         ''' Converts list of binary values to discrete'''
         binary_list = self.temp_db.get_val(key)
-        print(key)
-        print(binary_list)
+
         array_binary = np.zeros((len(binary_list), 2))
         array_binary[np.arange(len(binary_list)), np.array(binary_list, dtype=np.int)] = 1
-        print(array_binary)
 
-        return array_binary
+        return np.nan_to_num(array_binary)
 
 
     def value_to_discrete(self, key):
@@ -144,8 +143,8 @@ class BaseObsEncoder:
         
         array_value = np.zeros((len(value_list), self.discrete_dims))
 
-        max_value = self.temp_db.max_values_dict[key]
-        min_value = self.temp_db.min_values_dict[key]
+        max_value = self.temp_db.min_max_dict[key][1]
+        min_value = self.temp_db.min_max_dict[key][0]
         
         if max_value is None:
             values = np.one((len(value_list))) * (self.discrete_dims - 1)
@@ -154,7 +153,7 @@ class BaseObsEncoder:
 
         array_value[np.arange(len(value_list)), values] = 1
 
-        return array_value
+        return np.nan_to_num(array_value)
 
 
     def combine_index(self, keys_list):
@@ -170,7 +169,7 @@ class BaseObsEncoder:
             
             for input_array in inputs_list:
                 for i in range(len(input_array)):
-                    list_of_arrays[i] = np.append(list_of_arrays[i], input_array[i])
+                    list_of_arrays[i] = np.nan_to_num(np.append(list_of_arrays[i], input_array[i]))
 
             return list_of_arrays
 
@@ -192,7 +191,7 @@ class BaseObsEncoder:
             return np.concatenate((to_combine), axis=None)
         elif isinstance(to_combine, list):
             to_combine = to_combine[0]
-        return np.ravel(to_combine)
+        return np.nan_to_num(np.ravel(to_combine))
 
 
 
@@ -210,6 +209,7 @@ class BaseObsEncoder:
         inputs_by_types   = [self.combine_type(keys_list) for keys_list in self.combine_per_type]
 
         all_inputs = inputs_by_indeces + inputs_by_types
+
 
         if self.flatten:
             all_inputs = [self.combined_flatten(elem) for elem in all_inputs]

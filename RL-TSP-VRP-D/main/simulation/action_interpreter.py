@@ -28,13 +28,6 @@ class BaseActDecoder:
         self.discrete_set = set(self.discrete_outputs+self.binary_discrete)
         self.contin_set = set(self.contin_outputs+self.binary_contin)
 
-        print('discrete_outputs',self.discrete_outputs)
-        print('binary_discrete',self.binary_discrete)
-        print('discrete_set', self.discrete_set)
-        print('contin_outputs',self.contin_outputs)
-        print('binary_contin',self.binary_contin)
-        print('contin_set', self.contin_set)
-
 
         if 'amount' in self.val_output_set:
             if 'load_sep_unload' in self.val_output_set:
@@ -95,7 +88,7 @@ class BaseActDecoder:
         self.init_v_transport_act(self.val_output_set, self.binary_output_set)
 
         self.index_dict = {}
-        all_keys = list(self.discrete_set) + list(self.contin_set)
+        all_keys = self.discrete_keys + self.contin_keys
         for i in range(len(all_keys)):
             if all_keys[i] is not None:
                 if isinstance(all_keys[i], (list, tuple, np.ndarray)):
@@ -103,9 +96,6 @@ class BaseActDecoder:
                 else:
                     self.index_dict[all_keys[i]] = i
 
-        print('contin_max_val',self.contin_max_val)
-        print('discrete_max_val',self.discrete_max_val)
-        print('discrete_bins',self.discrete_bins)
 
     def action_space(self):
 
@@ -118,16 +108,12 @@ class BaseActDecoder:
         for n in self.discrete_bins:
             spaces_list.append(spaces.Discrete(n))
 
-        print(spaces_list)
         return spaces.Tuple(tuple(spaces_list))
 
 
     def prep_action(self, name, max_val, key=None, act_func=None):
 
-        print(name)
-
         if name in self.discrete_set:
-            print('discrete')
 
             if isinstance(max_val, (list, tuple, np.ndarray)):
                 for elem in max_val:
@@ -140,7 +126,6 @@ class BaseActDecoder:
             self.discrete_keys.append(key)
 
         else:
-            print('contin')
             if isinstance(max_val, (list, tuple, np.ndarray)):
                 for elem in max_val:
                     self.contin_max_val = np.append(self.contin_max_val, elem)
@@ -154,6 +139,8 @@ class BaseActDecoder:
                     self.func_dict[k] = act_func
             else:
                 self.func_dict[key] = act_func
+
+        #self.index_dict[key] = self.index_dict[name]
 
 
     def init_coord_act(self, val_output_set, binary_output_set):
@@ -172,7 +159,7 @@ class BaseActDecoder:
 
 
         # both coordinates and nodes -> reward based on nearest node (option: move to node or move to coordinates?)
-        if 'coord' in val_output_set and 'node' in val_output_set:
+        if 'coord' in val_output_set and 'nodes' in val_output_set:
             self.prep_action('coord', [self.temp_db.grid[0], self.temp_db.grid[1]], 'compare_coord', None)
             self.prep_action('nodes', self.temp_db.num_nodes, 'coord', self.to_node)
             self.func_dict['compare_coord'] = self.compare_coord
@@ -183,8 +170,8 @@ class BaseActDecoder:
             self.prep_action('coord', [self.temp_db.grid[0], self.temp_db.grid[1]], 'coord', self.two_values)
 
         # only nodes:
-        elif 'node' in val_output_set:
-            self.prep_action('node', self.temp_db.num_nodes, 'coord', self.to_node)
+        elif 'nodes' in val_output_set:
+            self.prep_action('nodes', self.temp_db.num_nodes, 'coord', self.to_node)
 
         # automate:
         else:
@@ -305,8 +292,10 @@ class BaseActDecoder:
 
 
     def to_node(self, key):
+
         if self.check_dict[key+'_bool'] == True:
-            cur_node_coord = self.temp_db.status_dict['d_coord']+self.temp_db.status_dict['c_coord']
+
+            cur_node_coord = self.temp_db.get_val('n_coord')
             self.value_dict[key] = cur_node_coord[self.actions[self.index_dict[key]]]
 
 
@@ -316,10 +305,11 @@ class BaseActDecoder:
 
 
     def decode_discrete(self, actions):
-        for i in range(len(actions)):
-            actions[i] = np.argmax(actions[i]) / (self.discrete_bins[i]-1)
+        return actions[0]
+        #for i in range(len(actions)):
+            #actions[i] = (actions[i] / (self.discrete_bins[i]-1)) - 1
 
-        return np.round(actions*self.discrete_max_val).astype(int)
+        #return np.round(actions*self.discrete_max_val).astype(int)
 
 
     def decode_contin(self, actions):
@@ -329,10 +319,13 @@ class BaseActDecoder:
     def decode_actions(self, actions):
         if self.temp_db.status_dict['v_free'][self.temp_db.cur_v_index] == 1:
 
-            if len(self.discrete_max_val) != 0: self.actions = decode_discrete(actions[:len(self.discrete_max_val)]).ravel()
-            if len(self.contin_max_val) != 0: self.actions = decode_contin(actions[-len(self.contin_max_val):]).ravel()
+            if len(self.discrete_max_val) != 0: self.actions = self.decode_discrete(actions[:len(self.discrete_max_val)]).ravel()
+            if len(self.contin_max_val) != 0: self.actions = self.decode_contin(actions[-len(self.contin_max_val):]).ravel()
 
             [self.func_dict[key](key) for key in self.func_dict.keys()]
+
+            print(self.check_dict)
+            print(self.value_dict)
 
             if self.check_dict['v_unload_bool']: self.simulator.unload_vehicle(self.value_dict['v_unload'])
             if self.check_dict['v_load_bool']:   self.simulator.load_vehicle(self.value_dict['v_load'])

@@ -69,14 +69,17 @@ class BaseTempDatabase:
                                'v_is_truck', 'v_loadable', 'v_weight', 'v_type']
 
         self.key_groups_dict = {
-            'coordinates' : ['v_coord','c_coord','d_coord'],
-            'binary'      : ['v_free','v_stuck','loaded_v','v_loadable', 'v_is_truck'],
-            'values'      : ['v_range'],
-            'vehicles'    : ['v_range','v_items','v_cargo', 'loaded_v','v_free','v_coord','v_to_n', 'v_stuck', 'v_dest',
-                             'rate_loaded_v', 'v_range_type', 'v_travel_type', 'v_cargo_type', 'v_is_truck',
-                             'v_loadable', 'v_weight', 'v_type', 'rate_v_cargo', 'rate_v_items', 'rate_v_range'
+            'coordinates' : ['v_coord','v_dest','c_coord','d_coord'],
+            'binary'      : ['v_free','v_stuck','loaded_v','v_loadable', 'v_is_truck', 'v_range_type', 'v_travel_type',
+                             'v_cargo_type'],
+            'values'      : ['v_range', 'v_items','v_cargo', 'v_to_n', 'rate_loaded_v','v_weight', 'v_type',
+                             'rate_v_cargo', 'rate_v_items', 'rate_v_range', 'demand', 'stock'],
+            'vehicles'    : ['v_coord', 'v_range','v_items','v_cargo', 'loaded_v','v_free','v_to_n',
+                             'v_stuck', 'v_dest', 'rate_loaded_v', 'v_range_type', 'v_travel_type', 'v_cargo_type',
+                             'v_is_truck', 'v_loadable', 'v_weight', 'v_type', 'rate_v_cargo', 'rate_v_items',
+                             'rate_v_range'
                              ],
-            'customers'   : ['c_coord','demand'],
+            'customers'   : ['v_coord', 'c_coord','demand'],
             'depots'      : ['d_coord','stock'],
             'restrictions': ['v_range'],
             'action_signals': ['cargo_loss','v_free','compare_coord','free_to_travel','unloading_v','free_to_unload_v','free_to_be_loaded_v','free_to_load_v','free_to_unload_cargo','free_to_load_cargo'],
@@ -119,6 +122,7 @@ class BaseTempDatabase:
             'range_type': np.array([0,1]),
             'travel_type': np.array([0,1]),
             'cargo_type': np.array([0,2]),
+            'v_weight': np.zeros((1)),
         }
 
         self.total_time = 0
@@ -236,6 +240,10 @@ class BaseTempDatabase:
         for key in self.min_max_dict.keys():
             self.min_max_dict[key] = np.nan_to_num(self.min_max_dict[key].astype(float))
             self.min_max_dict[key] = np.array([np.min(self.min_max_dict[key]), np.max(self.min_max_dict[key])])
+
+        self.min_max_dict['stock'] = self.min_max_dict['n_items']
+        self.min_max_dict['demand'] = self.min_max_dict['n_items']
+        self.min_max_dict['v_to_n'] = np.array([0,self.num_nodes])
 
         for key in self.key_groups_dict['action_signals']: self.signals_dict[key] = np.zeros((self.num_vehicles))
 

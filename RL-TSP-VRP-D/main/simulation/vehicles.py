@@ -161,6 +161,8 @@ class BaseVehicleClass:
         self.v_loadable = v_params['loadable']
         self.v_weight = param_interpret(v_params['weight'])
 
+        self.temp_db.min_max_dict['v_weight'] = np.append(self.temp_db.min_max_dict['v_weight'], v_params['weight'])
+
         # Create items as restricted value:
         if v_params['range_type'] == 'simple':
             self.go = simple_go

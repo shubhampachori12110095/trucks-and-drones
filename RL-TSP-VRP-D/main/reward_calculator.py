@@ -86,6 +86,7 @@ class RewardFunctions:
 class BaseRewardCalculator:
 
     def __init__(self, reward_params, temp_db):
+        self.temp_db = temp_db
 
         # init reward parameter
         [setattr(self, k, v) for k, v in reward_params.items()]
@@ -95,4 +96,4 @@ class BaseRewardCalculator:
 
     def reward_function(self):
         [reward_func() for reward_func in self.reward_functions.reward_functions]
-        return self.reward_functions.current_reward
+        return self.reward_functions.current_reward + self.temp_db.total_time
