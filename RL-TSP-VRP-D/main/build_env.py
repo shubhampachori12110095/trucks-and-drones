@@ -20,11 +20,11 @@ class BuildEnvironment:
     def __init__(
             self,
             name: str, 
-            grid: (list, tuple, np.ndarray) = [10,10],
-            reward_signals: (list, tuple, np.ndarray) = [1,1,-1],
+            grid: (list, tuple, np.ndarray) = [10, 10],
+            reward_signals: (list, tuple, np.ndarray) = [1, 1, -1],
             max_steps_per_episode: int = 1000,
             debug_mode: bool = False,
-        ):
+    ):
 
         self.name = name
         self.grid = grid
@@ -45,21 +45,21 @@ class BuildEnvironment:
             # number of vehicles:
             num: (int, list, tuple, np.ndarray) = 1,
             # vehicle name:
-            v_name: str = 'vehicle', # alt: 'vehicle', 'truck', 'drone', 'robot'
+            v_name: str = 'vehicle',  # alt: 'vehicle', 'truck', 'drone', 'robot'
             # loadable:
             loadable: bool = False,
             weight: (None, int, list, tuple, np.ndarray) = 0,
             # range:
-            range_type: str = 'simple', # alt: 'simple', 'battery'
+            range_type: str = 'simple',  # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = None,
             max_charge: (None, int, list, tuple, np.ndarray) = None,
             init_charge: (str, None, int, list, tuple, np.ndarray) = None,
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
-            travel_type: str = 'street', # alt: 'street', arial
+            travel_type: str = 'street',  # alt: 'street', arial
             speed: (float, int, list, tuple, np.ndarray) = 1,
             # cargo:
-            cargo_type: str = 'standard', # alt: 'standard', 'standard+extra', 'standard+including'
+            cargo_type: str = 'standard',  # alt: 'standard', 'standard+extra', 'standard+including'
             max_cargo: (None, int, list, tuple, np.ndarray) = None,
             init_cargo: (str, None, int, list, tuple, np.ndarray) = 0,
             cargo_rate: (None, int, list, tuple, np.ndarray) = None,
@@ -67,9 +67,9 @@ class BuildEnvironment:
             max_v_cap: (None, int, list, tuple, np.ndarray) = 0,
             v_rate: (None, int, list, tuple, np.ndarray) = 0,
             # visualization:
-            symbol: (str, None) = 'circle', # 'triangle-up', 'triangle-down' 'rectangle'
+            symbol: (str, None) = 'circle',  # 'triangle-up', 'triangle-down' 'rectangle'
             color: (str, None, list, tuple, np.ndarray) = 'red',
-        ):
+    ):
 
         self.vehicle_params.append({
             'num': num,
@@ -102,16 +102,16 @@ class BuildEnvironment:
             loadable: bool = False,
             weight: (None, int, list, tuple, np.ndarray) = 0,
             # range:
-            range_type: str = 'simple', # alt: 'simple', 'battery'
+            range_type: str = 'simple',  # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = None,
             max_charge: (None, int, list, tuple, np.ndarray) = None,
             init_charge: (str, None, int, list, tuple, np.ndarray) = None,
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
-            travel_type: str = 'street', # alt: 'street', arial
+            travel_type: str = 'street',  # alt: 'street', arial
             speed: (float, int, list, tuple, np.ndarray) = 1,
             # cargo:
-            cargo_type: str = 'standard+extra', # alt: 'standard', 'standard+extra', 'standard+including'
+            cargo_type: str = 'standard+extra',  # alt: 'standard', 'standard+extra', 'standard+including'
             max_cargo: (None, int, list, tuple, np.ndarray) = None,
             cargo_rate: (None, int, list, tuple, np.ndarray) = None,
             init_cargo: (str, None, int, list, tuple, np.ndarray) = 0,
@@ -119,30 +119,32 @@ class BuildEnvironment:
             max_v_cap: (None, int, list, tuple, np.ndarray) = 1,
             v_rate: (None, int, list, tuple, np.ndarray) = None,
             # visualization:
-            symbol: (str, None) = 'circle', # 'triangle-up', 'triangle-down' 'rectangle'
+            symbol: (str, None) = 'circle',  # 'triangle-up', 'triangle-down' 'rectangle'
             color: (str, None, list, tuple, np.ndarray) = 'purple',
-        ):
+    ):
 
-        self.vehicles(num,'truck',loadable,weight,range_type,max_range,max_charge,init_charge,charge_rate,travel_type,
-            speed,cargo_type,max_cargo,init_cargo,cargo_rate,max_v_cap,v_rate, symbol, color)
+        self.vehicles(num, 'truck', loadable, weight, range_type, max_range, max_charge, init_charge,
+                      charge_rate, travel_type, speed, cargo_type, max_cargo, init_cargo, cargo_rate,
+                      max_v_cap, v_rate, symbol, color)
 
-    def drones(self,
+    def drones(
+            self,
             # number of drones:
             num: (int, list, tuple, np.ndarray) = 1,
             # loadable:
             loadable: bool = True,
             weight: (None, int, list, tuple, np.ndarray) = 0,
             # range:
-            range_type: str = 'simple', # alt: 'simple', 'battery'
+            range_type: str = 'simple',  # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = 4,
             max_charge: (None, int, list, tuple, np.ndarray) = 100,
             init_charge: (str, None, int, list, tuple, np.ndarray) = 0,
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
-            travel_type: str = 'arial', # alt: 'street', arial
+            travel_type: str = 'arial',  # alt: 'street', arial
             speed: (float, int, list, tuple, np.ndarray) = 1,
             # cargo:
-            cargo_type: str = 'standard', # alt: 'standard', 'standard+extra', 'standard+including'
+            cargo_type: str = 'standard',  # alt: 'standard', 'standard+extra', 'standard+including'
             max_cargo: (None, int, list, tuple, np.ndarray) = 1,
             cargo_rate: (None, int, list, tuple, np.ndarray) = None,
             init_cargo: (str, None, int, list, tuple, np.ndarray) = 0,
@@ -150,12 +152,13 @@ class BuildEnvironment:
             max_v_cap: (None, int, list, tuple, np.ndarray) = 0,
             v_rate: (None, int, list, tuple, np.ndarray) = 0,
             # visualization:
-            symbol: (str, None) = 'triangle-up', # 'triangle-up', 'triangle-down' 'rectangle'
+            symbol: (str, None) = 'triangle-up',  # 'triangle-up', 'triangle-down' 'rectangle'
             color: (str, None, list, tuple, np.ndarray) = 'blue',
-        ):
+    ):
 
-        self.vehicles(num,'drone',loadable,weight,range_type,max_range,max_charge,init_charge,charge_rate,travel_type,
-            speed,cargo_type,max_cargo,init_cargo,cargo_rate,max_v_cap,v_rate, symbol, color)
+        self.vehicles(num, 'drone', loadable, weight, range_type, max_range, max_charge, init_charge, charge_rate,
+                      travel_type, speed, cargo_type, max_cargo, init_cargo, cargo_rate, max_v_cap, v_rate,
+                      symbol, color)
 
     def robots(
             self,
@@ -165,16 +168,16 @@ class BuildEnvironment:
             loadable: bool = True,
             weight: (None, int, list, tuple, np.ndarray) = 0,
             # range:
-            range_type: str = 'simple', # alt: 'simple', 'battery'
+            range_type: str = 'simple',  # alt: 'simple', 'battery'
             max_range: (None, int, list, tuple, np.ndarray) = 4,
             max_charge: (None, int, list, tuple, np.ndarray) = 100,
             init_charge: (str, None, int, list, tuple, np.ndarray) = 0,
             charge_rate: (str, None, int, list, tuple, np.ndarray) = None,
             # travel:
-            travel_type: str = 'street', # alt: 'street', arial
+            travel_type: str = 'street',  # alt: 'street', arial
             speed: (float, int, list, tuple, np.ndarray) = 0.5,
             # cargo:
-            cargo_type: str = 'standard', # alt: 'standard', 'standard+extra', 'standard+including'
+            cargo_type: str = 'standard',  # alt: 'standard', 'standard+extra', 'standard+including'
             max_cargo: (None, int, list, tuple, np.ndarray) = 1,
             init_cargo: (str, None, int, list, tuple, np.ndarray) = 0,
             cargo_rate: (None, int, list, tuple, np.ndarray) = None,
@@ -182,19 +185,20 @@ class BuildEnvironment:
             max_v_cap: (None, int, list, tuple, np.ndarray) = 0,
             v_rate: (None, int, list, tuple, np.ndarray) = 0,
             # visualization:
-            symbol: (str, None) = 'triangle-down', # 'triangle-up', 'triangle-down' 'rectangle'
+            symbol: (str, None) = 'triangle-down',  # 'triangle-up', 'triangle-down' 'rectangle'
             color: (str, None, int, list, tuple, np.ndarray) = 'light-blue',
         ):
 
-        self.vehicles(num,'robot',loadable,weight,range_type,max_range,max_charge,init_charge,charge_rate,travel_type,
-            speed,cargo_type,max_cargo,init_cargo,cargo_rate,max_v_cap,v_rate, symbol, color)
+        self.vehicles(num, 'robot', loadable, weight, range_type, max_range, max_charge, init_charge, charge_rate,
+                      travel_type, speed, cargo_type, max_cargo, init_cargo, cargo_rate, max_v_cap, v_rate,
+                      symbol, color)
 
     def nodes(
             self,
             # number of nodes:
             num: (int, list, tuple, np.ndarray) = 1,
             # node name:
-            n_name: str = 'node', # alt: 'node', 'depot', 'customer'
+            n_name: str = 'node',  # alt: 'node', 'depot', 'customer'
             # items (stock if node is depot and demand if node is customer):
             max_items: (None, int, list, tuple, np.ndarray) = None,
             init_items: (str, None, int, list, tuple, np.ndarray) = None,
@@ -202,7 +206,7 @@ class BuildEnvironment:
             item_recharge: (None, int, list, tuple, np.ndarray) = 0,
             init_items_at_step: (None, int, list, tuple, np.ndarray) = 0,
             # visualization:
-            symbol: (str, None) = 'rectangle', # 'triangle-up', 'triangle-down', 'rectangle'
+            symbol: (str, None) = 'rectangle',  # 'triangle-up', 'triangle-down', 'rectangle'
             color: (str, None, list, tuple, np.ndarray) = 'orange',
         ):
 

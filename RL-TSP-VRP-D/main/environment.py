@@ -1,36 +1,35 @@
+'''
+Environment TSP and VRP wit drones or robots
+'''
 import gym
+from datetime import datetime
 
 
-
-#from logger import TrainingLogger#, TestingLogger
-
-'''
-überbegriff für travelling salesman und vehicle routing problem
-'''
 class CustomEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {
     'render.modes': ['human'],
     }
 
-    def __init__(self, 
+    def __init__(
+            self,
             name,
             simulation,
-            visualizor,
+            visualizer,
             obs_encoder,
             act_decoder,
             reward_calc,
-            ):
+    ):
 
         super(CustomEnv, self).__init__()
 
-        self.name = name
+        self.name = name+datetime.now().strftime("_%d-%m-%Y_%H-%M-%S")
 
         # Init simulator
         self.simulation = simulation
 
-        # Init visulizor:
-        self.visualizor = visualizor
+        # Init visualizer:
+        self.visualizer = visualizer
         
         # Init state and action interpreter
         self.act_decoder = act_decoder
@@ -38,10 +37,6 @@ class CustomEnv(gym.Env):
         
         # Init reward calculator
         self.reward_calc = reward_calc
-
-        # Init Logger (move to train process)
-
-        #self.test_logger   = TestingLogger()
 
         # Init Counter:
         self.count_episodes    = 0
@@ -53,10 +48,6 @@ class CustomEnv(gym.Env):
 
         self.action_space      = self.act_decoder.action_space()
         self.observation_space = self.obs_encoder.obs_space()
-        print(self.obs_encoder.obs_space())
-        print(self.obs_encoder.obs_space())
-
-
 
     def step(self, actions):
         
@@ -78,7 +69,6 @@ class CustomEnv(gym.Env):
 
         return observation, reward, done, {}
 
-
     def reset(self):
 
         # reset counter:
@@ -94,9 +84,7 @@ class CustomEnv(gym.Env):
         
     def render(self, mode='human', close=False):
         if mode == 'human':
-            self.visualizor.visualize_step(self.count_episodes, self.count_steps_of_episode)
+            self.visualizer.visualize_step(self.count_episodes, self.count_steps_of_episode)
 
         if close == True:
-            self.visualizor.close()
-
-
+            self.visualizer.close()
