@@ -2,7 +2,7 @@ import gym
 
 
 
-#from logger import TrainingLogger, TestingLogger
+#from logger import TrainingLogger#, TestingLogger
 
 '''
 überbegriff für travelling salesman und vehicle routing problem
@@ -40,7 +40,7 @@ class CustomEnv(gym.Env):
         self.reward_calc = reward_calc
 
         # Init Logger (move to train process)
-        #self.logger        = TrainingLogger()
+
         #self.test_logger   = TestingLogger()
 
         # Init Counter:
@@ -71,7 +71,7 @@ class CustomEnv(gym.Env):
 
         # reward:
         #reward = self.reward_calc.reward_function()
-        reward = 0
+        reward = -self.simulation.temp_db.total_time + self.simulation.temp_db.bestrafung
 
         self.count_steps_of_episode += 1
         self.count_total_steps      += 1

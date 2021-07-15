@@ -14,10 +14,11 @@ from main.agents.agents import BaseAgent, DQNAgent, DiscreteA2CAgent
 
 class BaseAgentBuilder:
 
-    def __init__(self, env, name):
+    def __init__(self, env, name, logger):
 
         self.env = env
         self.name = name
+        self.logger = logger
 
         if isinstance(self.env.action_space, spaces.Tuple):
             self.action_outputs = [[] for i in range(len(self.env.action_space))]
@@ -130,7 +131,7 @@ class BaseAgentBuilder:
 
             if action['agent'] == 'dqn':
                 # DQN
-                self.agents.append(DQNAgent(action))
+                self.agents.append(DQNAgent(action, self.logger))
 
                 if isinstance(self.acts_list[actor_index], spaces.Discrete):
                     self.outputs_list.append([[self.acts_list[actor_index].n]])
@@ -146,7 +147,7 @@ class BaseAgentBuilder:
             if action['agent'] == 'sac':
 
                 if isinstance(self.acts_list[actor_index], spaces.Discrete):
-                    self.agents.append(DiscreteSACAgent(action))
+                    self.agents.append(DiscreteSACAgent(action, self.logger))
 
                     self.outputs_list.append([
                         [self.acts_list[actor_index].shape],
@@ -163,7 +164,7 @@ class BaseAgentBuilder:
                     indice_count = self.assign_out_indices(3, indice_count, True)
 
                 elif isinstance(self.acts_list[actor_index], spaces.Box):
-                    self.agents.append(ContinSACAgent(action))
+                    self.agents.append(ContinSACAgent(action, self.logger))
 
                     self.outputs_list.append([
                         [self.acts_list[actor_index].shape],
@@ -191,7 +192,7 @@ class BaseAgentBuilder:
 
                 if isinstance(self.acts_list[actor_index], spaces.Discrete):
 
-                    self.agents.append(DiscreteA2CAgent(action))
+                    self.agents.append(DiscreteA2CAgent(action, self.logger))
 
                     self.outputs_list.append([
                         [self.acts_list[actor_index].shape],
@@ -207,7 +208,7 @@ class BaseAgentBuilder:
 
                 elif isinstance(self.acts_list[actor_index], spaces.Box):
 
-                    self.agents.append(ContinA2CAgent(action))
+                    self.agents.append(ContinA2CAgent(action, self.logger))
 
                     self.outputs_list.append([
                         [self.acts_list[actor_index].shape],
@@ -233,7 +234,7 @@ class BaseAgentBuilder:
 
         for sup_output in self.supervised_outputs:
 
-            self.agents.append(SupervisedOutputs(sup_output))
+            self.agents.append(SupervisedOutputs(sup_output, self.logger))
             self.outputs_list.append([[sup_output['num_outputs']]])
             self.activations.append([[sup_output['activation']]])
 
@@ -255,11 +256,13 @@ class BaseAgentBuilder:
         self.last_layers_list = new_layers
 
     def add_combined_layer(self, num_neurons_factor=1.5):
+
         self.combined = layers.Concatenate(axis=-1)(self.last_layers_list)
         self.combined = layers.Dense(
             int(self.combined.shape.as_list()[-1] * num_neurons_factor), activation="relu")(self.combined)
 
-    def add_sum_output_neurons_layer(self, num_neurons_factor=0.5):
+    def add_sum_output_neurons_layer(self, num_neurons_factor=1):
+
         self.combined = layers.Dense(
             int(np.sum(self.outputs_list) * num_neurons_factor), activation="relu")(self.combined)
 
@@ -289,7 +292,7 @@ class BaseAgentBuilder:
             self,
             Agent: BaseAgent = BaseAgent,
             optimizer: optimizer_v2.OptimizerV2 = keras.optimizers.Adam(),
-            tau: float = 0.1,
+            tau: float = 0.15,
             target_update: (None, int) =1,
             max_steps_per_episode=1000
         ):
@@ -302,7 +305,7 @@ class BaseAgentBuilder:
         else:
             use_target_model = True
 
-        return Agent(self.name, self.env, self.agents, model,self.out_ind, self.q_out_ind,
+        return Agent(self.name, self.env, self.agents, model, self.logger, self.out_ind, self.q_out_ind,
                      optimizer, tau, use_target_model, target_update, max_steps_per_episode,
                      )
 

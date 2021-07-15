@@ -3,8 +3,12 @@
 from main.build_env import BuildEnvironment
 from main.agents.agents import DummyAgent
 from main.agents.build_agent import BaseAgentBuilder
+from main.logger import TrainingLogger
 
-env = BuildEnvironment('test', debug_mode=False)
+from datetime import datetime
+
+
+env = BuildEnvironment('test'+datetime.now().strftime("_%d-%m-%Y_%H-%M-%S"), debug_mode=False)
 
 env.trucks(1)
 #env.drones(3, max_cargo=2)
@@ -27,8 +31,10 @@ env.actions(
 
 env.compile()
 
+logger = TrainingLogger(env.name, '_logs')
+
 #agent = DummyAgent(env.build())
-agent = BaseAgentBuilder(env.build(), 'test')
+agent = BaseAgentBuilder(env.build(), 'test', logger)
 
 [agent.assign_agent_to_act(act_index=i) for i in range(len(agent.action_outputs))]
 

@@ -2,3 +2,4 @@ _build
 __pycache__
 _backups
 old
+_log

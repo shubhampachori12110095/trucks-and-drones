@@ -296,6 +296,12 @@ class BaseActDecoder:
         if self.check_dict[key+'_bool'] == True:
 
             cur_node_coord = self.temp_db.get_val('n_coord')
+            if self.temp_db.get_val('n_items')[self.actions[self.index_dict[key]]] == 0 or self.index_dict[key] == 0:
+                self.temp_db.bestrafung = -100
+            if self.temp_db.get_val('n_items')[self.actions[self.index_dict[key]]] == 1:
+                self.temp_db.bestrafung = 100
+            else:
+                self.temp_db.bestrafung = 0
             self.value_dict[key] = cur_node_coord[self.actions[self.index_dict[key]]]
 
 
@@ -323,9 +329,6 @@ class BaseActDecoder:
             if len(self.contin_max_val) != 0: self.actions = self.decode_contin(actions[-len(self.contin_max_val):]).ravel()
 
             [self.func_dict[key](key) for key in self.func_dict.keys()]
-
-            print(self.check_dict)
-            print(self.value_dict)
 
             if self.check_dict['v_unload_bool']: self.simulator.unload_vehicle(self.value_dict['v_unload'])
             if self.check_dict['v_load_bool']:   self.simulator.load_vehicle(self.value_dict['v_load'])

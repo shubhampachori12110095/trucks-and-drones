@@ -45,12 +45,13 @@ class DummyAgent:
 
 class BaseAgent:
 
-    def __init__(self, name, env, agents, model, out_ind, q_out_ind, optimizer, tau, use_target_model=True, target_update=1, max_steps_per_episode=1000):
+    def __init__(self, name, env, agents, model, logger, out_ind, q_out_ind, optimizer, tau, use_target_model=True, target_update=1, max_steps_per_episode=1000):
 
         self.name = name
         self.env = env
         self.agents = agents
         self.model = model
+        self.logger = logger
         self.optimizer = optimizer
         self.tau = tau
         self.use_target_model = use_target_model
@@ -80,19 +81,24 @@ class BaseAgent:
                 for t in range(self.max_steps_per_episode):
 
                     outputs_list = self.model([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in state])
+                    #print('outputs_list')
+                    #print(outputs_list)
                     actions_list = [self.agents[i].act([outputs_list[j] for j in self.out_ind[i]], t) for i in range(len(self.agents))]
                     actions_list = [elem.numpy() for elem in actions_list]
-                    print(actions_list)
+                    #print(actions_list)
                     state, rewards, done, _ = self.env.step(actions_list)
                     self.env.render()
-                    [self.agents[i].reward(rewards, t) for i in range(len(self.agents))]
+                    [self.agents[i].reward(rewards-t*10, t) for i in range(len(self.agents))]
+                    #print('reward',rewards)
 
                     if tf.cast(self.use_target_model, tf.bool):
                         if tf.cast(done, tf.bool):
                             [self.agents[i].q_future(0, t) for i in self.q_ind]
                         else:
                             outputs_list = [self.target_model([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in state])]
-                            q_future_list = [tf.math.reduce_max(tf.squeeze(elem)) for elem in actions_list]
+                            #print('target outputs')
+                            #print(outputs_list)
+                            q_future_list = [tf.math.reduce_max(tf.squeeze(elem)) for elem in outputs_list]
                             [self.agents[i].q_future([q_future_list[j] for j in self.q_out_ind[i]], t) for i in self.q_ind]
 
                     if tf.cast(done, tf.bool):
@@ -110,6 +116,8 @@ class BaseAgent:
                     for i in range(len(target_weights)):
                         target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
                     self.target_model.set_weights(target_weights)
+
+            self.logger.print_status(self.env.count_episodes)
 
             #if e == num_episodes - 1 or e % self.save_interval == 0:
                 #self.model.save(self.save_path)
@@ -131,7 +139,7 @@ class BaseAgent:
 
 class DQNAgent:
 
-    def __init__(self, params):
+    def __init__(self, params, logger):
 
         self.agent_type = 'dqn'
         self.agent_index = params['act_index']
@@ -142,6 +150,8 @@ class DQNAgent:
         self.greed_eps_min = params['greed_eps_min']
         self.gamma_q = params['gamma_q']
         self.alpha = params['alpha_q']
+
+        self.logger = logger
 
         self.alpha = 1
         self.gamma_q = 0.99
@@ -160,6 +170,7 @@ class DQNAgent:
     def act(self, actions, t):
         self.greed_eps *= self.greed_eps_decay
         self.greed_eps = max(self.greed_eps, self.greed_eps_min)
+        self.logger.log_mean('greed_eps_'+str(self.agent_index), self.greed_eps)
         actions = tf.squeeze(actions[0])
         #print(actions)
         #actions = tf.make_ndarray(actions)
@@ -169,9 +180,9 @@ class DQNAgent:
         else:
             action = tf.math.argmax(actions)
 
-        print('action',action)
-        print(actions)
-        print(actions[action])
+        #print('action',action)
+        #print(actions)
+        #print(actions[action])
 
         self.targets = self.targets.write(t, actions[action])
 
@@ -189,8 +200,11 @@ class DQNAgent:
         self.rewards = self.rewards.stack()
         self.Q_futures = self.Q_futures.stack()
 
-        loss =  self.alpha * self.loss_function(self.targets, (self.rewards + tf.squeeze(self.Q_futures) * self.gamma_q))
+        self.logger.log_mean('Q_future_' + str(self.agent_index), np.mean(tf.squeeze(self.Q_futures).numpy()))
+        self.logger.log_mean('reward_'+str(self.agent_index), np.mean(self.rewards.numpy()))
 
+        loss =  self.alpha * self.loss_function(self.targets, (self.rewards + tf.squeeze(self.Q_futures) * self.gamma_q))
+        self.logger.log_mean('loss_' + str(self.agent_index), loss.numpy())
         self.targets = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
         self.rewards = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
         self.Q_futures = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)

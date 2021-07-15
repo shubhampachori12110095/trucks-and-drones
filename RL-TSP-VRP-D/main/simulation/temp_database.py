@@ -92,6 +92,8 @@ class BaseTempDatabase:
         self.num_customers = 0
         self.num_depots    = 0
 
+        self.bestrafung = 0
+
     def init_db(self):
 
         # Dict of vehicle and node objects:
