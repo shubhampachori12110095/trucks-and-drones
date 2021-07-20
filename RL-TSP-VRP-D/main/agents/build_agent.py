@@ -8,7 +8,7 @@ from tensorflow.keras import layers
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from gym import spaces
 
-from main.agents.multi_agents import MultiAgent
+from main.agents.multi_agent import MultiAgent
 from main.logger import TrainingLogger, StatusPrinter
 
 
@@ -103,7 +103,7 @@ class BaseAgentBuilder:
 
     def assign_agent(self, agent, at_index):
 
-        agent.finish_init(at_index, self.acts_list[at_index])
+        agent.finish_init(at_index, self.logger, self.acts_list[at_index])
 
         self.agents[at_index] = agent
 

@@ -61,6 +61,7 @@ class MultiAgent:
                     actions_list = [agent.act(common_outputs, t) for agent in self.agents]
                     state, reward, done, _ = self.env.step([elem.numpy() for elem in actions_list])
                     self.env.render()
+                    self.assign_rewards(t, reward)
 
                     if len(self.agents_with_q_future) > 0:
 
@@ -88,7 +89,7 @@ class MultiAgent:
             #if e == num_episodes - 1 or e % self.save_interval == 0:
                 #self.model.save(self.save_path)
 
-    def assign_rewards(self, reward):
+    def assign_rewards(self, t, reward):
         if isinstance(reward, list):
             [self.agents[i].reward(reward[i], t) for i in range(len(self.agents))]
         else:
