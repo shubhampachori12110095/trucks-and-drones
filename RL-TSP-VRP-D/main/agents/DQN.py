@@ -189,7 +189,7 @@ class DQNAgent(DQNCore):
             max_steps_per_episode: int,
             use_target_model: bool = True,
             greed_eps: float = 1.0,
-            greed_eps_decay: float = 0.99999,
+            greed_eps_decay: float = 0.999,
             greed_eps_min: float = 0.05,
             alpha: float = 0.1,
             gamma: float = 0.9,
