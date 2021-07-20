@@ -12,56 +12,10 @@ from main.agents.agents import BaseAgent, DQNAgent, DiscreteA2CAgent
 from main.logger import TrainingLogger
 
 
-class BaseCommonNetwork:
-
-    def __init__(self, inputs_list):
-
-        self.inputs_list = inputs_list
-
-    def seperate_input_layer(self, activation="relu"):
-
-        first_hidden = []
-        self.input_layers = []
-
-        for input_shape in self.inputs_list:
-
-            self.input_layers.append(layers.Input(shape=input_shape))
-            flattened = layers.Flatten()(self.input_layers[-1])
-            first_hidden.append(layers.Dense(int(flattened.shape.as_list()[-1]), activation=activation)(flattened))
-
-        self.last_layers_list = first_hidden
-
-    def add_hidden_to_each_input(self, num_neurons_factor=2, activation="relu"):
-
-        new_layers = []
-        for prev_layer in self.last_layers_list:
-
-            new_layers.append(
-                layers.Dense(
-                    int(prev_layer.shape.as_list()[-1] * num_neurons_factor), activation=activation
-                )(prev_layer)
-            )
-
-        self.last_layers_list = new_layers
-
-    def combine_layers(self):
-
-        self.combined = layers.Concatenate(axis=-1)(self.last_layers_list)
-
-    def add_combined_layer(self, num_neurons_factor=1.5, activation="relu"):
-
-        self.combined = layers.Dense(
-            int(self.combined.shape.as_list()[-1] * num_neurons_factor), activation=activation
-        )(self.combined)
-
-    def build(self):
-        return keras.Model(self.input_layers, self.combined)
-
-
 
 class BaseAgentBuilder:
 
-    def __init__(self, env, log_dir=None, CommonNetwork=BaseCommonNetwork):
+    def __init__(self, env, log_dir=None):
 
         self.env = env
         self.name = env.name
@@ -86,8 +40,6 @@ class BaseAgentBuilder:
         print('self.inputs_list',self.inputs_list)
 
         self.supervised_outputs = []
-
-        self.common_model = CommonNetwork(self.inputs_list)
 
     def assign_agent_to_act(
             self,
@@ -291,7 +243,33 @@ class BaseAgentBuilder:
             self.outputs_list.append([[sup_output['num_outputs']]])
             self.activations.append([[sup_output['activation']]])
 
+    def seperate_input_layer(self):
 
+        first_hiddens = []
+        self.input_layers = []
+        for input_shape in self.inputs_list:
+            self.input_layers.append(layers.Input(shape=input_shape))
+            flattened = layers.Flatten()(self.input_layers[-1])
+            first_hiddens.append(layers.Dense(int(flattened.shape.as_list()[-1]), activation="relu")(flattened))
+        self.last_layers_list = first_hiddens
+
+    def add_hidden_to_each_input(self, num_neurons_factor=2):
+
+        new_layers = []
+        for prev_layer in self.last_layers_list:
+            new_layers.append(layers.Dense(int(prev_layer.shape.as_list()[-1] * num_neurons_factor), activation="relu")(prev_layer))
+        self.last_layers_list = new_layers
+
+    def add_combined_layer(self, num_neurons_factor=1.5):
+
+        self.combined = layers.Concatenate(axis=-1)(self.last_layers_list)
+        self.combined = layers.Dense(
+            int(self.combined.shape.as_list()[-1] * num_neurons_factor), activation="relu")(self.combined)
+
+    def add_sum_output_neurons_layer(self, num_neurons_factor=1):
+
+        self.combined = layers.Dense(
+            int(np.sum(self.outputs_list) * num_neurons_factor), activation="relu")(self.combined)
 
     def add_output_networks(self, num_layers=3, num_neurons_factor=1.5):
 

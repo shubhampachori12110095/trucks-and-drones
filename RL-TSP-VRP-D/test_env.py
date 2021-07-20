@@ -2,7 +2,7 @@
 
 from main.build_env import BuildEnvironment
 from main.agents._old_agents import DummyAgent
-from main.agents.build_agent import BaseAgentBuilder
+from main.agents._old_build_agent import BaseAgentBuilder
 from main.logger import TrainingLogger
 
 
