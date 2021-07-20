@@ -9,7 +9,7 @@ from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from gym import spaces
 
 from main.agents.agents import BaseAgent, DQNAgent, DiscreteA2CAgent
-from main.logger import DummyLogger, TrainingLogger
+from main.logger import TrainingLogger
 
 
 
