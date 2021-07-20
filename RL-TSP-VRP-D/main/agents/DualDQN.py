@@ -167,8 +167,8 @@ class DualDQNCore:
         self.logger.log_mean('Q_future_' + str(self.agent_index)+'_2', np.mean(tf.squeeze(self.Q_futures_2).numpy()))
         self.logger.log_mean('reward_'+str(self.agent_index), np.mean(self.rewards.numpy()))
 
-        loss_1 = self.alpha * self.loss_function(self.targets_1, (self.rewards + tf.squeeze(self.Q_futures_1) * self.gamma))
-        loss_2 = self.alpha * self.loss_function(self.targets_2, (self.rewards + tf.squeeze(self.Q_futures_2) * self.gamma))
+        loss_1 = self.loss_function(self.targets_1, (self.rewards + tf.squeeze(self.Q_futures_1) * self.gamma))
+        loss_2 = self.loss_function(self.targets_2, (self.rewards + tf.squeeze(self.Q_futures_2) * self.gamma))
 
         self.logger.log_mean('loss_' + str(self.agent_index)+'_1', loss_1.numpy())
         self.logger.log_mean('loss_' + str(self.agent_index)+'_2', loss_2.numpy())
@@ -181,7 +181,7 @@ class DualDQNCore:
         grad_2 = self.tape_2.gradient(loss_2, self.model_2.trainable_variables)
         self.optimizer_1.apply_gradients(zip(grad_1, self.model_2.trainable_variables))
         self.optimizer_2.apply_gradients(zip(grad_2, self.model_2.trainable_variables))
-        return q_loss
+        return self.alpha * (loss_1 + loss_2)
 
     def update_target_weights(self):
         weights = self.model_1.get_weights()
