@@ -31,7 +31,6 @@ class DQNCore:
 
     def __init__(
             self,
-            agent_index,
             logger,
             max_steps_per_episode,
             use_target_model,
@@ -44,8 +43,8 @@ class DQNCore:
             loss_function,
             optimizer,
             n_hidden,
-            n_actions,
             activation,
+            agent_index = 0,
     ):
 
         self.agent_index = agent_index
@@ -64,7 +63,14 @@ class DQNCore:
         self.loss_function = loss_function
         self.optimizer = optimizer
 
-        self.model = DQNModel(n_hidden, n_actions, activation)
+        self.n_hidden = n_hidden
+        self.activation = activation
+
+    def finish_init(self, agent_index, n_actions):
+        self.agent_index = agent_index
+
+        self.model = DQNModel(self.n_hidden, n_actions, self.activation)
+
         if self.use_target_model:
             self.target_model = tf.keras.models.clone_model(self.model)
 
@@ -78,15 +84,15 @@ class DQNCore:
         self.rewards = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
         self.Q_futures = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
 
-    def pred_outputs(self, inputs):
+
+    def act(self, inputs, t):
 
         if isinstance(inputs, list):
-            return [self.model([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in inputs])]
-        return [self.model(tf.expand_dims(tf.convert_to_tensor(inputs), 0))]
+            outputs = self.model([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in inputs])
+        else:
+            outputs = self.model(tf.expand_dims(tf.convert_to_tensor(inputs), 0))
 
-
-    def act(self, actions, t):
-        actions = tf.squeeze(actions[0])
+        actions = tf.squeeze(outputs)
 
         self.greed_eps *= self.greed_eps_decay
         self.greed_eps = max(self.greed_eps, self.greed_eps_min)
@@ -130,8 +136,7 @@ class DQNCore:
 
         self.Q_futures = self.Q_futures.write(t, tf.cast(tf.squeeze(q_fut), dtype=tf.float32))
 
-
-    def calc_loss(self):
+    def calc_loss_and_update_weights(self):
 
         self.targets = self.targets.stack()
         self.rewards = self.rewards.stack()
@@ -140,23 +145,21 @@ class DQNCore:
         self.logger.log_mean('Q_future_' + str(self.agent_index), np.mean(tf.squeeze(self.Q_futures).numpy()))
         self.logger.log_mean('reward_'+str(self.agent_index), np.mean(self.rewards.numpy()))
 
-        loss =  self.alpha * self.loss_function(self.targets, (self.rewards + tf.squeeze(self.Q_futures) * self.gamma))
+        loss = self.loss_function(self.targets, (self.rewards + tf.squeeze(self.Q_futures) * self.gamma))
         self.logger.log_mean('loss_' + str(self.agent_index), loss.numpy())
 
-        return loss
+        grads = self.tape.gradient(loss, self.model.trainable_variables)
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
-    def calc_loss_and_update_weights(self):
-        q_loss = self.calc_loss()
-        q_gradient = self.tape.gradient(q_loss, self.model.trainable_variables)
-        self.optimizer.apply_gradients(zip(q_gradient, self.model.trainable_variables))
-        return q_loss
+        return self.alpha * loss
 
     def update_target_weights(self):
-        weights = self.model.get_weights()
-        target_weights = self.target_model.get_weights()
-        for i in range(len(target_weights)):
-            target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
-        self.target_model.set_weights(target_weights)
+        if self.use_target_model:
+            weights = self.model.get_weights()
+            target_weights = self.target_model.get_weights()
+            for i in range(len(target_weights)):
+                target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
+            self.target_model.set_weights(target_weights)
 
 
 class DQNAgent(DQNCore):
@@ -181,7 +184,7 @@ class DQNAgent(DQNCore):
     ):
 
         super().__init__(
-            0, logger, max_steps_per_episode, use_target_model, greed_eps, greed_eps_decay, greed_eps_min, alpha,
+            logger, max_steps_per_episode, use_target_model, greed_eps, greed_eps_decay, greed_eps_min, alpha,
             gamma, tau, loss_function, optimizer, n_hidden, n_actions, activation
         )
 
@@ -197,9 +200,7 @@ class DQNAgent(DQNCore):
 
             for t in range(self.max_steps_per_episode):
 
-                outputs = self.pred_outputs(state)
-
-                action = self.act(outputs)
+                action = self.act(state)
                 state, reward, done, _ = self.env.step(action.numpy())
 
                 self.reward(reward)
@@ -210,8 +211,7 @@ class DQNAgent(DQNCore):
 
             self.calc_loss_and_update_weights()
 
-            if self.use_target_model:
-                if e % self.target_update == 0:
-                    self.update_target_weights()
+            if e % self.target_update == 0:
+                self.update_target_weights()
 
             self.logger.print_status(self.env.count_episodes)

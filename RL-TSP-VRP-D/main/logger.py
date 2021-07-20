@@ -59,6 +59,34 @@ class TrainingLogger(BaseLogger):
 
         self.mean_per_episode_dict.clear()
 
+class StatusPrinter:
+
+    def __init__(self, name):
+
+        self.name = name
+
+        self.mean_per_episode_dict = {}
+
+    def log_mean(self, tag, value):
+
+            if tag in set(self.mean_per_episode_dict.keys()):
+                self.mean_per_episode_dict[tag].append(value)
+            else:
+                self.mean_per_episode_dict[tag] = [value]
+
+    def print_status(self, episode):
+
+        print('\nname:', self.name)
+        print('Episode:', str(episode))
+        for key in self.mean_per_episode_dict.keys():
+            if len(self.mean_per_episode_dict[key]) > 1:
+                self.mean_per_episode_dict[key] = np.mean(self.mean_per_episode_dict[key])
+            else:
+                self.mean_per_episode_dict[key] = float(np.squeeze(self.mean_per_episode_dict[key]))
+            print('{}: {}'.format(key, self.mean_per_episode_dict[key]))
+
+        self.mean_per_episode_dict.clear()
+
 
 class TestingLogger(BaseLogger):
     def __init__(self, name, log_dir):

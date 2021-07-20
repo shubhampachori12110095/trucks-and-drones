@@ -31,7 +31,6 @@ class DualDQNCore:
 
     def __init__(
             self,
-            agent_index,
             logger,
             max_steps_per_episode,
             use_target_model,
@@ -44,8 +43,8 @@ class DualDQNCore:
             loss_function,
             optimizer,
             n_hidden,
-            n_actions,
             activation,
+            agent_index = 0,
     ):
 
         self.agent_index = agent_index
@@ -65,12 +64,22 @@ class DualDQNCore:
         self.optimizer_1 = optimizer
         self.optimizer_2 = optimizer
 
+
+        self.n_hidden = n_hidden
+        self.activation = activation
+
+
+    def finish_init(self, agent_index, n_actions):
+        self.agent_index = agent_index
+
         self.model_1 = DQNModel(n_hidden, n_actions, activation)
         self.model_2 = DQNModel(n_hidden, n_actions, activation)
 
         if self.use_target_model:
             self.target_model_1 = tf.keras.models.clone_model(self.model_1)
             self.target_model_2 = tf.keras.models.clone_model(self.model_2)
+
+    def finish_init(self, ):
 
 
     def start_gradient_recording(self):
@@ -87,7 +96,8 @@ class DualDQNCore:
         self.Q_futures_1 = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
         self.Q_futures_2 = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
 
-    def pred_outputs(self, inputs):
+
+    def act(self, inputs, t):
 
         if isinstance(inputs, list):
             outputs_1 = self.model_1([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in inputs])
@@ -97,11 +107,8 @@ class DualDQNCore:
             outputs_1 = self.model_1(tf.expand_dims(tf.convert_to_tensor(inputs), 0))
             outputs_2 = self.model_2(tf.expand_dims(tf.convert_to_tensor(inputs), 0))
 
-        return [outputs_1, outputs_2]
-
-    def act(self, actions, t):
-        actions_1 = tf.squeeze(actions[0])
-        actions_2 = tf.squeeze(actions[1])
+        actions_1 = tf.squeeze(outputs_1)
+        actions_2 = tf.squeeze(outputs_2)
 
         self.greed_eps *= self.greed_eps_decay
         self.greed_eps = max(self.greed_eps, self.greed_eps_min)
@@ -125,7 +132,7 @@ class DualDQNCore:
 
         self.rewards = self.rewards.write(t, rew)
 
-    def q_future(self, state, t, done):
+    def pred_q_future(self, state, t, done):
 
         if tf.cast(done, tf.bool):
             q_fut_1 = 0
@@ -155,7 +162,7 @@ class DualDQNCore:
         self.Q_futures_1 = self.Q_futures_1.write(t, tf.cast(tf.squeeze(q_fut_1), dtype=tf.float32))
         self.Q_futures_2 = self.Q_futures_2.write(t, tf.cast(tf.squeeze(q_fut_2), dtype=tf.float32))
 
-    def calc_loss(self):
+    def calc_loss_and_update_weights(self):
 
         self.targets_1 = self.targets_1.stack()
         self.targets_2 = self.targets_2.stack()
@@ -173,28 +180,28 @@ class DualDQNCore:
         self.logger.log_mean('loss_' + str(self.agent_index)+'_1', loss_1.numpy())
         self.logger.log_mean('loss_' + str(self.agent_index)+'_2', loss_2.numpy())
 
-        return loss_1, loss_2
-
-    def calc_loss_and_update_weights(self):
-        loss_1, loss_2 = self.calc_loss()
         grad_1 = self.tape_1.gradient(loss_1, self.model_1.trainable_variables)
         grad_2 = self.tape_2.gradient(loss_2, self.model_2.trainable_variables)
+
         self.optimizer_1.apply_gradients(zip(grad_1, self.model_2.trainable_variables))
         self.optimizer_2.apply_gradients(zip(grad_2, self.model_2.trainable_variables))
+
         return self.alpha * (loss_1 + loss_2)
 
-    def update_target_weights(self):
-        weights = self.model_1.get_weights()
-        target_weights = self.target_model_1.get_weights()
-        for i in range(len(target_weights)):
-            target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
-        self.target_model_1.set_weights(target_weights)
 
-        weights = self.model_2.get_weights()
-        target_weights = self.target_model_2.get_weights()
-        for i in range(len(target_weights)):
-            target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
-        self.target_model_2.set_weights(target_weights)
+    def update_target_weights(self):
+        if self.use_target_model:
+            weights = self.model_1.get_weights()
+            target_weights = self.target_model_1.get_weights()
+            for i in range(len(target_weights)):
+                target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
+            self.target_model_1.set_weights(target_weights)
+
+            weights = self.model_2.get_weights()
+            target_weights = self.target_model_2.get_weights()
+            for i in range(len(target_weights)):
+                target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
+            self.target_model_2.set_weights(target_weights)
 
 
 class DualDQNAgent(DualDQNCore):
@@ -219,7 +226,7 @@ class DualDQNAgent(DualDQNCore):
     ):
 
         super().__init__(
-            0, logger, max_steps_per_episode, use_target_model, greed_eps, greed_eps_decay, greed_eps_min, alpha,
+            logger, max_steps_per_episode, use_target_model, greed_eps, greed_eps_decay, greed_eps_min, alpha,
             gamma, tau, loss_function, optimizer, n_hidden, n_actions, activation
         )
 
@@ -233,24 +240,20 @@ class DualDQNAgent(DualDQNCore):
 
             self.start_gradient_recording()
 
-            outputs = self.pred_outputs(state)
-
             for t in range(self.max_steps_per_episode):
 
-                action = self.act(outputs)
+                action = self.act(state)
                 state, reward, done, _ = self.env.step(action.numpy())
-                self.reward(reward)
 
-                if tf.cast(self.use_target_model, tf.bool):
-                    self.q_future(state, t, done)
+                self.reward(reward)
+                self.pred_q_future(state, t, done)
 
                 if tf.cast(done, tf.bool):
                     break
 
             self.calc_loss_and_update_weights()
 
-            if self.use_target_model:
-                if e % self.target_update == 0:
-                    self.update_target_weights()
+            if e % self.target_update == 0:
+                self.update_target_weights()
 
             self.logger.print_status(self.env.count_episodes)

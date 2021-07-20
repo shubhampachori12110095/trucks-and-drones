@@ -8,8 +8,8 @@ from tensorflow.keras import layers
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from gym import spaces
 
-from main.agents.agents import BaseAgent, DQNAgent, DiscreteA2CAgent
-from main.logger import TrainingLogger
+from main.agents.multi_agents import MultiAgent
+from main.logger import TrainingLogger, StatusPrinter
 
 
 class BaseCommonNetwork:
@@ -17,11 +17,12 @@ class BaseCommonNetwork:
     def __init__(self, inputs_list):
 
         self.inputs_list = inputs_list
+        self.input_layers = []
+        self.combined = None
 
     def seperate_input_layer(self, activation="relu"):
 
         first_hidden = []
-        self.input_layers = []
 
         for input_shape in self.inputs_list:
 
@@ -54,7 +55,14 @@ class BaseCommonNetwork:
             int(self.combined.shape.as_list()[-1] * num_neurons_factor), activation=activation
         )(self.combined)
 
-    def build(self):
+    def build_model(self):
+        if len(self.input_layers) == 0:
+            self.seperate_input_layer()
+
+        if self.combined is None:
+            self.combine_layers()
+            self.add_combined_layer()
+
         return keras.Model(self.input_layers, self.combined)
 
 
@@ -67,7 +75,7 @@ class BaseAgentBuilder:
         self.name = env.name
 
         if log_dir is None:
-            self.logger = DummyLogger(self.name)
+            self.logger = StatusPrinter(self.name)
         else:
             self.logger = TrainingLogger(self.name, log_dir)
 
@@ -76,7 +84,7 @@ class BaseAgentBuilder:
             self.acts_list = [elem for elem in self.env.action_space]
         else:
            self.action_outputs = [[]]
-           self.inputs_list = [self.env.action_space]
+           self.acts_list = [self.env.action_space]
 
         if isinstance(self.env.observation_space, spaces.Tuple):
             self.inputs_list = [elem.shape for elem in self.env.observation_space]
@@ -89,60 +97,21 @@ class BaseAgentBuilder:
 
         self.common_model = CommonNetwork(self.inputs_list)
 
-    def assign_agent_to_act(
-            self,
-            agent: str = 'dqn',  # 'dqn', 'a2c', 'sac'
-            act_index: int = 0,
-            optimizer_q: (None, optimizer_v2.OptimizerV2) = None,
-            optimizer_grad: (None, optimizer_v2.OptimizerV2) = None,
-            optimizer_val: (None, optimizer_v2.OptimizerV2) = None,
-            activation_q: (None, str) = None,
-            activation_grad: (None, str, list, tuple, np.ndarray) = None,
-            activation_val: (None, str) = None,
-            loss_q: (None, str) = 'mse',  # 'mse'
-            loss_grad: (None, str) = 'huber',  # 'huber'
-            loss_val: (None, str) = 'mse',  # 'mse'
-            greed_eps: (None, float, int) = 1,
-            greed_eps_decay: (None, float, int) = 0.99999,
-            greed_eps_min: (None, float, int) = 0.05,
-            grad_eps: (None, float, int) = 1,
-            grad_eps_decay: (None, float, int) = 0.9999,
-            grad_eps_min: (None, float, int) = 0.01,
-            run_factor: (None, float, int) = None,
-            entropy: (None, float, int) = None,
-            gamma_q: (None, float, int) = None,
-            gamma_v: (None, float, int) = None,
-            alpha_grad: (None, float, int) = 0.01,
-            alpha_val: (None, float, int) = 0.01,
-            alpha_q: (None, float, int) = 0.01,
-            ):
+        self.agents = [None for elem in self.action_outputs]
+        self.agents_with_target_models = []
+        self.agents_with_q_future = []
 
-        self.action_outputs[act_index] = {
-            'agent': agent,
-            'act_index': act_index,
-            'optimizer_q': optimizer_q,
-            'optimizer_grad': optimizer_grad,
-            'optimizer_val': optimizer_val,
-            'activation_q': activation_q,
-            'activation_grad': activation_grad,
-            'activation_val': activation_val,
-            'loss_q': loss_q,
-            'loss_grad': loss_grad,
-            'loss_val': loss_val,
-            'greed_eps': greed_eps,
-            'greed_eps_decay': greed_eps_decay,
-            'greed_eps_min': greed_eps_min,
-            'grad_eps': grad_eps,
-            'grad_eps_decay': grad_eps_decay,
-            'grad_eps_min': grad_eps_min,
-            'run_factor': run_factor,
-            'entropy': entropy,
-            'gamma_q': gamma_q,
-            'gamma_v': gamma_v,
-            'alpha_grad': alpha_grad,
-            'alpha_val': alpha_val,
-            'alpha_q': alpha_q,
-        }
+    def assign_agent(self, agent, at_index):
+
+        agent.finish_init(at_index, self.acts_list[at_index])
+
+        self.agents[at_index] = agent
+
+        if agent.use_target_model:
+            self.agents_with_target_models.append(at_index)
+
+        if agent.uses_q_future:
+            self.agents_with_q_future.append(at_index)
 
     def add_supervised_outputs(
             self,
@@ -159,219 +128,40 @@ class BaseAgentBuilder:
             'loss': loss,
         })
 
-    def assign_out_indices(self, num_outs, cur_count, uses_target=False):
-        self.out_ind.append([cur_count+i for i in range(num_outs)])
-        cur_count += len(self.out_ind[-1])
-        if uses_target:
-            self.q_out_ind.append(self.out_ind[-1])
-        return cur_count
 
-    def compile_agents(self):
+    def check_actions_for_assignment(self, dont_break=True):
 
-        self.agents = []
-        self.outputs_list = []
-        self.activations = []
-        actor_index = 0
+        sth_not_assigned = False
+        for i in range(len(self.agents)):
+            if self.agents[i] is None:
+                print('Action with index {} was not assigned to an actor.'.format(i))
+                sth_not_assigned = True
 
-        self.out_ind = []
-        self.q_out_ind = []
-        indice_count = 0
+        if not dont_break and sth_not_assigned:
+            raise Exception('All actions must be assigned to an actor.')
 
-        for action in self.action_outputs:
-
-            if isinstance(action, list):
-                raise Exception('Action with index {} was not assigned to an actor.'.format(actor_index))
-
-            if action['agent'] == 'dqn':
-                # DQN
-                self.agents.append(DQNAgent(action, self.logger))
-
-                if isinstance(self.acts_list[actor_index], spaces.Discrete):
-                    self.outputs_list.append([[self.acts_list[actor_index].n]])
-                    self.activations.append([[action['activation_q']]])
-                    indice_count = self.assign_out_indices(1,indice_count, True)
-                    self.agents[-1].num_actions = int(self.acts_list[actor_index].n)
-                else:
-                    raise Exception('''
-                                    Action with index {} was assigned to a DQN, but is not discrete.
-                                    '''.format(actor_index)
-                                    )
-
-            if action['agent'] == 'sac':
-
-                if isinstance(self.acts_list[actor_index], spaces.Discrete):
-                    self.agents.append(DiscreteSACAgent(action, self.logger))
-
-                    self.outputs_list.append([
-                        [self.acts_list[actor_index].shape],
-                        [self.acts_list[actor_index].shape],
-                        [1]
-                    ])
-
-                    self.activations.append([
-                        [action['activation_q']],
-                        [action['activation_grad']],
-                        [action['activation_val']],
-                    ])
-
-                    indice_count = self.assign_out_indices(3, indice_count, True)
-
-                elif isinstance(self.acts_list[actor_index], spaces.Box):
-                    self.agents.append(ContinSACAgent(action, self.logger))
-
-                    self.outputs_list.append([
-                        [self.acts_list[actor_index].shape],
-                        [self.acts_list[actor_index].shape],
-                        [self.acts_list[actor_index].shape],
-                        [1]
-                    ])
-
-                    self.activations.append([
-                        [action['activation_q']],
-                        [action['activation_grad'][0]],
-                        [action['activation_grad'][1]],
-                        [action['activation_val']],
-                    ])
-
-                    indice_count = self.assign_out_indices(4, indice_count, True)
-
-                else:
-                    raise Exception('''
-                                    Action with index {} was assigned to a SAC, but is not discrete or contin.
-                                    '''.format(actor_index)
-                                        )
-
-            if action['agent'] == 'a2c':
-
-                if isinstance(self.acts_list[actor_index], spaces.Discrete):
-
-                    self.agents.append(DiscreteA2CAgent(action, self.logger))
-
-                    self.outputs_list.append([
-                        [self.acts_list[actor_index].shape],
-                        [1]
-                    ])
-
-                    self.activations.append([
-                        [action['activation_grad']],
-                        [action['activation_val']],
-                    ])
-
-                    indice_count = self.assign_out_indices(2, indice_count, True)
-
-                elif isinstance(self.acts_list[actor_index], spaces.Box):
-
-                    self.agents.append(ContinA2CAgent(action, self.logger))
-
-                    self.outputs_list.append([
-                        [self.acts_list[actor_index].shape],
-                        [self.acts_list[actor_index].shape],
-                        [1]
-                    ])
-
-                    self.activations.append([
-                        [action['activation_grad'][0]],
-                        [action['activation_grad'][1]],
-                        [action['activation_val']],
-                    ])
-
-                    indice_count = self.assign_out_indices(3, indice_count, True)
-
-                else:
-                    raise Exception('''
-                                    Action with index {} was assigned to a A2C, but is not discrete or contin.
-                                    '''.format(actor_index)
-                                    )
-
-            actor_index += 1
-
-        for sup_output in self.supervised_outputs:
-
-            self.agents.append(SupervisedOutputs(sup_output, self.logger))
-            self.outputs_list.append([[sup_output['num_outputs']]])
-            self.activations.append([[sup_output['activation']]])
-
-
-
-    def add_output_networks(self, num_layers=3, num_neurons_factor=1.5):
-
-        self.output_layers = []
-        for i in range(len(self.outputs_list)):
-
-            outputs = self.outputs_list[i]
-            for out in outputs:
-                sum_neurons = sum(out)
-                hidden = layers.Dense(
-                    int(num_layers * num_neurons_factor * sum_neurons), activation="relu")(self.combined)
-
-                if num_layers > 1:
-                    for i in range(num_layers - 2):
-                        hidden = layers.Dense(
-                            int((num_layers - i - 1) * num_neurons_factor * sum_neurons), activation="relu")(hidden)
-
-                for j in range(len(out)):
-                    if self.activations[i][j][0] is None:
-                        self.output_layers.append(layers.Dense(out[j])(hidden))
-                    else:
-                        self.output_layers.append(layers.Dense(out[j], activation=self.activations[i][j][0])(hidden))
 
     def build(
             self,
-            Agent: BaseAgent = BaseAgent,
+            Agent: MultiAgent = MultiAgent,
             optimizer: optimizer_v2.OptimizerV2 = keras.optimizers.Adam(),
             tau: float = 0.15,
-            target_update: (None, int) =1,
-            max_steps_per_episode=1000
+            target_update: (None, int) = 1,
+            max_steps_per_episode = 1000
         ):
 
-        model = keras.Model(self.input_layers, self.output_layers)
-        model.summary()
+        self.check_actions_for_assignment(dont_break=False)
+
+        self.common_model = self.common_model.build_model()
+        self.common_model.summary()
 
         if target_update is None:
             use_target_model = False
         else:
             use_target_model = True
 
-        return Agent(self.name, self.env, self.agents, model, self.logger, self.out_ind, self.q_out_ind,
+        return Agent(self.name, self.env, self.agents, self.common_model, self.logger,
+                     self.agents_with_target_models, self.agents_with_q_future,
                      optimizer, tau, use_target_model, target_update, max_steps_per_episode,
                      )
-
-
-class CoreAgent:
-
-    def __init__(self, agent_type):
-        self.agent_type = agent_type
-
-    def random_act(self):
-        return env.action_space.sample()
-
-    def random_auto_act(self):
-        return None
-
-    def random_act_by_prob(self):
-        return tf.random.categorical(action_logits_t, 1)[0, 0]
-
-    def greedy_epsilon(self, actions):
-        self.greed_eps *= self.greed_eps_decay
-        self.greed_eps = max(self.greed_eps, self.greed_eps_min)
-
-        if np.random.random() < self.greed_eps:
-            if self.greedy_gradient():
-                #return tf.random.categorical(action_logits_t, 1)[0, 0]
-                return np.random.choice(self.num_actions, p=np.squeeze(action_probs))
-            else:
-                return np.random.choice(self.num_actions)
-        else:
-            return np.argmax(np.squeeze(action_probs))
-
-    def logits_to_action(self, action_logits_t):
-        # Sample next action from the action probability distribution
-
-        return tf.nn.softmax(action_logits_t)
-
-
-
-
-
-
 
