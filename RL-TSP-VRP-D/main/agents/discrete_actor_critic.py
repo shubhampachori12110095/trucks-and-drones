@@ -18,7 +18,8 @@ class DiscreteActorCriticModel(tf.keras.Model):
 
         self.flat = layers.Flatten()
         self.common = layers.Dense(n_hidden, activation=activation)
-        self.critic = layers.Dense(1)
+        self.critic_hidden = layers.Dense(2, activation='sigmoid')
+        self.critic = layers.Dense(1, activation='tanh')
         self.actor = layers.Dense(n_actions)
 
     def call(self, inputs: tf.Tensor):
@@ -27,7 +28,7 @@ class DiscreteActorCriticModel(tf.keras.Model):
             inputs = self.flat(tf.stack(inputs))
 
         x = self.common(inputs)
-        return self.critic(x), self.actor(x)
+        return self.critic(self.critic_hidden(x)), self.actor(x)
 
 
 class DiscreteActorCriticCore:
@@ -36,10 +37,10 @@ class DiscreteActorCriticCore:
             self,
             greed_eps: float = 1.0,
             greed_eps_decay: float = 0.99999,
-            greed_eps_min: float = 0.05,
-            alpha_common: float = 0.1,
-            alpha_actor: float = 0.5,
-            alpha_critic: float = 0.5,
+            greed_eps_min: float = 0.1,
+            alpha_common: float = 1.0,
+            alpha_actor: float = 0.2,
+            alpha_critic: float = 0.8,
             gamma: float = 0.9,
             standardize: bool = False,
             loss_function_critic: tf.keras.losses.Loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM),
@@ -104,7 +105,7 @@ class DiscreteActorCriticCore:
         self.tape_actor._push_tape()
 
         self.tape_common.watch(self.model.common.trainable_variables)
-        self.tape_critic.watch(self.model.critic.trainable_variables)
+        self.tape_critic.watch(self.model.critic.trainable_variables + self.model.critic_hidden.trainable_variables)
         self.tape_actor.watch(self.model.actor.trainable_variables)
 
         self.values = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
@@ -137,8 +138,7 @@ class DiscreteActorCriticCore:
         discounted_sum = tf.constant(0.0)
         discounted_sum_shape = discounted_sum.shape
         for i in tf.range(sample_len):
-            reward = rewards[i]
-            discounted_sum = reward + self.gamma * discounted_sum
+            discounted_sum = rewards[i] + self.gamma * discounted_sum
             discounted_sum.set_shape(discounted_sum_shape)
             returns = returns.write(i, discounted_sum)
         returns = returns.stack()[::-1]
@@ -147,12 +147,20 @@ class DiscreteActorCriticCore:
             returns = ((returns - tf.math.reduce_mean(returns)) /
                        (tf.math.reduce_std(returns) + self.eps))
 
-        return returns
+        return returns/10
 
-    def loss_function_actor(self, act_probs, advantage):
+    def loss_function_actor(self, act_probs, advantage, loss_critic):
 
         act_log_probs = tf.math.log(act_probs)
-        return -tf.math.reduce_sum(act_log_probs * advantage)
+        loss_actor = -tf.math.reduce_sum(act_log_probs * advantage)
+        '''
+        if tf.reduce_mean(advantage) < 0:
+            loss_actor = loss_actor - loss_critic
+        else:
+            loss_actor = loss_actor + loss_critic
+        '''
+
+        return loss_actor
 
     def calc_loss_and_update_weights(self):
 
@@ -165,10 +173,10 @@ class DiscreteActorCriticCore:
         self.logger.log_mean('values_' + str(self.agent_index), np.mean(self.values.numpy()))
         self.logger.log_mean('act_probs_' + str(self.agent_index), np.mean(self.act_probs.numpy()))
         self.logger.log_mean('rewards_'+str(self.agent_index), np.mean(self.rewards.numpy()))
-        self.logger.log_mean('returns_'+str(self.agent_index), np.mean(self.rewards.numpy()))
+        self.logger.log_mean('returns_'+str(self.agent_index), np.mean(returns.numpy()))
 
-        loss_critic = self.loss_function_critic(self.values, returns)
-        loss_actor = self.loss_function_actor(self.act_probs, returns - self.values)
+        loss_critic = self.loss_function_critic(tf.expand_dims(self.values, 1), tf.expand_dims(returns, 1))
+        loss_actor = self.loss_function_actor(tf.expand_dims(self.act_probs, 1), tf.expand_dims(returns - self.values, 1), loss_critic)
         loss_common = (self.alpha_actor * loss_actor) + (self.alpha_critic * loss_critic)
 
         self.logger.log_mean('loss_critic_' + str(self.agent_index), loss_critic.numpy())
@@ -179,11 +187,11 @@ class DiscreteActorCriticCore:
         self.tape_actor._pop_tape()
         self.tape_common._pop_tape()
 
-        grads_critic = self.tape_critic.gradient(loss_critic, self.model.critic.trainable_variables)
+        grads_critic = self.tape_critic.gradient(loss_critic, self.model.critic.trainable_variables + self.model.critic_hidden.trainable_variables)
         grads_actor = self.tape_actor.gradient(loss_actor, self.model.actor.trainable_variables)
         grads_common = self.tape_common.gradient(loss_common, self.model.common.trainable_variables)
 
-        self.optimizer_critic.apply_gradients(zip(grads_critic, self.model.critic.trainable_variables))
+        self.optimizer_critic.apply_gradients(zip(grads_critic, self.model.critic.trainable_variables + self.model.critic_hidden.trainable_variables))
         self.optimizer_actor.apply_gradients(zip(grads_actor, self.model.actor.trainable_variables))
         self.optimizer_common.apply_gradients(zip(grads_common, self.model.common.trainable_variables))
 
@@ -192,7 +200,6 @@ class DiscreteActorCriticCore:
         del self.tape_common
 
         return self.alpha_common * loss_common
-
 
 
 class DiscreteActorCriticAgent(DiscreteActorCriticCore):

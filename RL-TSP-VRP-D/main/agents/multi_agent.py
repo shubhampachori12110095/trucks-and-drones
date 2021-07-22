@@ -62,7 +62,7 @@ class MultiAgent:
                     actions_list = [agent.act(common_outputs, t, info_dict) for agent in self.agents]
                     state, reward, done, info_dict = self.env.step([elem.numpy() for elem in actions_list])
                     self.env.render()
-                    self.assign_rewards(t, reward/10)
+                    self.assign_rewards(t, reward)
 
                     if len(self.agents_with_q_future) > 0:
 

@@ -33,6 +33,6 @@ agent = BaseAgentBuilder(env.build(), log_dir='_logs')
 
 [agent.assign_agent(DiscreteActorCriticCore(),at_index=i) for i in range(len(agent.action_outputs))]
 
-agent = agent.build(max_steps_per_episode=1000)
+agent = agent.build(max_steps_per_episode=200)
 
 agent.train_agent(60000)
