@@ -48,6 +48,7 @@ class MultiAgent:
         for e in range(num_episodes):
 
             state = self.env.reset()
+            info_dict = None
 
             with tf.GradientTape() as tape:
 
@@ -58,10 +59,10 @@ class MultiAgent:
                 for t in range(self.max_steps_per_episode):
 
                     common_outputs = self.model_pred(state)
-                    actions_list = [agent.act(common_outputs, t) for agent in self.agents]
-                    state, reward, done, _ = self.env.step([elem.numpy() for elem in actions_list])
+                    actions_list = [agent.act(common_outputs, t, info_dict) for agent in self.agents]
+                    state, reward, done, info_dict = self.env.step([elem.numpy() for elem in actions_list])
                     self.env.render()
-                    self.assign_rewards(t, reward/200)
+                    self.assign_rewards(t, reward/10)
 
                     if len(self.agents_with_q_future) > 0:
 

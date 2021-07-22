@@ -34,10 +34,10 @@ class DQNCore:
     def __init__(
             self,
             use_target_model: bool = True,
-            greed_eps: float = 1.0,
+            greed_eps: float = 0.5,
             greed_eps_decay: float = 0.99999,
             greed_eps_min: float = 0.05,
-            alpha: float = 0.1,
+            alpha: float = 1.0,
             gamma: float = 0.9,
             tau: float = 0.15,
             loss_function: tf.keras.losses.Loss = tf.keras.losses.MeanSquaredError(),
@@ -95,7 +95,7 @@ class DQNCore:
         self.rewards = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
         self.Q_futures = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
 
-    def act(self, inputs, t):
+    def act(self, inputs, t, info_dict):
 
         if isinstance(inputs, list):
             outputs = self.model([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in inputs])
@@ -109,9 +109,21 @@ class DQNCore:
         self.logger.log_mean('greed_eps_'+str(self.agent_index), self.greed_eps)
 
         if np.random.random() < self.greed_eps:
-            action = tf.convert_to_tensor(np.random.choice(len(actions)))
+            if not info_dict is None:
+                action = tf.convert_to_tensor(np.random.choice(info_dict['possible_nodes']))
+            else:
+                action = tf.convert_to_tensor(np.random.choice(len(actions)))
         else:
-            action = tf.math.argmax(actions)
+            if not info_dict is None:
+                actions_array = actions.numpy()
+                max_action = np.max(actions_array)
+                actions_array[info_dict['possible_nodes']] = (
+                    np.abs(actions_array[info_dict['possible_nodes']]) + np.abs(max_action)
+                )
+                action = tf.convert_to_tensor(np.argmax(actions_array))
+
+            else:
+                action = tf.math.argmax(actions)
 
         self.targets = self.targets.write(t, actions[action])
 

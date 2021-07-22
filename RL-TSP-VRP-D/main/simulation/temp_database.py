@@ -128,6 +128,7 @@ class BaseTempDatabase:
         }
 
         self.total_time = 0
+        self.prev_total_time = 0
 
     def prep_max_min(self, name, max_restr, min_restr, rate):
 
@@ -351,3 +352,17 @@ class BaseTempDatabase:
             return self.status_dict[key]
         except:
             return self.constants_dict[key]
+
+
+    def possible_nodes(self):
+
+        possible_customer = self.customers(self.status_dict['n_items'], exclude=[[self.status_dict['n_items'], 0]])[1]
+        if len(possible_customer) == 0:
+            return self.d_indices
+        else:
+            return possible_customer
+
+    def total_time_delta(self):
+        delta = self.total_time - self.prev_total_time
+        self.prev_total_time = self.total_time
+        return delta

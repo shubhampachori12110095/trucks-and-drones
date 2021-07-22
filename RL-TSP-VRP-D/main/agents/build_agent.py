@@ -62,6 +62,7 @@ class BaseCommonNetwork:
         if self.combined is None:
             self.combine_layers()
             self.add_combined_layer()
+            self.add_combined_layer()
 
         return keras.Model(self.input_layers, self.combined)
 

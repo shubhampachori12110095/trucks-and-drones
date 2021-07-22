@@ -2,6 +2,7 @@ from main.build_env import BuildEnvironment
 #  from main.agents.dummy_agent import DummyAgent
 from main.agents.build_agent import BaseAgentBuilder
 from main.agents.DQN import DQNCore
+from main.agents.discrete_actor_critic import DiscreteActorCriticCore
 
 
 env = BuildEnvironment('test', debug_mode=False)
