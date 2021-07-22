@@ -18,7 +18,7 @@ class DiscreteActorCriticModel(tf.keras.Model):
 
         self.flat = layers.Flatten()
         self.common = layers.Dense(n_hidden, activation=activation)
-        self.critic = layers.Dense(n_actions)
+        self.critic = layers.Dense(1)
         self.actor = layers.Dense(n_actions)
 
     def call(self, inputs: tf.Tensor):
@@ -42,7 +42,7 @@ class DiscreteActorCriticCore:
             alpha_critic: float = 0.5,
             gamma: float = 0.9,
             standardize: bool = False,
-            loss_function_critic: tf.keras.losses.Loss = tf.keras.losses.Huber(),
+            loss_function_critic: tf.keras.losses.Loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM),
             optimizer_common: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
             optimizer_actor: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
             optimizer_critic: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
@@ -118,9 +118,9 @@ class DiscreteActorCriticCore:
         else:
             val, actions = self.model(tf.expand_dims(tf.convert_to_tensor(inputs), 0))
 
-        action = tf.random.categorical(actions, 1)[0, 0]
+        action = tf.random.categorical(actions[0], 1)[0, 0]
         self.values = self.values.write(t, tf.squeeze(val))
-        self.act_probs = self.act_probs.write(t, tf.nn.softmax(actions)[0, action])
+        self.act_probs = self.act_probs.write(t, tf.squeeze(tf.nn.softmax(actions[0])[0, action]))
 
         return action
 
@@ -162,8 +162,8 @@ class DiscreteActorCriticCore:
 
         returns = self.get_expected_return()
 
-        self.logger.log_mean('values_' + str(self.agent_index), np.mean(self.values).numpy())
-        self.logger.log_mean('act_probs_' + str(self.agent_index), np.mean(self.act_probs).numpy())
+        self.logger.log_mean('values_' + str(self.agent_index), np.mean(self.values.numpy()))
+        self.logger.log_mean('act_probs_' + str(self.agent_index), np.mean(self.act_probs.numpy()))
         self.logger.log_mean('rewards_'+str(self.agent_index), np.mean(self.rewards.numpy()))
         self.logger.log_mean('returns_'+str(self.agent_index), np.mean(self.rewards.numpy()))
 
@@ -211,7 +211,7 @@ class DiscreteActorCriticAgent(DiscreteActorCriticCore):
             alpha_critic: float = 0.5,
             gamma: float = 0.9,
             standardize: bool = False,
-            loss_function_critic: tf.keras.losses.Loss = tf.keras.losses.Huber(),
+            loss_function_critic: tf.keras.losses.Loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM),
             optimizer_common: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
             optimizer_actor: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
             optimizer_critic: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),

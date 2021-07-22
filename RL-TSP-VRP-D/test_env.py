@@ -31,7 +31,7 @@ env.compile()
 #agent = DummyAgent(env.build())
 agent = BaseAgentBuilder(env.build(), log_dir='_logs')
 
-[agent.assign_agent(DQNCore(),at_index=i) for i in range(len(agent.action_outputs))]
+[agent.assign_agent(DiscreteActorCriticCore(),at_index=i) for i in range(len(agent.action_outputs))]
 
 agent = agent.build(max_steps_per_episode=1000)
 
