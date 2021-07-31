@@ -324,7 +324,7 @@ class BaseActDecoder:
 
 
     def decode_contin(self, actions):
-        return np.round(actions*self.contin_max_val).astype(int)
+        return np.round(actions*(self.contin_max_val-1)).astype(int)
 
 
     def decode_actions(self, actions):
