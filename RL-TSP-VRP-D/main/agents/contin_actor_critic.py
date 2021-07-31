@@ -1,11 +1,12 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 from tensorflow.keras import layers
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from gym import spaces
 
 
-class DiscreteActorCriticModel(tf.keras.Model):
+class ContinActorCriticModel(tf.keras.Model):
 
     def __init__(
             self,
@@ -14,21 +15,22 @@ class DiscreteActorCriticModel(tf.keras.Model):
             common_layers: (None, list) = None,
             critic_layers: (None, list) = None,
             actor_layers: (None, list) = None,
+            mu_layers: (None, list) = None,
+            sig_layers: (None, list) = None,
     ):
         super().__init__()
 
         self.flat = layers.Flatten()
 
         if common_layers is None:
-            self.common = [layers.Dense(int(n_actions*1.5), activation='relu')]
+            self.common = [layers.Dense(int(n_actions*2.5), activation='relu')]
         else:
             self.common = common_layers
 
         if critic_layers is None:
             self.critic = [
-                layers.Dense(int(n_actions*2), activation='sigmoid'),
-                layers.Dense(int(n_actions), activation='tanh'),
-                layers.Dense(2, activation='tanh'),
+                layers.Dense(int(n_actions * 2.5), activation='relu'),
+                layers.Dense(2, activation='sigmoid'),
                 layers.Dense(1, activation='tanh')
             ]
 
@@ -36,9 +38,28 @@ class DiscreteActorCriticModel(tf.keras.Model):
             self.critic = critic_layers
 
         if actor_layers is None:
-            self.actor = [layers.Dense(n_actions)]
+            self.actor_layers = [layers.Dense(int(n_actions*2), activation='relu')]
         else:
-            self.actor = actor_layers
+            self.actor_layers = actor_layers
+
+        if mu_layers is None:
+            self.actor_mu = [
+                layers.Dense(int(n_actions*2), activation="sigmoid"),
+                layers.Dense(n_actions, activation="tanh")
+            ]
+
+        else:
+            self.actor_mu = mu_layers
+
+        if sig_layers is None:
+            self.actor_sig = [
+                layers.Dense(n_actions, activation="sigmoid")
+            ]
+
+        else:
+            self.actor_sig = sig_layers
+
+        self.actor = self.actor_layers + self.actor_mu + self.actor_sig
 
 
     def call(self, inputs: tf.Tensor):
@@ -49,16 +70,22 @@ class DiscreteActorCriticModel(tf.keras.Model):
         common_x = inputs
         for elem in self.common: common_x = elem(common_x)
 
-        actor_out = common_x
-        for elem in self.actor: actor_out = elem(actor_out)
+        actor_x = common_x
+        for elem in self.actor_layers: actor_x = elem(actor_x)
+
+        mu_out = actor_x
+        for elem in self.actor_mu: mu_out = elem(mu_out)
+
+        sig_out = actor_x
+        for elem in self.actor_sig: sig_out = elem(sig_out)
 
         critic_out = common_x
         for elem in self.critic: critic_out = elem(critic_out)
 
-        return critic_out, actor_out
+        return critic_out, mu_out, sig_out
 
 
-class DiscreteActorCriticCore:
+class ContinActorCriticCore:
 
     def __init__(
             self,
@@ -66,13 +93,13 @@ class DiscreteActorCriticCore:
             greed_eps_decay: float = 0.99999,
             greed_eps_min: float = 0.1,
             alpha_common: float = 1.0,
-            alpha_actor: float = 0.1,
-            alpha_critic: float = 0.9,
+            alpha_actor: float = 0.2,
+            alpha_critic: float = 0.8,
             gamma: float = 0.9,
             standardize: bool = False,
             loss_function_critic: tf.keras.losses.Loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM),
             optimizer_common: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
-            optimizer_actor: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(learning_rate=0.00001),
+            optimizer_actor: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
             optimizer_critic: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
             n_hidden: int = 64,
             activation: str = 'relu',
@@ -101,25 +128,26 @@ class DiscreteActorCriticCore:
 
         self.eps = np.finfo(np.float32).eps.item()
 
-    def finish_init(self, agent_index, logger, n_actions):
+    def finish_init(self, agent_index, logger, n_actions):  # rename to build_agent_model
         self.logger = logger
         self.agent_index = agent_index
 
         if isinstance(n_actions, spaces.Box):
-            raise Exception(
-                'Discrete Actor Critic with index {} was assigned to continuous actions! Change to spaces.Discrete().'.format(self.agent_index))
+            n_actions = n_actions.shape[0]
 
         elif isinstance(n_actions, spaces.Discrete):
-            n_actions = n_actions.n
+            raise Exception(
+                'Contin Actor Critic with index {} was assigned to continuous actions! Change to spaces.Box().'.format(
+                    self.agent_index))
 
         elif not isinstance(n_actions, int):
             raise Exception(
-                'Discrete Actor Critic with index {} was assigned to {} which can not be interpreted! Change to spaces.Discrete().'.format(self.agent_index, n_actions))
+                'Contin Actor Critic with index {} was assigned to {} which can not be interpreted! Change to spaces.Box().'.format(self.agent_index, n_actions))
 
-        self.model = DiscreteActorCriticModel(n_actions, self.activation)
+        self.model = ContinActorCriticModel(n_actions, self.activation)
 
         if self.use_target_model:
-            self.target_model = DiscreteActorCriticModel(n_actions, self.activation)
+            self.target_model = ContinActorCriticModel(n_actions, self.activation)
 
     def start_gradient_recording(self):
 
@@ -142,14 +170,16 @@ class DiscreteActorCriticCore:
     def act(self, inputs, t, info_dict):
 
         if isinstance(inputs, list):
-            val, actions = self.model([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in inputs])
+            val, mu_out, sig_out = self.model([tf.expand_dims(tf.convert_to_tensor(elem), 0) for elem in inputs])
         else:
-            val, actions = self.model(tf.expand_dims(tf.convert_to_tensor(inputs), 0))
+            val, mu_out, sig_out = self.model(tf.expand_dims(tf.convert_to_tensor(inputs), 0))
 
-        action = tf.random.categorical(actions[0], 1)[0, 0]
+        action_probs = tfp.distributions.Normal(loc=mu_out, scale=sig_out)
+        act_out = tf.reshape(action_probs.sample(1), shape=[-1, 1])
+        action = tf.math.sigmoid(act_out)
 
         self.values = self.values.write(t, tf.squeeze(val))
-        self.act_probs = self.act_probs.write(t, tf.squeeze(tf.nn.softmax(actions[0])[0, action]))
+        self.act_probs = self.act_probs.write(t, tf.reduce_sum(action_probs.log_prob(tf.squeeze(act_out)), axis=1))
 
         return action
 
@@ -177,9 +207,8 @@ class DiscreteActorCriticCore:
 
         return returns/10
 
-    def loss_function_actor(self, act_probs, advantage, loss_critic):
+    def loss_function_actor(self, act_log_probs, advantage, loss_critic):
 
-        act_log_probs = tf.math.log(act_probs)
         loss_actor = -tf.math.reduce_sum(act_log_probs * advantage)
         '''
         if tf.reduce_mean(advantage) < 0:
@@ -197,16 +226,6 @@ class DiscreteActorCriticCore:
         self.rewards = tf.squeeze(self.rewards.stack())
 
         returns = self.get_expected_return()
-        '''
-        print('self.values')
-        print(self.values)
-        print('self.act_probs')
-        print(self.act_probs)
-        print('self.rewards')
-        print(self.rewards)
-        print('returns')
-        print(returns)
-        '''
 
         self.logger.log_mean('values_' + str(self.agent_index), np.mean(self.values.numpy()))
         self.logger.log_mean('act_probs_' + str(self.agent_index), np.mean(self.act_probs.numpy()))
@@ -225,13 +244,13 @@ class DiscreteActorCriticCore:
         self.tape_actor._pop_tape()
         self.tape_common._pop_tape()
 
-        grads_critic = self.tape_critic.gradient(loss_critic, [elem.trainable_variables[0] for elem in self.model.critic])
-        grads_actor = self.tape_actor.gradient(loss_actor, [elem.trainable_variables[0] for elem in self.model.actor])
-        grads_common = self.tape_common.gradient(loss_common, [elem.trainable_variables[0] for elem in self.model.common])
+        grads_critic = self.tape_critic.gradient(loss_critic,[elem.trainable_variables[0] for elem in self.model.critic])
+        grads_actor = self.tape_actor.gradient(loss_actor, [elem.trainable_variables[0]  for elem in self.model.actor])
+        grads_common = self.tape_common.gradient(loss_common, [elem.trainable_variables[0]  for elem in self.model.common])
 
-        self.optimizer_critic.apply_gradients(zip(grads_critic, [elem.trainable_variables[0] for elem in self.model.critic]))
-        self.optimizer_actor.apply_gradients(zip(grads_actor, [elem.trainable_variables[0] for elem in self.model.actor]))
-        self.optimizer_common.apply_gradients(zip(grads_common, [elem.trainable_variables[0] for elem in self.model.common]))
+        self.optimizer_critic.apply_gradients(zip(grads_critic, [elem.trainable_variables[0]  for elem in self.model.critic]))
+        self.optimizer_actor.apply_gradients(zip(grads_actor,[elem.trainable_variables[0]  for elem in self.model.actor]))
+        self.optimizer_common.apply_gradients(zip(grads_common, [elem.trainable_variables[0]  for elem in self.model.common]))
 
         del self.tape_critic
         del self.tape_actor
@@ -240,7 +259,7 @@ class DiscreteActorCriticCore:
         return self.alpha_common * loss_common
 
 
-class DiscreteActorCriticAgent(DiscreteActorCriticCore):
+class ContinActorCriticAgent(ContinActorCriticCore):
 
     def __init__(
             self,

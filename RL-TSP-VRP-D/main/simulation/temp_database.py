@@ -259,6 +259,8 @@ class BaseTempDatabase:
         self.status_dict['v_stuck'] = np.zeros((self.num_vehicles))
         self.status_dict['v_dest'] = np.copy(self.status_dict['v_coord'])
 
+        self.bestrafung_multiplier = np.ones((self.num_nodes))
+
         self.cur_v_index = 0
         self.cur_time_frame = 0
         self.actions_list = [[] for i in range(self.num_vehicles)]
