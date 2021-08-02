@@ -109,20 +109,26 @@ class DQNCore:
         self.logger.log_mean('greed_eps_'+str(self.agent_index), self.greed_eps)
 
         if np.random.random() < self.greed_eps:
-            if not info_dict is None:
-                action = tf.convert_to_tensor(np.random.choice(info_dict['possible_nodes']))
-            else:
+            try:
+                if not info_dict is None:
+                    action = tf.convert_to_tensor(np.random.choice(info_dict['possible_nodes']))
+                else:
+                    action = tf.convert_to_tensor(np.random.choice(len(actions)))
+            except:
                 action = tf.convert_to_tensor(np.random.choice(len(actions)))
         else:
-            if not info_dict is None:
-                actions_array = actions.numpy()
-                max_action = np.max(actions_array)
-                actions_array[info_dict['possible_nodes']] = (
-                    np.abs(actions_array[info_dict['possible_nodes']]) + np.abs(max_action)
-                )
-                action = tf.convert_to_tensor(np.argmax(actions_array))
+            try:
+                if not info_dict is None:
+                    actions_array = actions.numpy()
+                    max_action = np.max(actions_array)
+                    actions_array[info_dict['possible_nodes']] = (
+                        np.abs(actions_array[info_dict['possible_nodes']]) + np.abs(max_action)
+                    )
+                    action = tf.convert_to_tensor(np.argmax(actions_array))
 
-            else:
+                else:
+                    action = tf.math.argmax(actions)
+            except:
                 action = tf.math.argmax(actions)
 
         self.targets = self.targets.write(t, actions[action])

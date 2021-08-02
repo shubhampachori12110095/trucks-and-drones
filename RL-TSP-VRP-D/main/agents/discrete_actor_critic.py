@@ -66,7 +66,7 @@ class DiscreteActorCriticCore:
             greed_eps_decay: float = 0.99999,
             greed_eps_min: float = 0.1,
             alpha_common: float = 1.0,
-            alpha_actor: float = 0.0001,
+            alpha_actor: float = 0.5,
             alpha_critic: float = 0.5,
             gamma: float = 0.9,
             standardize: bool = False,

@@ -38,4 +38,5 @@ def test_dual_dqn():
     agent.train_agent(60000)
 
 
-test_discrete_actor_critic()
+#test_discrete_actor_critic()
+test_dqn()

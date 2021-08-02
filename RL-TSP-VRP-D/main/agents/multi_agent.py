@@ -21,7 +21,7 @@ class MultiAgent:
             max_steps_per_episode: int = 1000,
             actions_as_list = False,
             done_penalty = 1,
-            sum_rewards = True,
+            sum_rewards = False,
     ):
 
         self.name = name
