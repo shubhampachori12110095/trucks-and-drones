@@ -141,7 +141,7 @@ class DiscreteActorCriticCore(BaseAgentCore):
     def calc_loss_and_update_weights(self):
 
         vals = tf.squeeze(self.values.stack())
-        self.logger.log_mean('values_' + str(self.agent_index), np.mean(vals.numpy()))
+
 
         act_probs = tf.squeeze(self.act_probs.stack())
         self.logger.log_mean('act_probs_' + str(self.agent_index), np.mean(act_probs.numpy()))
@@ -151,7 +151,7 @@ class DiscreteActorCriticCore(BaseAgentCore):
 
         loss_critic = self.loss_function_critic(tf.expand_dims(vals, 1), tf.expand_dims(ret, 1))
         loss_critic = self.tape_critic.apply(loss_critic, self.model.critic)
-        self.logger.log_mean('loss_critic_' + str(self.agent_index), loss_critic.numpy())
+
 
         loss_actor = self.loss_function_actor(tf.expand_dims(act_probs, 1), tf.expand_dims(ret - vals, 1), loss_critic)
         loss_actor = self.tape_actor.apply(loss_actor, self.model.actor)

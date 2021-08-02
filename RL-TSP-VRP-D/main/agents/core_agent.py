@@ -4,14 +4,17 @@ from tensorflow.keras import layers
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from gym import spaces
 
+
 def transform_box_to_discrete(dims, act_space):
     n = dims^(np.sum(act_space.shape))
     return n, tf.constant(act_space.high, dtype=tf.float32), tf.constant(act_space.low, dtype=tf.float32)
+
 
 def transform_discrete_to_box(act_space):
     n = tf.cast(tf.constant(act_space.n), dtype=tf.float32)
     act_shape = (1,)
     return act_shape, n
+
 
 def contin_act_to_discrete(action, act_shape, highs, lows):
     for dim in act_shape:
@@ -20,6 +23,47 @@ def contin_act_to_discrete(action, act_shape, highs, lows):
 
 def discrete_act_to_contin(action, n):
     return tf.cast(tf.cast(action, dtype=tf.float32) * tf.cast(n, dtype=tf.float32), dtype=tf.int32)
+
+
+class LoggingTensorArray:
+
+    def __init__(self, name, logger):
+
+        self.name = name
+        self.logger = logger
+
+
+    def reset(
+            self,
+            dtype: Any,
+            size: Any = None,
+            dynamic_size: Any = None,
+            clear_after_read: Any = None,
+            tensor_array_name: Any = None,
+            handle: Any = None,
+            flow: Optional[{dtype}] = None,
+            infer_shape: bool = True,
+            element_shape: Any = None,
+            colocate_with_first_write_call: bool = True,
+    ):
+
+        self.tf_array = tf.TensorArray(
+            dtype, size, dynamic_size, clear_after_read, tensor_array_name, handle, flow, infer_shape, element_shape,
+            colocate_with_first_write_call, name=self.name)
+
+    def write(self, val, t):
+
+        self.tf_array = self.tf_array.write(val, t)
+
+    def stack(self, exp_dims=True):
+
+        tf_array = tf.squeeze(self.tf_array.stack())
+        self.logger.log_mean(str(self.name), np.mean(tf_array.numpy()))
+
+        if exp_dims:
+            return tf.expand_dims(tf_array, 1)
+        return tf_array
+
 
 class ParallelGradientTape:
 
@@ -43,6 +87,9 @@ class ParallelGradientTape:
             self.dga_rate = tf.constant(dga_rate, dtype=tf.float32)
             self.one_minus_dga_rate = tf.constant(1 - dga_rate, dtype=tf.float32)
 
+        self.name = None
+        self.logger = None
+
     def reset_tape(self, layers):
 
         self.tape = tf.GradientTape(persistent=True)
@@ -60,6 +107,9 @@ class ParallelGradientTape:
         grads = self.tape.gradient(loss, [elem.trainable_variables[0] for elem in layers])
         self.optimizer.apply_gradients(zip(grads, [elem.trainable_variables[0] for elem in layers]))
         del self.tape
+
+        if not self.logger is None and not self.name is None:
+            self.logger.log_mean('loss_' + str(self.name), loss.numpy())
 
         return loss
 
@@ -291,6 +341,11 @@ class BaseAgentCore:
 
         self.build_agent_model(n_actions)
 
+        self.rewards = LoggingTensorArray(self.agent_type + '_' + self.agent_index + '_rewards')
+        self.returns = LoggingTensorArray(self.agent_type + '_' + self.agent_index + '_rewards')
+
+
+
     def build_agent_model(self, n_actions):
 
         self.build_agent_model = CoreActorModel(
@@ -352,7 +407,7 @@ class BaseAgentCore:
     def get_expected_return(self, rewards):
 
         sample_len = tf.shape(rewards)[0]
-        returns = tf.TensorArray(dtype=tf.float32, size=sample_len)
+        returns = self.returns.reset(dtype=tf.float32, size=sample_len)
 
         rewards = tf.cast(rewards[::-1], dtype=tf.float32)
 
