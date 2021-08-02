@@ -15,6 +15,7 @@ def transform_discrete_to_box(act_space):
 
 def contin_act_to_discrete(action, act_shape, highs, lows):
     for dim in act_shape:
+        raise NotImplementedError
 
 
 def discrete_act_to_contin(action, n):
@@ -24,15 +25,17 @@ class ParallelGradientTape:
 
     def __init__(
             self,
-            layers,
-            optimizer,
-            grad_alpha=1,
-            dynamic_grad_alpha=False,
-            dga_rate=0.15
+            optimizer: optimizer_v2.OptimizerV2 = None,
+            grad_alpha: float = 1.0,
+            dynamic_grad_alpha: bool = False,
+            dga_rate: float = 0.15
     ):
 
-        self.trainables = [elem.trainable_variables for elem in layers]
-        self.optimizer = optimizer
+        if optimizer is None:
+            self.optimizer = tf.keras.optimizers.Adam()
+        else:
+            self.optimizer = optimizer
+
         self.grad_alpha = tf.constant(grad_alpha, dtype=tf.float32)
 
         self.dynamic_grad_alpha = dynamic_grad_alpha
@@ -40,13 +43,13 @@ class ParallelGradientTape:
             self.dga_rate = tf.constant(dga_rate, dtype=tf.float32)
             self.one_minus_dga_rate = tf.constant(1 - dga_rate, dtype=tf.float32)
 
-    def reset_tape(self):
+    def reset_tape(self, layers):
 
         self.tape = tf.GradientTape(persistent=True)
         self.tape._push_tape()
-        self.tape.watch(self.trainables)
+        self.tape.watch([elem.trainable_variables for elem in layers])
 
-    def apply_tape(self, loss):
+    def apply_tape(self, loss, layers):
 
         loss = tf.cast(loss, tf.float32)
         if self.dynamic_grad_alpha:
@@ -54,16 +57,93 @@ class ParallelGradientTape:
         loss = loss*self.grad_alpha
 
         self.tape._pop_tape()
-        grads = self.tape.gradient(loss, [elem.trainable_variables[0] for elem in self.trainables])
-        self.optimizer.apply_gradients(zip(grads, [elem.trainable_variables[0] for elem in self.trainables]))
+        grads = self.tape.gradient(loss, [elem.trainable_variables[0] for elem in layers])
+        self.optimizer.apply_gradients(zip(grads, [elem.trainable_variables[0] for elem in layers]))
         del self.tape
+
         return loss
+
+class CoreActorModel(tf.keras.Model):
+
+    def __init__(
+            self,
+            n_actions,
+            common_layer = None,
+            q_layer = None,
+            val_layer = None,
+            act_layer = None,
+            mu_layer = None,
+            sig_layer = None,
+    ):
+        super().__init__()
+
+        self.common_layer = common_layer
+        self.q_layer = q_layer
+        self.val_layer = val_layer
+        self.act_layer = act_layer
+        self.mu_layer = mu_layer
+        self.sig_layer = sig_layer
+
+        if not self.q_layer is None:
+            self.q_layer.units = n_actions
+
+        if not self.act_layer is None:
+            self.act_layer.units = n_actions
+
+        if not self.mu_layer is None:
+            self.mu_layer.units = n_actions
+
+        if not self.sig_layer is None:
+            self.sig_layer.units = n_actions
+
+    def call(self, inputs: tf.Tensor):
+        x = inputs
+        outputs = []
+
+        if not self.common_layer is None:
+            for layer in self.common_layer: x = layer(x)
+
+        if not self.val_layer is None:
+            val = x
+            for layer in self.val_layer: val = layer(val)
+            outputs.append(val)
+
+        if not self.act_layer is None:
+            act = x
+            for layer in self.act_layer: act = layer(act)
+            outputs.append(act)
+
+        if not self.mu_layer is None:
+            mu = x
+            for layer in self.mu_layer: mu = layer(mu)
+            outputs.append(mu)
+
+        if not self.sig_layer is None:
+            sig = x
+            for layer in self.sig_layer: sig = layer(sig)
+            outputs.append(sig)
+
+        if not self.q_layer is None and self.val_layer is None:
+            q = x
+            for layer in self.q_layer: q = layer(q)
+            outputs.append(q)
+
+        elif not self.act_layer is None:
+            q = tf.stack([x,act])
+            for layer in self.q_layer: q = layer(q)
+            outputs.append(q)
+
+        else:
+            q = tf.stack([x, mu, sig])
+            for layer in self.q_layer: q = layer(q)
+            outputs.append(q)
 
 
 class BaseAgentCore:
 
     def __init__(
             self,
+            model_layer,
             gamma: float = 0.9,
             standardize: str = None,
             g_mean: float = 0.0,
@@ -75,8 +155,12 @@ class BaseAgentCore:
             auto_transform_actions: bool = True,
     ):
 
+        self.model_layer = model_layer
+
         self.agent_type = 'unspecified'
         self.agent_act_space = 'discrete'
+        self.uses_q_future = False
+        self.use_target_model = False
 
         self.gamma = gamma
         self.eps = tf.constant(np.finfo(np.float32).eps.item(), dtype=tf.float32)
@@ -131,7 +215,7 @@ class BaseAgentCore:
             elif normalize_rewards == 'dynamic':
                 self.dynamic_normalize_rewards = True
                 self.dynamic_rate = tf.constant(dynamic_rate, dtype=tf.float32)
-                self.one_minus_dynamic_rate = tf.constant(1-dynamic_rate, dtype=tf.float32)
+                self.one_minus_dynamic_rate = tf.constant(1 - dynamic_rate, dtype=tf.float32)
 
             else:
                 raise Exception(
@@ -157,7 +241,7 @@ class BaseAgentCore:
 
             if isinstance(act_space, spaces.Box):
                 if self.auto_transform_actions:
-                    input_shape, self.highs, self.lows = transform_box_to_discrete(act_space)
+                    n_actions, self.highs, self.lows = transform_box_to_discrete(act_space)
                 else:
                     raise Exception(
                         '{} with index {} was assigned to contin actions! Change to spaces.Discrete().'.format(
@@ -166,10 +250,10 @@ class BaseAgentCore:
                     )
 
             elif isinstance(act_space, spaces.Discrete):
-                input_shape = act_space.n
+                n_actions = act_space.n
 
             elif not isinstance(act_space, int):
-                input_shape = (act_space,)
+                n_actions = (act_space,)
 
             else:
                 raise Exception(
@@ -180,11 +264,11 @@ class BaseAgentCore:
         elif self.agent_act_space == 'contin':
 
             if isinstance(act_space, spaces.Box):
-                input_shape = act_space.shape
+                n_actions = act_space.shape
 
             elif isinstance(act_space, spaces.Discrete):
                 if self.auto_transform_actions:
-                    input_shape, n = transform_discrete_to_box(act_space)
+                    n_actions, n = transform_discrete_to_box(act_space)
                 else:
                     raise Exception(
                         '{} with index {} was assigned to discrete actions! Change to spaces.Box().'.format(
@@ -193,7 +277,7 @@ class BaseAgentCore:
                     )
 
             elif not isinstance(act_space, int):
-                input_shape = (act_space,)
+                n_actions = act_space
 
             else:
                 raise Exception(
@@ -205,19 +289,22 @@ class BaseAgentCore:
                 "agent_act_space is {}, but must be 'discrete' or 'contin'".format(self.agent_act_space)
             )
 
-        self.build_nn(input_shape)
+        self.build_agent_model(n_actions)
 
-    def build_nn(self):
+    def build_agent_model(self, n_actions):
 
-        self.AgentModel =
+        self.build_agent_model = CoreActorModel(
+            n_actions, self.model_layer['common_layer'], self.model_layer['q_layer'], self.model_layer['val_layer'],
+            self.model_layer['act_layer'], self.model_layer['mu_layer'], self.model_layer['sig_layer']
+        )
 
     def reward(self, rew, t):
 
         self.rewards = self.rewards.write(t, rew)
 
-    def transform_rewards(self, rewards):
+    def transform_rewards(self):
 
-        rewards = tf.cast(rewards, dtype=tf.float32)
+        rewards = tf.cast(tf.squeeze(self.rewards.stack()), dtype=tf.float32)
 
         if self.simple_normalize_rewards:
             rewards = rewards/tf.cast(tf.shape(rewards)[0], dtype=tf.float32)
@@ -258,6 +345,7 @@ class BaseAgentCore:
 
             rewards = placeholder_rewards.stack()[::-1]
 
+        self.logger.log_mean('rewards_' + str(self.agent_index), np.mean(self.rewards.numpy()))
         return rewards
 
 
@@ -288,5 +376,6 @@ class BaseAgentCore:
             returns = ((returns - (self.global_mean / 2)) /
                     (tf.math.reduce_std(returns) + self.eps))
 
+        self.logger.log_mean('returns_' + str(self.agent_index), np.mean(returns.numpy()))
         return returns
 
