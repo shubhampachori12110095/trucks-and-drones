@@ -18,7 +18,10 @@ class MultiAgent:
             tau: float,
             use_target_model: bool = True,
             target_update: int = 1,
-            max_steps_per_episode: int = 1000
+            max_steps_per_episode: int = 1000,
+            actions_as_list = False,
+            done_penalty = 1,
+            sum_rewards = True,
     ):
 
         self.name = name
@@ -39,6 +42,10 @@ class MultiAgent:
 
         self.max_steps_per_episode = max_steps_per_episode
 
+        self.actions_as_list = actions_as_list
+        self.done_penalty = done_penalty
+        self.sum_rewards = sum_rewards
+
         self.agents_with_target_models = agents_with_target_models
         self.agents_with_q_future = agents_with_q_future
 
@@ -49,6 +56,7 @@ class MultiAgent:
 
             state = self.env.reset()
             info_dict = None
+            sum_r = 0
 
             with tf.GradientTape() as tape:
 
@@ -60,9 +68,22 @@ class MultiAgent:
 
                     common_outputs = self.model_pred(state)
                     actions_list = [agent.act(common_outputs, t, info_dict) for agent in self.agents]
-                    state, reward, done, info_dict = self.env.step([elem.numpy() for elem in actions_list])
+                    if self.actions_as_list:
+                        state, reward, done, info_dict = self.env.step([elem.numpy() for elem in actions_list])
+                    else:
+                        state, reward, done, info_dict = self.env.step(
+                            np.squeeze(np.array([elem.numpy() for elem in actions_list]))
+                        )
                     self.env.render()
-                    self.assign_rewards(t, reward)
+
+                    if self.sum_rewards:
+                        sum_r += reward
+                        reward = sum_r
+
+                    if done:
+                        self.assign_rewards(t, reward - self.done_penalty)
+                    else:
+                        self.assign_rewards(t, reward)
 
                     if len(self.agents_with_q_future) > 0:
 
@@ -85,7 +106,11 @@ class MultiAgent:
             if e % self.target_update == 0:
                 self.update_target_weights()
 
-            self.logger.print_status(self.env.count_episodes)
+            try:
+                self.logger.print_status(self.env.count_episodes)
+            except:
+                self.logger.print_status(e)
+
 
             #if e == num_episodes - 1 or e % self.save_interval == 0:
                 #self.model.save(self.save_path)

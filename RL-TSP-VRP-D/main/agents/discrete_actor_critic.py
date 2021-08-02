@@ -26,10 +26,10 @@ class DiscreteActorCriticModel(tf.keras.Model):
 
         if critic_layers is None:
             self.critic = [
-                layers.Dense(int(n_actions*2), activation='sigmoid'),
-                layers.Dense(int(n_actions), activation='tanh'),
-                layers.Dense(2, activation='tanh'),
-                layers.Dense(1, activation='tanh')
+                layers.Dense(int(n_actions*2), activation='relu'),
+                layers.Dense(int(n_actions), activation='relu'),
+                #layers.Dense(2, activation='tanh'),
+                layers.Dense(1)
             ]
 
         else:
@@ -66,8 +66,8 @@ class DiscreteActorCriticCore:
             greed_eps_decay: float = 0.99999,
             greed_eps_min: float = 0.1,
             alpha_common: float = 1.0,
-            alpha_actor: float = 0.1,
-            alpha_critic: float = 0.9,
+            alpha_actor: float = 0.0001,
+            alpha_critic: float = 0.5,
             gamma: float = 0.9,
             standardize: bool = False,
             loss_function_critic: tf.keras.losses.Loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM),
@@ -76,6 +76,7 @@ class DiscreteActorCriticCore:
             optimizer_critic: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
             n_hidden: int = 64,
             activation: str = 'relu',
+            global_standardize = True,
     ):
 
         self.uses_q_future = False
@@ -90,6 +91,10 @@ class DiscreteActorCriticCore:
         self.alpha_critic = alpha_critic
         self.gamma = gamma
         self.standardize = standardize
+        self.global_standardize = global_standardize
+
+        if self.global_standardize:
+            self.global_max = tf.constant(0.0, dtype=tf.float32)
 
         self.loss_function_critic = loss_function_critic
         self.optimizer_common = optimizer_common
@@ -162,7 +167,8 @@ class DiscreteActorCriticCore:
         sample_len = tf.shape(self.rewards)[0]
         returns = tf.TensorArray(dtype=tf.float32, size=sample_len)
 
-        rewards = tf.cast(self.rewards[::-1], dtype=tf.float32)
+        rewards = tf.cast(self.rewards[::-1], dtype=tf.float32)#/tf.cast(sample_len, dtype=tf.float32)
+
         discounted_sum = tf.constant(0.0)
         discounted_sum_shape = discounted_sum.shape
         for i in tf.range(sample_len):
@@ -171,11 +177,21 @@ class DiscreteActorCriticCore:
             returns = returns.write(i, discounted_sum)
         returns = returns.stack()[::-1]
 
+
         if self.standardize:
             returns = ((returns - tf.math.reduce_mean(returns)) /
                        (tf.math.reduce_std(returns) + self.eps))
 
-        return returns/10
+        if self.global_standardize:
+            returns = self.calc_global_norm(returns)
+
+        return returns
+
+    def calc_global_norm(self, returns):
+        max_abs_return = tf.math.reduce_mean(returns)
+        self.global_max = tf.math.reduce_mean(tf.stack([self.global_max, max_abs_return]))
+        return ((returns - (self.global_max/2)) /
+                       (tf.math.reduce_std(returns) + self.eps))
 
     def loss_function_actor(self, act_probs, advantage, loss_critic):
 
@@ -195,6 +211,8 @@ class DiscreteActorCriticCore:
         self.values = tf.squeeze(self.values.stack())
         self.act_probs = tf.squeeze(self.act_probs.stack())
         self.rewards = tf.squeeze(self.rewards.stack())
+
+        #print(self.values)
 
         returns = self.get_expected_return()
         '''

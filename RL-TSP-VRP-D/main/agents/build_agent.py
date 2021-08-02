@@ -32,6 +32,12 @@ class BaseCommonNetwork:
 
         self.last_layers_list = first_hidden
 
+    def combined_input_layer(self, activation="relu"):
+
+        self.input_layers.append(layers.Input(shape=self.inputs_list[0]))
+        flattened = layers.Flatten()(self.input_layers[0])
+        self.combined = layers.Dense(int(flattened.shape.as_list()[-1]), activation=activation)(flattened)
+
     def add_hidden_to_each_input(self, num_neurons_factor=2, activation="relu"):
 
         new_layers = []
@@ -46,23 +52,40 @@ class BaseCommonNetwork:
         self.last_layers_list = new_layers
 
     def combine_layers(self):
-
-        self.combined = layers.Concatenate(axis=-1)(self.last_layers_list)
+        print(self.last_layers_list)
+        print(len(self.last_layers_list))
+        if len(self.last_layers_list) > 1:
+            print('1test')
+            self.combined = layers.Concatenate(axis=-1)(self.last_layers_list)
+            print(self.combined)
+        else:
+            print(self.last_layers_list[0])
+            self.combinded = self.last_layers_list[0]
+            print(self.last_layers_list[0])
+            print(self.combined)
+            print('test2')
+        print(self.combined)
 
     def add_combined_layer(self, num_neurons_factor=1.5, activation="relu"):
 
+        print(self.combined)
         self.combined = layers.Dense(
             int(self.combined.shape.as_list()[-1] * num_neurons_factor), activation=activation
         )(self.combined)
 
     def build_model(self):
-        if len(self.input_layers) == 0:
+        if len(self.input_layers) > 1:
             self.seperate_input_layer()
 
-        if self.combined is None:
-            self.combine_layers()
-            self.add_combined_layer()
-            self.add_combined_layer()
+            if self.combined is None:
+                self.combine_layers()
+                self.add_combined_layer()
+                self.add_combined_layer()
+
+        else:
+            self.combined_input_layer()
+            self.add_combined_layer(6)
+            self.add_combined_layer(6)
 
         return keras.Model(self.input_layers, self.combined)
 
@@ -70,10 +93,13 @@ class BaseCommonNetwork:
 
 class BaseAgentBuilder:
 
-    def __init__(self, env, log_dir=None, CommonNetwork=BaseCommonNetwork):
+    def __init__(self, env, log_dir=None, CommonNetwork=None, name='test'):
 
         self.env = env
-        self.name = env.name
+        try:
+            self.name = env.name
+        except:
+            self.name = name
 
         if log_dir is None:
             self.logger = StatusPrinter(self.name)
@@ -93,10 +119,14 @@ class BaseAgentBuilder:
             self.inputs_list = [self.env.observation_space.shape]
 
         print('self.inputs_list',self.inputs_list)
+        print('self.inputs_list',self.inputs_list)
 
         self.supervised_outputs = []
 
-        self.common_model = CommonNetwork(self.inputs_list)
+        if CommonNetwork == None:
+            self.common_model = BaseCommonNetwork(self.inputs_list)
+        else:
+            self.common_model = CommonNetwork(self.inputs_list)
 
         self.agents = [None for elem in self.action_outputs]
         self.agents_with_target_models = []
@@ -148,7 +178,8 @@ class BaseAgentBuilder:
             optimizer: optimizer_v2.OptimizerV2 = keras.optimizers.Adam(),
             tau: float = 0.15,
             target_update: (None, int) = 1,
-            max_steps_per_episode = 1000
+            max_steps_per_episode = 1000,
+            actions_as_list = False
         ):
 
         self.check_actions_for_assignment(dont_break=False)
@@ -163,6 +194,6 @@ class BaseAgentBuilder:
 
         return Agent(self.name, self.env, self.agents, self.common_model, self.logger,
                      self.agents_with_target_models, self.agents_with_q_future,
-                     optimizer, tau, use_target_model, target_update, max_steps_per_episode,
+                     optimizer, tau, use_target_model, target_update, max_steps_per_episode, actions_as_list
                      )
 

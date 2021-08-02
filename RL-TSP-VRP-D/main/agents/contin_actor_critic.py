@@ -103,6 +103,7 @@ class ContinActorCriticCore:
             optimizer_critic: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
             n_hidden: int = 64,
             activation: str = 'relu',
+            transform_to_discrete = False,
     ):
 
         self.uses_q_future = False
@@ -126,6 +127,8 @@ class ContinActorCriticCore:
         self.n_hidden = n_hidden
         self.activation = activation
 
+        self.transform_to_discrete = transform_to_discrete
+
         self.eps = np.finfo(np.float32).eps.item()
 
     def finish_init(self, agent_index, logger, n_actions):  # rename to build_agent_model
@@ -135,10 +138,14 @@ class ContinActorCriticCore:
         if isinstance(n_actions, spaces.Box):
             n_actions = n_actions.shape[0]
 
-        elif isinstance(n_actions, spaces.Discrete):
+        elif isinstance(n_actions, spaces.Discrete) and not self.transform_to_discrete:
             raise Exception(
                 'Contin Actor Critic with index {} was assigned to continuous actions! Change to spaces.Box().'.format(
                     self.agent_index))
+
+        elif isinstance(n_actions, spaces.Discrete) and self.transform_to_discrete:
+            self.disrete_n = tf.cast(tf.constant(n_actions.n), dtype=tf.float32)
+            n_actions = (1,)
 
         elif not isinstance(n_actions, int):
             raise Exception(
@@ -181,6 +188,8 @@ class ContinActorCriticCore:
         self.values = self.values.write(t, tf.squeeze(val))
         self.act_probs = self.act_probs.write(t, tf.reduce_sum(action_probs.log_prob(tf.squeeze(act_out)), axis=1))
 
+        if self.transform_to_discrete:
+            action = tf.cast(tf.cast(action, dtype=tf.float32) * self.disrete_n, dtype=tf.int32)
         return action
 
     def reward(self, rew, t):

@@ -309,11 +309,9 @@ class BaseActDecoder:
                 #print(0)
             self.value_dict[key] = cur_node_coord[self.actions[self.index_dict[key]]]
 
-
     def auto_value(self, key):
         if self.check_dict[key+'_bool'] == True:
             self.value_dict[key] = None
-
 
     def decode_discrete(self, actions):
         return actions[0]
@@ -321,7 +319,6 @@ class BaseActDecoder:
             #actions[i] = (actions[i] / (self.discrete_bins[i]-1)) - 1
 
         #return np.round(actions*self.discrete_max_val).astype(int)
-
 
     def decode_contin(self, actions):
         return np.round(actions*(self.contin_max_val-1)).astype(int)
