@@ -3,9 +3,11 @@ import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from gym import spaces
 
-from main.agents.agent_core import BaseAgentCore, ParallelGradientTape, LoggingTensorArray
+from main.agents.agent_core import BaseAgentCore
+from main.agents.agent_tape import ParallelGradientTape
 from main.agents.agent_losses import discrete_actor_loss
 from main.agents.agent_models import BaseLayers
+from main.agents.agent_memory import LoggingTensorArray
 
 
 class DiscreteActorCriticCore(BaseAgentCore):
@@ -13,7 +15,7 @@ class DiscreteActorCriticCore(BaseAgentCore):
     def __init__(
             self,
 
-            gamma: float = 0.9,
+            gamma: float = 1.0,
             standardize: str = None,
             g_mean: float = 0.0,
             g_rate: float = 0.15,
@@ -23,9 +25,9 @@ class DiscreteActorCriticCore(BaseAgentCore):
             dynamic_rate: float = 0.15,
             auto_transform_actions: bool = True,
 
-            alpha_common: float = 1.0,
-            alpha_actor: float = 1.0,
-            alpha_critic: float = 1.0,
+            alpha_common: float = 0.9,
+            alpha_actor: float = 0.5,
+            alpha_critic: float = 0.005,
 
             loss_func_critic: tf.keras.losses.Loss = None,
             loss_func_actor = None,
@@ -65,7 +67,8 @@ class DiscreteActorCriticCore(BaseAgentCore):
         self.alpha_critic = alpha_critic
 
         if loss_func_critic is None:
-            self.loss_func_critic = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
+            #self.loss_func_critic = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
+            self.loss_func_critic = tf.keras.losses.mean_squared_error
         else:
             self.loss_func_critic = loss_func_critic
 
@@ -85,7 +88,7 @@ class DiscreteActorCriticCore(BaseAgentCore):
             self.tapes['actor'] = tape_actor
 
         if tape_critic is None:
-            self.tapes['critic'] = ParallelGradientTape()
+            self.tapes['critic'] = ParallelGradientTape(grad_alpha=0.5)
         else:
             self.tapes['critic'] = tape_critic
 
@@ -121,9 +124,9 @@ class DiscreteActorCriticCore(BaseAgentCore):
         self.tape_cri = self.tapes['critic'].reset_tape(self.critic_layer.trainable_variables)
         self.tape_act = self.tapes['actor'].reset_tape(self.actor_layer.trainable_variables)
 
-        self.values.reset(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
-        self.act_probs.reset(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
-        self.rewards.reset(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
+        self.values.reset_tensor(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
+        self.act_probs.reset_tensor(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
+        self.rewards.reset_tensor(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
 
     def act(self, inputs, t, info_dict):
 
@@ -137,15 +140,15 @@ class DiscreteActorCriticCore(BaseAgentCore):
 
         action = tf.random.categorical(actions[0], 1)[0, 0]
 
-        self.values.write(t, tf.squeeze(val))
-        self.act_probs.write(t, tf.squeeze(tf.nn.softmax(actions[0])[0, action]))
+        self.values.write_to_tensor(t, tf.squeeze(val))
+        self.act_probs.write_to_tensor(t, tf.squeeze(tf.nn.softmax(actions[0])[0, action]))
 
         return action
 
     def calc_loss_and_update_weights(self):
 
-        vals = self.values.stack()
-        act_probs = self.act_probs.stack()
+        vals = self.values.stack_tensor()
+        act_probs = self.act_probs.stack_tensor()
 
         rewards = self.transform_rewards()
         ret = self.get_expected_return(rewards)
@@ -155,6 +158,7 @@ class DiscreteActorCriticCore(BaseAgentCore):
 
         loss_actor = self.loss_func_actor(tf.expand_dims(act_probs, 1), tf.expand_dims(ret - vals, 1), loss_critic)
         loss_actor = self.tapes['actor'].apply_tape(self.tape_act, loss_actor, self.actor_layer.trainable_variables)
+
 
         loss_common = (self.alpha_actor * loss_actor) + (self.alpha_critic * loss_critic)
         loss_common = self.tapes['common'].apply_tape(self.tape_com, loss_common, self.common_layer.trainable_variables)
@@ -166,31 +170,49 @@ class DiscreteActorCriticAgent(DiscreteActorCriticCore):
 
     def __init__(
             self,
+
             env,
             logger,
-            n_actions: (int, spaces.Space),
             max_steps_per_episode: int,
-            greed_eps: float = 1.0,
-            greed_eps_decay: float = 0.99999,
-            greed_eps_min: float = 0.05,
-            alpha_common: float = 0.1,
-            alpha_actor: float = 0.5,
-            alpha_critic: float = 0.5,
+
             gamma: float = 0.9,
-            standardize: bool = False,
-            loss_function_critic: tf.keras.losses.Loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM),
-            optimizer_common: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
-            optimizer_actor: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
-            optimizer_critic: optimizer_v2.OptimizerV2 = tf.keras.optimizers.Adam(),
-            n_hidden: int = 64,
-            activation: str = 'relu',
+            standardize: str = None,
+            g_mean: float = 0.0,
+            g_rate: float = 0.15,
+            discount_rewards: str = None,
+            normalize_rewards: str = None,
+            reward_range: tuple = None,
+            dynamic_rate: float = 0.15,
+            auto_transform_actions: bool = True,
+
+            alpha_common: float = 1.0,
+            alpha_actor: float = 1.0,
+            alpha_critic: float = 1.0,
+
+            loss_func_critic: tf.keras.losses.Loss = None,
+            loss_func_actor=None,
+
+            tape_common: ParallelGradientTape = None,
+            tape_actor: ParallelGradientTape = None,
+            tape_critic: ParallelGradientTape = None,
+
+            common_layer=None,
+            actor_layer=None,
+            critic_layer=None,
+
+            common_hidden=1,
+            actor_hidden=1,
+            critic_hidden=1,
+
+            common_units=32,
+            actor_units=128,
+            critic_units=128,
+
+            actor_activation='softmax',
+            critic_activation=None,
     ):
 
-        super().__init__(
-            greed_eps, greed_eps_decay, greed_eps_min, alpha_common, alpha_actor, alpha_critic,
-            gamma, standardize, loss_function_critic, optimizer_common, optimizer_actor, optimizer_critic,
-            n_hidden, activation
-        )
+        super(DiscreteActorCriticAgent).__init__(*args, **kwargs)
 
         self.env = env
         self.finish_init(0, logger, n_actions)

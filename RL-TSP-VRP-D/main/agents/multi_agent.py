@@ -20,7 +20,7 @@ class MultiAgent:
             target_update: int = 1,
             max_steps_per_episode: int = 1000,
             actions_as_list = False,
-            done_penalty = 1,
+            done_penalty = 0,
             sum_rewards = False,
     ):
 

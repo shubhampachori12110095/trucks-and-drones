@@ -4,6 +4,8 @@ from tensorflow.keras import layers
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from gym import spaces
 
+from main.agents.agent_memory import LoggingTensorArray
+
 
 def transform_box_to_discrete(dims, act_space):
     n = dims^(np.sum(act_space.shape))
@@ -23,104 +25,6 @@ def contin_act_to_discrete(action, act_shape, highs, lows):
 
 def discrete_act_to_contin(action, n):
     return tf.cast(tf.cast(action, dtype=tf.float32) * tf.cast(n, dtype=tf.float32), dtype=tf.int32)
-
-
-class LoggingTensorArray:
-
-    def __init__(self, name, logger):
-
-        self.name = name
-        self.logger = logger
-
-
-    def reset(
-            self,
-            dtype,
-            size= None,
-            dynamic_size= None,
-            clear_after_read= None,
-            tensor_array_name= None,
-            handle= None,
-            flow= None,
-            infer_shape= True,
-            element_shape= None,
-            colocate_with_first_write_call= True
-    ):
-
-        self.tf_array = tf.TensorArray(
-            dtype, size, dynamic_size, clear_after_read, tensor_array_name, handle, flow, infer_shape, element_shape,
-            colocate_with_first_write_call, name=self.name)
-
-    def write(self,t, val):
-
-        self.tf_array = self.tf_array.write(index=t,value=val)
-
-    def stack(self, exp_dims=True):
-
-        tf_array = tf.squeeze(self.tf_array.stack())
-        self.logger.log_mean(str(self.name), np.mean(tf_array.numpy()))
-
-        if exp_dims:
-            return tf.expand_dims(tf_array, 1)
-        return tf_array
-
-
-class ParallelGradientTape:
-
-    def __init__(
-            self,
-            optimizer: optimizer_v2.OptimizerV2 = None,
-            grad_alpha: float = 1.0,
-            dynamic_grad_alpha: bool = False,
-            tanh_grad_aplha: bool = False,
-            dga_rate: float = 0.015
-    ):
-
-        if optimizer is None:
-            self.optimizer = tf.keras.optimizers.Adam()
-        else:
-            self.optimizer = optimizer
-
-        self.grad_alpha = tf.constant(grad_alpha, dtype=tf.float32)
-
-        self.dynamic_grad_alpha = dynamic_grad_alpha
-        if self.dynamic_grad_alpha:
-            self.dga_rate = tf.constant(dga_rate, dtype=tf.float32)
-            self.one_minus_dga_rate = tf.constant(1 - dga_rate, dtype=tf.float32)
-
-        self.tanh_grad_aplha = tanh_grad_aplha
-
-        self.name = None
-        self.logger = None
-
-    def reset_tape(self, trainables):
-        grad_tape = tf.GradientTape(persistent=True)
-        grad_tape._push_tape()
-        grad_tape.watch(trainables)
-
-        return grad_tape
-
-    def apply_tape(self, grad_tape, loss, trainables):
-
-        loss = tf.cast(loss, tf.float32)
-
-        if self.dynamic_grad_alpha:
-            self.grad_alpha = self.grad_alpha * self.one_minus_dga_rate + (1 / tf.reduce_max(loss)) * self.dga_rate
-
-        loss = loss*self.grad_alpha
-
-        if self.tanh_grad_aplha:
-            loss = tf.math.tanh(loss)
-
-        grad_tape._pop_tape()
-
-        grads = grad_tape.gradient(loss, trainables)
-        self.optimizer.apply_gradients(zip(grads, trainables))
-
-        if not self.logger is None and not self.name is None:
-            self.logger.log_mean(str(self.name) + '_loss', loss.numpy())
-
-        return loss
 
 
 
@@ -290,11 +194,11 @@ class BaseAgentCore:
 
     def reward(self,t, rew):
 
-        self.rewards.write(t, rew)
+        self.rewards.write_to_tensor(t, rew)
 
     def transform_rewards(self):
 
-        rewards = tf.cast(tf.squeeze(self.rewards.stack(exp_dims=False)), dtype=tf.float32)
+        rewards = tf.cast(tf.squeeze(self.rewards.stack_tensor(exp_dims=False, log_sum=True)), dtype=tf.float32)
 
         if self.simple_normalize_rewards:
             rewards = rewards/tf.cast(tf.shape(rewards)[0], dtype=tf.float32)
@@ -342,7 +246,7 @@ class BaseAgentCore:
     def get_expected_return(self, rewards):
 
         sample_len = tf.shape(rewards)[0]
-        self.returns.reset(dtype=tf.float32, size=sample_len)
+        self.returns.reset_tensor(dtype=tf.float32, size=sample_len)
 
         rewards = tf.cast(rewards[::-1], dtype=tf.float32)
 
@@ -353,9 +257,9 @@ class BaseAgentCore:
 
             discounted_sum = rewards[i] + self.gamma * discounted_sum
             discounted_sum.set_shape(discounted_sum_shape)
-            self.returns.write(i, discounted_sum)
+            self.returns.write_to_tensor(i, discounted_sum)
 
-        returns = self.returns.stack()[::-1]
+        returns = self.returns.stack_tensor()[::-1]
 
         if self.standardize_returns:
             returns = ((returns - tf.math.reduce_mean(returns)) /
