@@ -25,7 +25,7 @@ def test_dqn():
 
     agent = BaseAgentBuilder(gym.make('CartPole-v0'), log_dir='_logs')
     [agent.assign_agent(DQNCore(), at_index=i) for i in range(len(agent.action_outputs))]
-    agent = agent.build(max_steps_per_episode=20000)
+    agent = agent.build(max_steps_per_episode=None)
     agent.train_agent(600000)
 
 

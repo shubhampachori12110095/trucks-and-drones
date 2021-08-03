@@ -1,11 +1,10 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from gym import spaces
 
-from main.agents.core_agent import BaseAgentCore, ParallelGradientTape, LoggingTensorArray
-from main.agents.losses import discrete_actor_loss
+from main.agents.agent_core import BaseAgentCore, ParallelGradientTape, LoggingTensorArray
+from main.agents.agent_losses import discrete_actor_loss
 from main.agents.agent_models import BaseLayers
 
 
@@ -18,15 +17,15 @@ class DiscreteActorCriticCore(BaseAgentCore):
             standardize: str = None,
             g_mean: float = 0.0,
             g_rate: float = 0.15,
-            discount_rewards: str = 'forward',
+            discount_rewards: str = None,
             normalize_rewards: str = None,
             reward_range: tuple = None,
             dynamic_rate: float = 0.15,
             auto_transform_actions: bool = True,
 
             alpha_common: float = 1.0,
-            alpha_actor: float = 0.5,
-            alpha_critic: float = 0.5,
+            alpha_actor: float = 1.0,
+            alpha_critic: float = 1.0,
 
             loss_func_critic: tf.keras.losses.Loss = None,
             loss_func_actor = None,
@@ -38,6 +37,17 @@ class DiscreteActorCriticCore(BaseAgentCore):
             common_layer = None,
             actor_layer = None,
             critic_layer = None,
+
+            common_hidden = 1,
+            actor_hidden = 1,
+            critic_hidden = 1,
+
+            common_units = 32,
+            actor_units = 128,
+            critic_units = 128,
+
+            actor_activation = 'softmax',
+            critic_activation = None,
     ):
 
         super().__init__(
@@ -65,51 +75,51 @@ class DiscreteActorCriticCore(BaseAgentCore):
             self.loss_func_actor = loss_func_actor
 
         if tape_common is None:
-            self.tape_common = ParallelGradientTape()
+            self.tapes['common'] = ParallelGradientTape()
         else:
-            self.tape_common = tape_common
+            self.tapes['common'] = tape_common
 
         if tape_actor is None:
-            self.tape_actor = ParallelGradientTape()
+            self.tapes['actor'] = ParallelGradientTape()
         else:
-            self.tape_actor = tape_actor
+            self.tapes['actor'] = tape_actor
 
         if tape_critic is None:
-            self.tape_critic = ParallelGradientTape()
+            self.tapes['critic'] = ParallelGradientTape()
         else:
-            self.tape_critic = tape_critic
+            self.tapes['critic'] = tape_critic
 
-        self.common_layer = common_layer
-        self.actor_layer = actor_layer
-        self.critic_layer = critic_layer
+        if common_layer is None:
+            self.common_layer = BaseLayers(None, n_hidden=common_hidden, units_hidden=common_units)
+        else:
+            self.common_layer = common_layer
 
-    def build_agent_model(self, n_actions):
+        if actor_layer is None:
+            self.actor_layer = BaseLayers(None, n_hidden=actor_hidden, units_hidden=actor_units)
+        else:
+            self.actor_layer = actor_layer
 
-        self.common_layer = BaseLayers(self.common_layer, n_hidden=1)
+        if critic_layer is None:
+            self.critic_layer = BaseLayers(None, n_hidden=critic_hidden, units_hidden=critic_units)
+        else:
+            self.critic_layer = critic_layer
 
-        self.actor_layer = BaseLayers(self.actor_layer)
-        self.actor_layer.add_output_layer(n_actions, activation_out=None)
+        self.actor_activation = actor_activation
+        self.critic_activation = critic_activation
 
-        self.critic_layer = BaseLayers(self.critic_layer)
-        self.critic_layer.add_output_layer(1, activation_out=None)
+    def create_output_layers(self, n_actions):
+
+        self.actor_layer.add_output_layer(n_actions, activation_out=self.actor_activation)
+        self.critic_layer.add_output_layer(1, activation_out=self.critic_activation)
 
         self.values = LoggingTensorArray(self.name + '_values', self.logger)
         self.act_probs = LoggingTensorArray(self.name + '_act_probs', self.logger)
 
-        self.tape_common.name = self.name + '_common'
-        self.tape_critic.name = self.name + '_critic'
-        self.tape_actor.name = self.name + '_actor'
-
-        self.tape_common.logger = self.logger
-        self.tape_critic.logger = self.logger
-        self.tape_actor.logger = self.logger
-
-
     def start_gradient_recording(self):
 
-        self.tape_com = self.tape_common.reset_tape(self.common_layer.trainable_variables)
-        self.tape_cri = self.tape_critic.reset_tape(self.critic_layer.trainable_variables)
-        self.tape_act = self.tape_actor.reset_tape(self.actor_layer.trainable_variables)
+        self.tape_com = self.tapes['common'].reset_tape(self.common_layer.trainable_variables)
+        self.tape_cri = self.tapes['critic'].reset_tape(self.critic_layer.trainable_variables)
+        self.tape_act = self.tapes['actor'].reset_tape(self.actor_layer.trainable_variables)
 
         self.values.reset(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
         self.act_probs.reset(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)
@@ -141,13 +151,13 @@ class DiscreteActorCriticCore(BaseAgentCore):
         ret = self.get_expected_return(rewards)
 
         loss_critic = self.loss_func_critic(tf.expand_dims(vals, 1), tf.expand_dims(ret, 1))
-        loss_critic = self.tape_critic.apply_tape(self.tape_cri, loss_critic, self.critic_layer.trainable_variables)
+        loss_critic = self.tapes['critic'].apply_tape(self.tape_cri, loss_critic, self.critic_layer.trainable_variables)
 
         loss_actor = self.loss_func_actor(tf.expand_dims(act_probs, 1), tf.expand_dims(ret - vals, 1), loss_critic)
-        loss_actor = self.tape_actor.apply_tape(self.tape_act, loss_actor, self.actor_layer.trainable_variables)
+        loss_actor = self.tapes['actor'].apply_tape(self.tape_act, loss_actor, self.actor_layer.trainable_variables)
 
         loss_common = (self.alpha_actor * loss_actor) + (self.alpha_critic * loss_critic)
-        loss_common = self.tape_common.apply_tape(self.tape_com, loss_common, self.common_layer.trainable_variables)
+        loss_common = self.tapes['common'].apply_tape(self.tape_com, loss_common, self.common_layer.trainable_variables)
 
         return self.alpha_common * loss_common
 

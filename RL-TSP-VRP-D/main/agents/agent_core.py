@@ -144,6 +144,8 @@ class BaseAgentCore:
         self.uses_q_future = False
         self.use_target_model = False
 
+        self.tapes ={}
+
         self.gamma = gamma
         self.eps = tf.constant(np.finfo(np.float32).eps.item(), dtype=tf.float32)
 
@@ -220,6 +222,10 @@ class BaseAgentCore:
         self.name = self.agent_type+'_'+str(agent_index)
         self.logger = logger
 
+        for key in self.tapes.keys():
+            self.tapes[key].logger = self.logger
+            self.tapes[key].name = self.name + '_' + key
+
         if self.agent_act_space == 'discrete':
 
             if isinstance(act_space, spaces.Box):
@@ -272,12 +278,12 @@ class BaseAgentCore:
                 "agent_act_space is {}, but must be 'discrete' or 'contin'".format(self.agent_act_space)
             )
 
-        self.build_agent_model(n_actions)
+        self.create_output_layers(n_actions)
 
         self.rewards = LoggingTensorArray(self.name + '_rewards', self.logger)
         self.returns = LoggingTensorArray(self.name + '_returns', self.logger)
 
-    def build_agent_model(self, n_actions):
+    def create_output_layers(self, n_actions):
 
         raise NotImplementedError('When subclassing the `BaseAgentCore` class, you should '
                                   'implement a `build_agent_model` method.')

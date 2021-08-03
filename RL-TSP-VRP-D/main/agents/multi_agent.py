@@ -64,7 +64,9 @@ class MultiAgent:
 
                 [agent.start_gradient_recording() for agent in self.agents]
 
-                for t in range(self.max_steps_per_episode):
+                done = False
+                t = 0
+                while not done:
 
                     common_outputs = self.model_pred(state)
                     actions_list = [agent.act(common_outputs, t, info_dict) for agent in self.agents]
@@ -79,6 +81,10 @@ class MultiAgent:
                     if self.sum_rewards:
                         sum_r += reward
                         reward = sum_r
+
+                    if not self.max_steps_per_episode is None:
+                        if t > self.max_steps_per_episode:
+                            done = True
 
                     if done:
                         self.assign_rewards(t, reward - self.done_penalty)
@@ -95,6 +101,7 @@ class MultiAgent:
 
                         [self.agents[i].pred_q_future(target_outputs, t, done) for i in self.agents_with_q_future]
 
+                    t += 1
                     if tf.cast(done, tf.bool):
                         break
 
