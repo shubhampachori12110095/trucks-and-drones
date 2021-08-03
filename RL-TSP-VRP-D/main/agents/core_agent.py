@@ -35,25 +35,25 @@ class LoggingTensorArray:
 
     def reset(
             self,
-            dtype: Any,
-            size: Any = None,
-            dynamic_size: Any = None,
-            clear_after_read: Any = None,
-            tensor_array_name: Any = None,
-            handle: Any = None,
-            flow: Optional[{dtype}] = None,
-            infer_shape: bool = True,
-            element_shape: Any = None,
-            colocate_with_first_write_call: bool = True,
+            dtype,
+            size= None,
+            dynamic_size= None,
+            clear_after_read= None,
+            tensor_array_name= None,
+            handle= None,
+            flow= None,
+            infer_shape= True,
+            element_shape= None,
+            colocate_with_first_write_call= True
     ):
 
         self.tf_array = tf.TensorArray(
             dtype, size, dynamic_size, clear_after_read, tensor_array_name, handle, flow, infer_shape, element_shape,
             colocate_with_first_write_call, name=self.name)
 
-    def write(self, val, t):
+    def write(self,t, val):
 
-        self.tf_array = self.tf_array.write(val, t)
+        self.tf_array = self.tf_array.write(index=t,value=val)
 
     def stack(self, exp_dims=True):
 
@@ -72,7 +72,8 @@ class ParallelGradientTape:
             optimizer: optimizer_v2.OptimizerV2 = None,
             grad_alpha: float = 1.0,
             dynamic_grad_alpha: bool = False,
-            dga_rate: float = 0.15
+            tanh_grad_aplha: bool = False,
+            dga_rate: float = 0.015
     ):
 
         if optimizer is None:
@@ -87,113 +88,46 @@ class ParallelGradientTape:
             self.dga_rate = tf.constant(dga_rate, dtype=tf.float32)
             self.one_minus_dga_rate = tf.constant(1 - dga_rate, dtype=tf.float32)
 
+        self.tanh_grad_aplha = tanh_grad_aplha
+
         self.name = None
         self.logger = None
 
-    def reset_tape(self, layers):
+    def reset_tape(self, trainables):
+        grad_tape = tf.GradientTape(persistent=True)
+        grad_tape._push_tape()
+        grad_tape.watch(trainables)
 
-        self.tape = tf.GradientTape(persistent=True)
-        self.tape._push_tape()
-        self.tape.watch([elem.trainable_variables for elem in layers])
+        return grad_tape
 
-    def apply_tape(self, loss, layers):
+    def apply_tape(self, grad_tape, loss, trainables):
 
         loss = tf.cast(loss, tf.float32)
+
         if self.dynamic_grad_alpha:
             self.grad_alpha = self.grad_alpha * self.one_minus_dga_rate + (1 / tf.reduce_max(loss)) * self.dga_rate
+
         loss = loss*self.grad_alpha
 
-        self.tape._pop_tape()
-        grads = self.tape.gradient(loss, [elem.trainable_variables[0] for elem in layers])
-        self.optimizer.apply_gradients(zip(grads, [elem.trainable_variables[0] for elem in layers]))
-        del self.tape
+        if self.tanh_grad_aplha:
+            loss = tf.math.tanh(loss)
+
+        grad_tape._pop_tape()
+
+        grads = grad_tape.gradient(loss, trainables)
+        self.optimizer.apply_gradients(zip(grads, trainables))
 
         if not self.logger is None and not self.name is None:
-            self.logger.log_mean('loss_' + str(self.name), loss.numpy())
+            self.logger.log_mean(str(self.name) + '_loss', loss.numpy())
 
         return loss
 
-class CoreActorModel(tf.keras.Model):
-
-    def __init__(
-            self,
-            n_actions,
-            common_layer = None,
-            q_layer = None,
-            val_layer = None,
-            act_layer = None,
-            mu_layer = None,
-            sig_layer = None,
-    ):
-        super().__init__()
-
-        self.common_layer = common_layer
-        self.q_layer = q_layer
-        self.val_layer = val_layer
-        self.act_layer = act_layer
-        self.mu_layer = mu_layer
-        self.sig_layer = sig_layer
-
-        if not self.q_layer is None:
-            self.q_layer.units = n_actions
-
-        if not self.act_layer is None:
-            self.act_layer.units = n_actions
-
-        if not self.mu_layer is None:
-            self.mu_layer.units = n_actions
-
-        if not self.sig_layer is None:
-            self.sig_layer.units = n_actions
-
-    def call(self, inputs: tf.Tensor):
-        x = inputs
-        outputs = []
-
-        if not self.common_layer is None:
-            for layer in self.common_layer: x = layer(x)
-
-        if not self.val_layer is None:
-            val = x
-            for layer in self.val_layer: val = layer(val)
-            outputs.append(val)
-
-        if not self.act_layer is None:
-            act = x
-            for layer in self.act_layer: act = layer(act)
-            outputs.append(act)
-
-        if not self.mu_layer is None:
-            mu = x
-            for layer in self.mu_layer: mu = layer(mu)
-            outputs.append(mu)
-
-        if not self.sig_layer is None:
-            sig = x
-            for layer in self.sig_layer: sig = layer(sig)
-            outputs.append(sig)
-
-        if not self.q_layer is None and self.val_layer is None:
-            q = x
-            for layer in self.q_layer: q = layer(q)
-            outputs.append(q)
-
-        elif not self.act_layer is None:
-            q = tf.stack([x,act])
-            for layer in self.q_layer: q = layer(q)
-            outputs.append(q)
-
-        else:
-            q = tf.stack([x, mu, sig])
-            for layer in self.q_layer: q = layer(q)
-            outputs.append(q)
 
 
 class BaseAgentCore:
 
     def __init__(
             self,
-            model_layer,
             gamma: float = 0.9,
             standardize: str = None,
             g_mean: float = 0.0,
@@ -204,8 +138,6 @@ class BaseAgentCore:
             dynamic_rate: float = 0.15,
             auto_transform_actions: bool = True,
     ):
-
-        self.model_layer = model_layer
 
         self.agent_type = 'unspecified'
         self.agent_act_space = 'discrete'
@@ -285,6 +217,7 @@ class BaseAgentCore:
     def finish_init(self, agent_index, logger, act_space):
 
         self.agent_index = agent_index
+        self.name = self.agent_type+'_'+str(agent_index)
         self.logger = logger
 
         if self.agent_act_space == 'discrete':
@@ -341,25 +274,21 @@ class BaseAgentCore:
 
         self.build_agent_model(n_actions)
 
-        self.rewards = LoggingTensorArray(self.agent_type + '_' + self.agent_index + '_rewards')
-        self.returns = LoggingTensorArray(self.agent_type + '_' + self.agent_index + '_rewards')
-
-
+        self.rewards = LoggingTensorArray(self.name + '_rewards', self.logger)
+        self.returns = LoggingTensorArray(self.name + '_returns', self.logger)
 
     def build_agent_model(self, n_actions):
 
-        self.build_agent_model = CoreActorModel(
-            n_actions, self.model_layer['common_layer'], self.model_layer['q_layer'], self.model_layer['val_layer'],
-            self.model_layer['act_layer'], self.model_layer['mu_layer'], self.model_layer['sig_layer']
-        )
+        raise NotImplementedError('When subclassing the `BaseAgentCore` class, you should '
+                                  'implement a `build_agent_model` method.')
 
-    def reward(self, rew, t):
+    def reward(self,t, rew):
 
-        self.rewards = self.rewards.write(t, rew)
+        self.rewards.write(t, rew)
 
     def transform_rewards(self):
 
-        rewards = tf.cast(tf.squeeze(self.rewards.stack()), dtype=tf.float32)
+        rewards = tf.cast(tf.squeeze(self.rewards.stack(exp_dims=False)), dtype=tf.float32)
 
         if self.simple_normalize_rewards:
             rewards = rewards/tf.cast(tf.shape(rewards)[0], dtype=tf.float32)
@@ -385,7 +314,7 @@ class BaseAgentCore:
             placeholder_rewards = tf.TensorArray(dtype=tf.float32, size=sample_len)
 
             for i in tf.range(sample_len):
-                placeholder_rewards = placeholder_rewards.write(rewards[i] / tf.cast(i, dtype=tf.float32))
+                placeholder_rewards = placeholder_rewards.write(i, (rewards[i] / tf.cast(i+1, dtype=tf.float32)))
 
             rewards = placeholder_rewards.stack()
 
@@ -396,18 +325,18 @@ class BaseAgentCore:
             rewards = rewards[::-1]
 
             for i in tf.range(sample_len):
-                placeholder_rewards = placeholder_rewards.write(rewards[i] / tf.cast(i, dtype=tf.float32))
+                placeholder_rewards = placeholder_rewards.write(i, (rewards[i] / tf.cast(i+1, dtype=tf.float32)))
 
             rewards = placeholder_rewards.stack()[::-1]
 
-        self.logger.log_mean('rewards_' + str(self.agent_index), np.mean(self.rewards.numpy()))
+        self.logger.log_mean(self.name + '_transf_rew', np.mean(rewards.numpy()))
         return rewards
 
 
     def get_expected_return(self, rewards):
 
         sample_len = tf.shape(rewards)[0]
-        returns = self.returns.reset(dtype=tf.float32, size=sample_len)
+        self.returns.reset(dtype=tf.float32, size=sample_len)
 
         rewards = tf.cast(rewards[::-1], dtype=tf.float32)
 
@@ -418,9 +347,9 @@ class BaseAgentCore:
 
             discounted_sum = rewards[i] + self.gamma * discounted_sum
             discounted_sum.set_shape(discounted_sum_shape)
-            returns = returns.write(i, discounted_sum)
+            self.returns.write(i, discounted_sum)
 
-        returns = returns.stack()[::-1]
+        returns = self.returns.stack()[::-1]
 
         if self.standardize_returns:
             returns = ((returns - tf.math.reduce_mean(returns)) /
@@ -431,6 +360,6 @@ class BaseAgentCore:
             returns = ((returns - (self.global_mean / 2)) /
                     (tf.math.reduce_std(returns) + self.eps))
 
-        self.logger.log_mean('returns_' + str(self.agent_index), np.mean(returns.numpy()))
+        self.logger.log_mean(self.name + '_transf_ret', np.mean(returns.numpy()))
         return returns
 

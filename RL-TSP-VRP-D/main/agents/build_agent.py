@@ -74,6 +74,7 @@ class BaseCommonNetwork:
         )(self.combined)
 
     def build_model(self):
+        '''
         if len(self.input_layers) > 1:
             self.seperate_input_layer()
 
@@ -84,9 +85,11 @@ class BaseCommonNetwork:
 
         else:
             self.combined_input_layer()
-            self.add_combined_layer(6)
-            self.add_combined_layer(6)
-
+            #self.add_combined_layer(6)
+            #self.add_combined_layer(6)
+        '''
+        self.input_layers.append(layers.Input(shape=self.inputs_list[0]))
+        self.combined = layers.Flatten()(self.input_layers[0])
         return keras.Model(self.input_layers, self.combined)
 
 

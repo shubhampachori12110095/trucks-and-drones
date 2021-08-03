@@ -117,9 +117,9 @@ class MultiAgent:
 
     def assign_rewards(self, t, reward):
         if isinstance(reward, list):
-            [self.agents[i].reward(reward[i], t) for i in range(len(self.agents))]
+            [self.agents[i].reward(t, reward[i]) for i in range(len(self.agents))]
         else:
-            [agent.reward(reward, t) for agent in self.agents]
+            [agent.reward(t, reward) for agent in self.agents]
 
     def model_pred(self, inputs):
         if isinstance(inputs, list):
