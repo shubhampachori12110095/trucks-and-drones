@@ -2,7 +2,7 @@
 
 '''
 import numpy as np
-from main.simulation.common_sim_func import param_interpret
+from trucks_and_drones.simulation.common_sim_func import param_interpret
 
 
 def is_None(value):

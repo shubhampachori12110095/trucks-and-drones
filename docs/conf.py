@@ -12,12 +12,12 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../RL-TSP-VRP-D/main/'))
+sys.path.insert(0, os.path.abspath('../trucks_and_drones/'))
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'RL-TSP-VRP-D'
+project = 'trucks_and_drones'
 copyright = '2021, Maik Schürmann'
 author = 'Maik Schürmann'
 

@@ -79,7 +79,7 @@ class BaseTempDatabase:
                              'v_is_truck', 'v_loadable', 'v_weight', 'v_type', 'rate_v_cargo', 'rate_v_items',
                              'rate_v_range'
                              ],
-            'customers'   : ['v_coord', 'c_coord','demand'],
+            'customers'   : ['d_coord', 'c_coord','demand'],
             'depots'      : ['d_coord','stock'],
             'restrictions': ['v_range'],
             'action_signals': ['cargo_loss','v_free','compare_coord','free_to_travel','unloading_v','free_to_unload_v','free_to_be_loaded_v','free_to_load_v','free_to_unload_cargo','free_to_load_cargo'],
@@ -267,6 +267,8 @@ class BaseTempDatabase:
         self.v_transporting_v = [[] for i in range(self.num_vehicles)]
         self.time_till_fin = np.zeros((self.num_vehicles))
         self.time_till_fin.fill(None)
+
+        self.done = False
 
     def init_step(self):
 

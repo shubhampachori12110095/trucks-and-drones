@@ -63,8 +63,8 @@ class CustomEnv(gym.Env):
         # reward:
         #reward = self.reward_calc.reward_function()
         #reward = -self.simulation.temp_db.total_time_delta()
-        reward = self.simulation.temp_db.bestrafung
-        #reward = -self.simulation.temp_db.total_time_delta() + self.simulation.temp_db.bestrafung
+        #reward = self.simulation.temp_db.bestrafung
+        reward = -self.simulation.temp_db.total_time_delta() + self.simulation.temp_db.bestrafung
 
         self.count_steps_of_episode += 1
         self.count_total_steps      += 1

@@ -2,7 +2,7 @@
 
 '''
 import numpy as np
-from main.simulation.restrictions import is_not_None
+from trucks_and_drones.simulation.restrictions import is_not_None
 
 # Base Simulator Class:
 # ----------------------------------------------------------------------------------------------------------------
@@ -111,7 +111,7 @@ class BaseSimulator:
 
         self.recharge_range()
         
-        return False
+        return self.temp_db.done
 
     def actions_during_timeframe(self):
 

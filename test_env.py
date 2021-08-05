@@ -1,9 +1,7 @@
-from main.build_env import BuildEnvironment
+from trucks_and_drones.build_env import BuildEnvironment
 #  from main.agents.dummy_agent import DummyAgent
-from main.agents.build_agent import BaseAgentBuilder
-from main.agents.DQN import DQNCore
-from main.agents.contin_actor_critic import ContinActorCriticCore
-
+from old.agents.build_agent import BaseAgentBuilder
+from old.agents.discrete_actor_critic import DiscreteActorCriticCore
 
 env = BuildEnvironment('test', debug_mode=False)
 
@@ -14,12 +12,16 @@ env.trucks(1)
 env.depots(1)
 env.customers(10)
 
-env.observations()
+env.observations(
+    contin_inputs = [['v_coord'], ['c_coord'], ['d_coord'], ['demand']],
+    discrete_inputs = None,
+)
+
 env.actions(
     mode = 'single_vehicle',  # 'multi_vehicle'
     flattened= 'per_output',  # 'per_vehicle', #'all'
-    contin_outputs= ['nodes'],
-    discrete_outputs = [],
+    contin_outputs= [],
+    discrete_outputs = ['nodes'],
     binary_discrete= [],
     binary_contin= [],
     num_discrete_bins = 20,
@@ -29,10 +31,10 @@ env.actions(
 env.compile()
 
 #agent = DummyAgent(env.build())
-agent = BaseAgentBuilder(env.build(), log_dir='_logs')
+agent = BaseAgentBuilder(env.build(), log_dir='trucks_and_drones/_logs')
 
-[agent.assign_agent(ContinActorCriticCore(),at_index=i) for i in range(len(agent.action_outputs))]
+[agent.assign_agent(DiscreteActorCriticCore(),at_index=i) for i in range(len(agent.action_outputs))]
 
 agent = agent.build(max_steps_per_episode=200)
 
-agent.train_agent(60000)
+agent.train_agent(1000000)

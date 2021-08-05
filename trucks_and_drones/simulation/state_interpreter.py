@@ -74,7 +74,6 @@ class BaseObsEncoder:
         self.contin_binary = list(set(flatten_list(self.contin_inputs)) & set(self.temp_db.key_groups_dict['binary']))
         self.contin_value  = list(set(flatten_list(self.contin_inputs)) & set(self.temp_db.key_groups_dict['values']))
 
-
         # Prepare input combinations to use
         for i in range(len(self.combine_per_index)):
             if self.combine_per_index[i] == 'per_vehicle':
@@ -98,7 +97,7 @@ class BaseObsEncoder:
         array_x = np.array([elem[0]/self.temp_db.grid[0] for elem in coord_list])
         array_y = np.array([elem[1]/self.temp_db.grid[1] for elem in coord_list])
 
-        return np.nan_to_num(np.concatenate((array_x, array_y), axis=1))
+        return np.nan_to_num(np.append(array_x, array_y))
 
 
     def value_to_contin(self, key):
@@ -140,14 +139,18 @@ class BaseObsEncoder:
     def value_to_discrete(self, key):
         ''' Converts list of Values to discrete'''
         value_list = self.temp_db.get_val(key)
-        
+
+        print(value_list)
+        print(self.temp_db.min_max_dict[key][1])
+        print(self.temp_db.min_max_dict[key][0])
+
         array_value = np.zeros((len(value_list), self.discrete_dims))
 
         max_value = self.temp_db.min_max_dict[key][1]
         min_value = self.temp_db.min_max_dict[key][0]
         
         if max_value is None:
-            values = np.one((len(value_list))) * (self.discrete_dims - 1)
+            values = np.ones((len(value_list))) * (self.discrete_dims - 1)
         else:
             values = (np.array(value_list) - min_value) // (max_value - min_value) * (self.discrete_dims - 1)
 
@@ -162,13 +165,15 @@ class BaseObsEncoder:
 
         inputs_list =  [self.contin_dict[key]   for key in keys_list if key in set(self.contin_dict.keys())]
         inputs_list += [self.discrete_dict[key] for key in keys_list if key in set(self.discrete_dict.keys())]
-        
+
         if len(inputs_list) > 0:
 
             list_of_arrays = [np.array([]) for i in range(len(inputs_list[0]))]
             
             for input_array in inputs_list:
+                print(input_array)
                 for i in range(len(input_array)):
+                    print(list_of_arrays, input_array)
                     list_of_arrays[i] = np.nan_to_num(np.append(list_of_arrays[i], input_array[i]))
 
             return list_of_arrays
@@ -205,11 +210,13 @@ class BaseObsEncoder:
         for key in self.discrete_binary: self.discrete_dict[key] = self.binary_to_discrete(key)
         for key in self.discrete_value : self.discrete_dict[key] = self.value_to_discrete(key)
 
-        inputs_by_indeces = [self.combine_index(keys_list) for keys_list in self.combine_per_index]
-        inputs_by_types   = [self.combine_type(keys_list) for keys_list in self.combine_per_type]
+        #inputs_by_indeces = [self.combine_index(keys_list) for keys_list in self.combine_per_index]
+        #inputs_by_types   = [self.combine_type(keys_list) for keys_list in self.combine_per_type]
 
-        all_inputs = inputs_by_indeces + inputs_by_types
+        #all_inputs = inputs_by_indeces + inputs_by_types
 
+        all_inputs = [self.contin_dict[key] for key in self.contin_dict.keys()]
+        all_inputs += [self.discrete_dict[key] for key in self.discrete_dict.keys()]
 
         if self.flatten:
             all_inputs = [self.combined_flatten(elem) for elem in all_inputs]

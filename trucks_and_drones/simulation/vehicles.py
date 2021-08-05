@@ -3,8 +3,8 @@
 '''
 import numpy as np
 
-from main.simulation.restrictions import RestrValueObject, is_None, is_not_None, none_add, none_subtract
-from main.simulation.common_sim_func import param_interpret, random_coordinates
+from trucks_and_drones.simulation.restrictions import RestrValueObject, is_None, is_not_None, none_add, none_subtract
+from trucks_and_drones.simulation.common_sim_func import param_interpret, random_coordinates
 
 
 ''' VEHICLE PARAMETER 

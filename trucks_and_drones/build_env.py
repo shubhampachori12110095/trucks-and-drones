@@ -1,18 +1,18 @@
 import numpy as np
 import gym
 
-from main.simulation.temp_database import BaseTempDatabase
-from main.simulation.vehicles import BaseVehicleCreator
-from main.simulation.nodes import BaseNodeCreator
-from main.simulation.auto_agent import BaseAutoAgent
-from main.simulation.simulation import BaseSimulator
+from trucks_and_drones.simulation.temp_database import BaseTempDatabase
+from trucks_and_drones.simulation.vehicles import BaseVehicleCreator
+from trucks_and_drones.simulation.nodes import BaseNodeCreator
+from trucks_and_drones.simulation.auto_agent import BaseAutoAgent
+from trucks_and_drones.simulation.simulation import BaseSimulator
 
-from main.visualizer import BaseVisualizer
-from main.simulation.state_interpreter import BaseObsEncoder
-from main.simulation.action_interpreter import BaseActDecoder
-from main.reward_calculator import BaseRewardCalculator
+from trucks_and_drones.visualizer import BaseVisualizer
+from trucks_and_drones.simulation.state_interpreter import BaseObsEncoder
+from trucks_and_drones.simulation.action_interpreter import BaseActDecoder
+from trucks_and_drones.reward_calculator import BaseRewardCalculator
 
-from main.environment import CustomEnv
+from trucks_and_drones.environment import CustomEnv
 
 
 class BuildEnvironment:

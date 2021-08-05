@@ -296,18 +296,22 @@ class BaseActDecoder:
         if self.check_dict[key+'_bool'] == True:
 
             cur_node_coord = self.temp_db.get_val('n_coord')
-            if self.temp_db.get_val('n_items')[self.actions[self.index_dict[key]]] == 0 or self.index_dict[key] == 0:
-                self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
-                self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+
+            if self.temp_db.get_val('n_items')[int(self.actions[self.index_dict[key]])] == 0:
+                self.temp_db.bestrafung = -10
+                self.temp_db.done = True
+                #self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+                #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
                 #print(-100)
-            if self.temp_db.get_val('n_items')[self.actions[self.index_dict[key]]] == 1:
-                self.temp_db.bestrafung = 1
+            if self.temp_db.get_val('n_items')[int(self.actions[self.index_dict[key]])] == 1:
+                self.temp_db.bestrafung = 10
                 #print(100)
             else:
-                self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
-                self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+                self.temp_db.bestrafung = -10
+                #self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+                #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
                 #print(0)
-            self.value_dict[key] = cur_node_coord[self.actions[self.index_dict[key]]]
+            self.value_dict[key] = cur_node_coord[int(self.actions[self.index_dict[key]])]
 
     def auto_value(self, key):
         if self.check_dict[key+'_bool'] == True:
