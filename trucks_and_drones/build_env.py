@@ -275,8 +275,8 @@ class BuildEnvironment:
     def observations(
             self,
             image_input: (None, list, tuple, np.ndarray) = [],
-            contin_inputs: (None, list, tuple, np.ndarray) = ['values'],
-            discrete_inputs: (None, list, tuple, np.ndarray) = ['binary', 'coordinates'],
+            contin_inputs: (None, list, tuple, np.ndarray) = None, #['values'],
+            discrete_inputs: (None, list, tuple, np.ndarray) = None, #['binary', 'coordinates'],
             discrete_bins: int = 20, #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             combine_per_index: (None, list, tuple, np.ndarray) = ['per_vehicle', 'per_customer', 'per_depot'], # list of input name lists
             combine_per_type: (None, list, tuple, np.ndarray) = None,
@@ -284,7 +284,7 @@ class BuildEnvironment:
             # if no combination are used everything will be flattened,
             flatten: bool = True,
             flatten_images: bool = False,
-            output_as_array: bool = False,
+            output_as_array: bool = True,
         ):
         
         self.obs_params = {
@@ -320,13 +320,13 @@ class BuildEnvironment:
             self,
             mode: str = 'single_vehicle', # 'multi_vehicle'
             flattened: str = 'per_output', #'per_vehicle', #'all'
-            contin_outputs: (None, list, tuple, np.ndarray) = ['coord','amount','v_amount'],
-            discrete_outputs: (None, list, tuple, np.ndarray) = ['nodes', 'v_to_load'],
-            binary_discrete: (None, list, tuple, np.ndarray) = ['move', 'load_unload', 'v_load_unload'],
+            contin_outputs: (None, list, tuple, np.ndarray) = [],#['coord','amount','v_amount'],
+            discrete_outputs: (None, list, tuple, np.ndarray) = [], #['nodes', 'v_to_load'],
+            binary_discrete: (None, list, tuple, np.ndarray) = [], #['move', 'load_unload', 'v_load_unload'],
             binary_contin: (None, list, tuple, np.ndarray) = [],
             num_discrete_bins: int = 20,
             combine: (str, None, list, tuple, np.ndarray) = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
-            multiple_action_spaces: bool = True,
+            multiple_action_spaces: bool = False,
         ):
 
         self.act_params = {
