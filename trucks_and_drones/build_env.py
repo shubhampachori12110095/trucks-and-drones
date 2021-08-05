@@ -283,7 +283,8 @@ class BuildEnvironment:
             # Flattens per combined (and all inputs not in a combined list),
             # if no combination are used everything will be flattened,
             flatten: bool = True,
-            flatten_images: bool = False
+            flatten_images: bool = False,
+            output_as_array: bool = False,
         ):
         
         self.obs_params = {
@@ -295,6 +296,7 @@ class BuildEnvironment:
             'combine_per_type': combine_per_type,
             'flatten': flatten,
             'flatten_images': flatten_images,
+            'output_as_array': output_as_array,
         }
 
     def dummy_observations(
@@ -324,6 +326,7 @@ class BuildEnvironment:
             binary_contin: (None, list, tuple, np.ndarray) = [],
             num_discrete_bins: int = 20,
             combine: (str, None, list, tuple, np.ndarray) = 'contin', # 'discrete', 'by_categ', 'all', list of lists of output names
+            multiple_action_spaces: bool = True,
         ):
 
         self.act_params = {
@@ -335,6 +338,7 @@ class BuildEnvironment:
             'binary_contin': binary_contin,
             'num_discrete_bins': num_discrete_bins,
             'combine': combine,
+            'multiple_action_spaces': multiple_action_spaces,
         }
 
     def dummy_actions(

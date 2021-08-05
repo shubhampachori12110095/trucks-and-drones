@@ -15,6 +15,8 @@ class BaseVisualizer:
         # Initialize pygame
         pygame.init()
 
+        self.no_open_window = True
+
         # Define parameter:
         self.name      = name
         self.temp_db   = temp_db
@@ -85,17 +87,14 @@ class BaseVisualizer:
         )
 
         # init window
-        window_width  = self.grid_surface_dim[0] + 2 * self.grid_padding + self.axis_size + 510
-        window_height = self.grid_surface_dim[0] + 2 * self.grid_padding + self.info_surface_height + self.axis_size
-        self.screen   = pygame.display.set_mode([window_width, window_height])
+        self.window_width  = self.grid_surface_dim[0] + 2 * self.grid_padding + self.axis_size + 510
+        self.window_height = self.grid_surface_dim[0] + 2 * self.grid_padding + self.info_surface_height + self.axis_size
+
 
         # init fonts:
         self.big_font    = pygame.font.SysFont('Arial', 12*2, bold=True)
         self.medium_font = pygame.font.SysFont('Arial', 10*2, bold=False)
         self.small_font  = pygame.font.SysFont('Arial', 6*2,  bold=False)
-
-        # Set title of screen
-        pygame.display.set_caption(self.name)
 
         # Block all events
         #pygame.event.set_blocked(None)
@@ -372,7 +371,12 @@ class BaseVisualizer:
                     "'symbol' was {}, but needs to be 'circle', 'triangle-up', 'triangle-down', 'rectangle'"
                 )
 
-    def visualize_step(self, episode, step):
+    def visualize_step(self, episode, step, slow_down_pls=False):
+
+        if self.no_open_window:
+            self.screen = pygame.display.set_mode([self.window_width, self.window_height])
+            pygame.display.set_caption(self.name)
+            self.no_open_window = False
 
         self.reset_surfaces()
 
@@ -409,6 +413,9 @@ class BaseVisualizer:
             for event in event_list:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     self.wait_for_click()
+
+        if slow_down_pls:
+            pygame.time.wait(250)
 
     def wait_for_click(self):
         event_happened = False

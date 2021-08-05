@@ -227,6 +227,9 @@ class BaseObsEncoder:
                 image_array = self.combined_flatten(image_array)
             all_inputs  = [image_array] + all_inputs
 
+        if self.output_as_array:
+            return np.concatenate(all_inputs)
+
         if len(all_inputs) == 1:
                 return all_inputs[0]
         return all_inputs
@@ -235,10 +238,15 @@ class BaseObsEncoder:
     def obs_space(self):
 
         all_inputs = self.observe_state()
+
         if isinstance(all_inputs, np.ndarray):
-            return spaces.Box(low=0, high=1, shape=np.shape(all_inputs), dtype=np.uint8)
+            return spaces.Box(
+                -np.ones((len(all_inputs))).astype(np.float32),
+                np.ones((len(all_inputs))).astype(np.float32),
+                dtype=np.float32)
+
         if isinstance(all_inputs, list):
-            return spaces.Tuple(tuple([spaces.Box(low=0, high=1, shape=np.shape(elem), dtype=np.uint8) for elem in all_inputs]))
+            return spaces.Tuple(tuple([spaces.Box(low=0.0, high=1.0, shape=np.shape(elem)) for elem in all_inputs]))
 
 
 

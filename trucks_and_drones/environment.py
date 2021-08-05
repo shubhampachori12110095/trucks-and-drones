@@ -2,7 +2,10 @@
 Environment TSP and VRP wit drones or robots
 '''
 import gym
+import numpy as np
 from datetime import datetime
+
+from time import sleep
 
 
 class CustomEnv(gym.Env):
@@ -49,6 +52,9 @@ class CustomEnv(gym.Env):
         self.action_space      = self.act_decoder.action_space()
         self.observation_space = self.obs_encoder.obs_space()
 
+        print(self.action_space )
+        print(self.observation_space )
+
     def step(self, actions):
         
         # take action:
@@ -73,7 +79,10 @@ class CustomEnv(gym.Env):
             'possible_nodes': self.simulation.temp_db.possible_nodes(),
         }
 
-        return observation, reward, done, info_dict
+        if self.count_steps_of_episode > 200:
+            done = True
+
+        return np.array(observation, dtype=np.float32), float(reward), done, {}
 
     def reset(self):
 
@@ -86,11 +95,13 @@ class CustomEnv(gym.Env):
         # Init first state:
         observation = self.obs_encoder.observe_state()
 
-        return observation
+        return np.array(observation, dtype=np.float32)
         
-    def render(self, mode='human', close=False):
+    def render(self, mode='human', close=False, slow_down_pls=False):
+
         if mode == 'human':
-            self.visualizer.visualize_step(self.count_episodes, self.count_steps_of_episode)
+            self.visualizer.visualize_step(self.count_episodes, self.count_steps_of_episode, slow_down_pls)
 
         if close == True:
             self.visualizer.close()
+

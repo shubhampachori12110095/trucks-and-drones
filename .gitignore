@@ -6,5 +6,6 @@ _log
 tf_a2c.py
 _baselines
 _logs
-/_wacky_rl/
+/wacky_rl/
 /_tests/
+/_stable_b/

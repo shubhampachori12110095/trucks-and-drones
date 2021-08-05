@@ -100,15 +100,23 @@ class BaseActDecoder:
     def action_space(self):
 
 
+        if self.multiple_action_spaces:
+            spaces_list = []
+            if len(self.contin_max_val) > 0:
+                spaces_list.append(spaces.Box(low=0,high=1,shape=(len(self.contin_max_val),)))
 
-        spaces_list = []
-        if len(self.contin_max_val) > 0:
-            spaces_list.append(spaces.Box(low=0,high=1,shape=(len(self.contin_max_val),)))
+            for n in self.discrete_bins:
+                spaces_list.append(spaces.Discrete(int(n)))
 
-        for n in self.discrete_bins:
-            spaces_list.append(spaces.Discrete(n))
+            return spaces.Tuple(tuple(spaces_list))
 
-        return spaces.Tuple(tuple(spaces_list))
+        else:
+            if len(self.contin_max_val) > 0:
+                return spaces.Box(low=0, high=1, shape=(len(self.contin_max_val),))
+
+            for n in self.discrete_bins:
+                return spaces.Discrete(int(n))
+
 
 
     def prep_action(self, name, max_val, key=None, act_func=None):
@@ -298,16 +306,16 @@ class BaseActDecoder:
             cur_node_coord = self.temp_db.get_val('n_coord')
 
             if self.temp_db.get_val('n_items')[int(self.actions[self.index_dict[key]])] == 0:
-                self.temp_db.bestrafung = -10
-                self.temp_db.done = True
+                self.temp_db.bestrafung = -25
+                #self.temp_db.done = True
                 #self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
                 #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
                 #print(-100)
             if self.temp_db.get_val('n_items')[int(self.actions[self.index_dict[key]])] == 1:
-                self.temp_db.bestrafung = 10
+                self.temp_db.bestrafung = 0
                 #print(100)
             else:
-                self.temp_db.bestrafung = -10
+                self.temp_db.bestrafung = -25
                 #self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
                 #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
                 #print(0)
@@ -330,6 +338,9 @@ class BaseActDecoder:
 
     def decode_actions(self, actions):
         if self.temp_db.status_dict['v_free'][self.temp_db.cur_v_index] == 1:
+
+            if not isinstance(actions, np.ndarray):
+                actions = np.array([actions])
 
             if len(self.discrete_max_val) != 0: self.actions = self.decode_discrete(actions[:len(self.discrete_max_val)]).ravel()
             if len(self.contin_max_val) != 0: self.actions = self.decode_contin(actions[-len(self.contin_max_val):]).ravel()

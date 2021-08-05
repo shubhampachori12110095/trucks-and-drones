@@ -1,7 +1,7 @@
 from trucks_and_drones import BuildEnvironment
 #  from main.agents.dummy_agent import DummyAgent
-from old.agents.build_agent import BaseAgentBuilder
-from old.agents.discrete_actor_critic import DiscreteActorCriticCore
+from wacky_rl import MultiAgentCompiler
+from wacky_rl.agents import DiscreteActorCriticCore
 
 env = BuildEnvironment('test', debug_mode=False)
 
@@ -31,10 +31,10 @@ env.actions(
 env.compile()
 
 #agent = DummyAgent(env.build())
-agent = BaseAgentBuilder(env.build(), log_dir='trucks_and_drones/_logs')
+agent = MultiAgentCompiler(env.build(), log_dir='trucks_and_drones/_logs')
 
 [agent.assign_agent(DiscreteActorCriticCore(),at_index=i) for i in range(len(agent.action_outputs))]
 
-agent = agent.build(max_steps_per_episode=200)
+agent = agent.build(max_steps_per_episode=200, actions_as_list=True)
 
 agent.train_agent(1000000)
