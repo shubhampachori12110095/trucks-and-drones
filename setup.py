@@ -12,7 +12,7 @@ setup(
   author = 'Maik Schürmann',
   author_email = 'maik.schuermann97@gmail.com',
   url = 'https://github.com/maik97/trucks-and-drones',
-  download_url = 'https://github.com/maik97/trucks-and-drones/archive/refs/tags/v_0.0.2.tar.gz',
+  download_url = 'https://github.com/maik97/trucks-and-drones/archive/refs/tags/v_0.0.3.tar.gz',
   keywords = ['tsp', 'vrp', 'tsp-d', 'vrp-d', 'travelling salesman problem',
               'vehicle routing problem', 'rl', 'reinforcement learning', 'gym environment'],
   install_requires=[
