@@ -1,4 +1,4 @@
-from trucks_and_drones.build_env import BuildEnvironment
+from trucks_and_drones import BuildEnvironment
 #  from main.agents.dummy_agent import DummyAgent
 from old.agents.build_agent import BaseAgentBuilder
 from old.agents.discrete_actor_critic import DiscreteActorCriticCore
