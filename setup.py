@@ -6,13 +6,13 @@ from setuptools import find_packages
 setup(
   name = 'trucks-and-drones',
   packages=find_packages(),
-  version = '0.0.3',
+  version = '0.0.4',
   license='MIT',
   description = 'A gym environment that simulates the travelling salesman or vehicle routing problem with drones or robots.',
   author = 'Maik Schürmann',
   author_email = 'maik.schuermann97@gmail.com',
   url = 'https://github.com/maik97/trucks-and-drones',
-  download_url = 'https://github.com/maik97/trucks-and-drones/archive/refs/tags/v_0.0.3.tar.gz',
+  download_url = 'https://github.com/maik97/trucks-and-drones/archive/refs/tags/v_0.0.4.tar.gz',
   keywords = ['tsp', 'vrp', 'tsp-d', 'vrp-d', 'travelling salesman problem',
               'vehicle routing problem', 'rl', 'reinforcement learning', 'gym environment'],
   install_requires=[
