@@ -25,6 +25,7 @@ class BaseVisualizer:
 
         # Define some colors
         self.color_dict = {
+            'no_items_white': (240,240,240),
             'white': (255, 255, 255),
             'light-grey': (195, 195, 195),
             'grey': (128, 128, 128),
@@ -89,7 +90,6 @@ class BaseVisualizer:
         # init window
         self.window_width  = self.grid_surface_dim[0] + 2 * self.grid_padding + self.axis_size + 510
         self.window_height = self.grid_surface_dim[0] + 2 * self.grid_padding + self.info_surface_height + self.axis_size
-
 
         # init fonts:
         self.big_font    = pygame.font.SysFont('Arial', 12*2, bold=True)
@@ -279,15 +279,18 @@ class BaseVisualizer:
                 y += self.small_height + 3
                 self.info_surface.blit(text, (5, y))
 
+
     def draw_distance_traveled(self, episode, step, coordinates_list, color='grey'):
         '''
         ergänzen bei vehicle, temp_db update:
         arial travel: append start and end coordinates
         street travel: append start_coord, start_coord+[end_coord[0],0], end_coord
         '''
-        surface_coordinates_list = [(elem[0]*self.x_mulipl, elem[1]*self.y_mulipl) for elem in coordinates_list]
+        surface_coordinates_list = [
+            [elem[0]*self.x_mulipl + self.marker_size*2, (self.grid[1] - elem[1])*self.y_mulipl + self.marker_size*2] for elem in coordinates_list]
         if len(surface_coordinates_list) > 1:
-            pygame.draw.lines(self.travel_surface, color_dict[color], False, surface_coordinates_list)
+            pygame.draw.lines(self.grid_surface, self.color_dict[color], False, points=surface_coordinates_list, width=1)
+
 
     def text_draw(self, i, text, fontsize='small', i_plus=1):
         if fontsize == 'small':
@@ -354,17 +357,22 @@ class BaseVisualizer:
         for i in iter_indices:
             type_index = int(types[i])
 
+            if items[i] == 0 and i in set(self.temp_db.c_indices):
+                color = 'no_items_white'
+            else:
+                color = colors[type_index]
+
             if symbols[type_index] == 'circle':
-                self.draw_circle_marker(coord[i], items[i], color=colors[type_index])
+                self.draw_circle_marker(coord[i], items[i], color=color)
 
             elif symbols[type_index] == 'triangle-up':
-                self.draw_triangle_up_marker(coord[i], items[i], color=colors[type_index])
+                self.draw_triangle_up_marker(coord[i], items[i], color=color)
 
             elif symbols[type_index] == 'triangle-down':
-                self.draw_triangle_down_marker(coord[i], items[i], color=colors[type_index])
+                self.draw_triangle_down_marker(coord[i], items[i], color=color)
 
             elif symbols[type_index] == 'rectangle':
-                self.draw_rect_marker(coord[i], items[i], color=colors[type_index])
+                self.draw_rect_marker(coord[i], items[i], color=color)
 
             else:
                 raise Exception(
@@ -390,9 +398,9 @@ class BaseVisualizer:
         self.draw_status_dict()
 
         self.screen.blits((
+            (self.travel_surface, (self.grid_padding + self.axis_size, self.grid_padding)),
             (self.grid_surface, (self.grid_padding+self.axis_size, self.grid_padding)),
             (self.grid_info_surface, (self.grid_padding - int(round(self.marker_size/2)), self.grid_padding)),
-            #(self.travel_surface, (self.grid_padding, self.grid_padding))
         ))
         
         self.screen.blit(self.info_surface,(self.grid_padding, self.grid_padding + self.grid_surface_dim[1]+self.axis_size))
@@ -429,6 +437,8 @@ class BaseVisualizer:
                 sys.exit()
 
     def convert_to_img_array(self):
+        self.draw_marker_iter('node')
+        self.draw_marker_iter('vehicle')
         return pygame.surfarray.array3d(self.grid_surface)
 
     def close(self):

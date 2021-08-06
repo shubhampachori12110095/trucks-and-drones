@@ -257,9 +257,16 @@ class BaseVehicleClass:
                 self.temp_db.status_dict['v_coord'][self.v_index] = (
                     direction * (real_distance/distance) + self.temp_db.status_dict['v_coord'][self.v_index]
                 )
+                if self.is_truck:
+                    self.temp_db.past_coord_not_transportable_v[self.v_index].append(np.copy(self.temp_db.status_dict['v_coord'][self.v_index]))
+                else:
+                    self.temp_db.past_coord_transportable_v[self.v_index].append(np.copy(self.temp_db.status_dict['v_coord'][self.v_index]))
+
                 
                 for i in self.temp_db.v_transporting_v[self.v_index]:
                     self.temp_db.status_dict['v_coord'][i] = self.temp_db.status_dict['v_coord'][self.v_index]
+                    self.temp_db.past_coord_transportable_v[i].append(np.copy(
+                        self.temp_db.status_dict['v_coord'][self.v_index]))
 
             if np.round(real_distance - distance, 3) == 0:
                 self.temp_db.actions_list[self.v_index].pop(0)
