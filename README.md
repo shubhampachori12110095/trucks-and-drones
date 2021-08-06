@@ -1,11 +1,10 @@
 # Trucks and Drones (RL-TSP-VRP-D)
 Using reinforcement learning to solve the travelling salesman and vehicle routing problem with drones (or robots).
 
-(The project is currently under development)
 
 ## Installation
 
-- Install rucks and Drones with pip:
+- Install Trucks and Drones with pip:
 
 ```
 pip install trucks-and-drones
@@ -19,16 +18,18 @@ cd trucks-and-drones
 python setup.py install
 ```
 
+
 ## Dependencies
 
 - gym >= 0.17.3
+
 
 ## Documentation 
 
 https://trucks-and-drones.rtfd.io/
 
-## Example
 
+## Example
 
 ```python
 from stable_baselines3 import PPO
