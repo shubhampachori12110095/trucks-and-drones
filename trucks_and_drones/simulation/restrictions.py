@@ -190,6 +190,11 @@ class RestrValueObject:
         return np.nanmax(np.array([0, self.rate], dtype=np.float)) * value
 
     def in_time(self):
+        #print()
+        #print('in time', self.name)
+        #print(np.nanmax(np.array(
+        #            [0, self.rate], dtype=np.float)))
+        #print(self.temp_db.cur_time_frame)
         if not self.rate is None:
             self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = (np.nanmax(np.array(
                     [0, self.rate], dtype=np.float)) * self.temp_db.cur_time_frame)
@@ -293,7 +298,7 @@ class RestrValueObject:
             value = np.nanmin(
                 np.array([value, self.temp_db.status_dict['in_time_' + self.name][self.obj_index]], dtype=np.float)
             )
-        
+
         new_value, restr_signal = self.restriction.subtract_value(
             self.temp_db.status_dict[self.name][self.obj_index], value
         )

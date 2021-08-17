@@ -327,6 +327,10 @@ class BaseTempDatabase:
         check = np.sum(self.status_dict['v_coord'][self.cur_v_index] - compare_coord) == 0
         return check
 
+    def same_coord_at_destination(self, compare_coord):
+        check = np.sum(self.status_dict['v_dest'][self.cur_v_index] - compare_coord) == 0
+        return check
+
     def terminal_state(self):
 
         if np.sum(self.customers(self.status_dict['n_items'])[0]) == 0:

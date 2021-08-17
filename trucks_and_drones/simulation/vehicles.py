@@ -216,6 +216,8 @@ class BaseVehicleClass:
         if len(self.temp_db.actions_list[self.v_index]) > 0:
             
             action_pack = self.temp_db.actions_list[self.v_index][0]
+            #print('actions', action_pack)
+
             
             if action_pack[0] == 'move':
                 self.v_move(calc_time=calc_time)

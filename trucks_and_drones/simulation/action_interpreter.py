@@ -349,9 +349,11 @@ class BaseActDecoder:
 
             if self.check_dict['v_unload_bool']: self.simulator.unload_vehicle(self.value_dict['v_unload'])
             if self.check_dict['v_load_bool']:   self.simulator.load_vehicle(self.value_dict['v_load'])
-            if self.check_dict['unload_bool']:   self.simulator.unload_items(self.value_dict['unload'])
             if self.check_dict['load_bool']:     self.simulator.load_items(self.value_dict['load'])
+
             if self.check_dict['coord_bool']:    self.simulator.set_destination(self.value_dict['coord'])
+            if self.check_dict['unload_bool']:   self.simulator.unload_items(self.value_dict['unload'])
+
 
             
             #self.simulator.recharge_range(self.temp_db.v_index)

@@ -25,6 +25,8 @@ class BaseSimulator:
         self.reset_round()
 
     def reset_round(self):
+
+
         self.v_count = 0
         self.v_indices = np.squeeze(np.argwhere(np.isnan(self.temp_db.time_till_fin)))#np.where( == np.nan)
         self.num_v = self.v_indices.size
@@ -70,6 +72,8 @@ class BaseSimulator:
             n_j = self.auto_agent.find_customer()
 
         if n_j is not None:
+            #print(self.temp_db.status_dict['v_dest'][self.temp_db.cur_v_index])
+            #print(self.temp_db.status_dict['n_coord'][n_j])
             if self.temp_db.same_coord(self.temp_db.status_dict['n_coord'][n_j]):
                 self.temp_db.actions_list[self.temp_db.cur_v_index].append(['unload_i', n_j, amount])
                 #print(amount, 'items to unload from', self.temp_db.cur_v_index, 'to', n_j)
@@ -120,9 +124,11 @@ class BaseSimulator:
 
         min_masked_array = np.nanmin(self.temp_db.time_till_fin)
         if not np.isnan(min_masked_array):
-            self.temp_db.cur_time_frame = np.min([min_masked_array, 1])
+            #self.temp_db.cur_time_frame = np.min([min_masked_array, 1])
+            self.temp_db.cur_time_frame = np.min(min_masked_array)
         else:
             self.temp_db.cur_time_frame = 0
+        #print(self.temp_db.cur_time_frame)
 
         self.temp_db.total_time += self.temp_db.cur_time_frame
 
