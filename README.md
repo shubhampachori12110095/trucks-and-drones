@@ -47,12 +47,12 @@ env.actions(discrete_outputs = ['nodes'])
 env.compile()
 env = env.build()
 
-# Example Proximal Policy Optimization using `stable-baselines3`
+# Example: Proximal Policy Optimization using `stable-baselines3`
 from stable_baselines3 import PPO
 model = PPO("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=200_000) #  takes about 10 minutes with cpu
 
-# Alternative Example Proximal Policy Optimization using `wacky_rl`
+# Alternative Example: Proximal Policy Optimization using `wacky_rl`
 '''
 from trucks_and_drones.wacky_ppo import WackyPPO
 from wacky_rl.trainer import Trainer
@@ -71,8 +71,8 @@ sum_rewards = 0
 
 for i in range(100):
 
-    #action = agent.act(obs, act_argmax=True)
-    action, _states = model.predict(obs, deterministic=True)
+    #action = agent.act(obs, act_argmax=True) #  for `wacky_rl` agents
+    action, _states = model.predict(obs, deterministic=True) #  for `stable-baselines3` agents
     obs, reward, done, info = env.step(action)
     sum_rewards += reward
 
