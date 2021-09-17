@@ -60,7 +60,7 @@ from wacky_rl.logger import StatusPrinter
 
 agent = WackyPPO(env, logger=StatusPrinter('WackyPPO'))
 trainer = Trainer(env, agent)
-trainer.n_step_train(500_000, train_on_test=False, render_env=False, render_test=False)
+trainer.n_step_train(200_000, train_on_test=False, render_env=False, render_test=False) #  takes about 25 minutes with cpu
 trainer.agent.save_model()
 '''
 
