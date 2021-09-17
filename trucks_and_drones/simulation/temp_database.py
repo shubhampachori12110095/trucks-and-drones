@@ -94,6 +94,29 @@ class BaseTempDatabase:
 
         self.bestrafung = 0
 
+    def __call__(self, keys, index=None):
+        if isinstance(keys, str):
+            return self.lookup_key(keys, index)
+        return [self.lookup_key(key, index) for key in keys]
+
+    def lookup_key(self, key, index=None):
+
+        if key in set(self.status_dict.keys()):
+            elem = self.status_dict[key]
+        elif key in set(self.constants_dict.keys()):
+            elem = self.constants_dict[key]
+        elif key in set(self.signals_dict.keys()):
+            elem = self.signals_dict[key]
+        elif key in set(self.key_groups_dict.keys()):
+            elem = self.key_groups_dict[key]
+        else:
+            raise KeyError('Key not found:', key)
+
+        if not index is None:
+            return elem[index]
+        return elem
+
+
     def init_db(self):
 
         # Dict of vehicle and node objects:
