@@ -22,6 +22,7 @@ python setup.py install
 ## Dependencies
 
 - gym >= 0.17.3
+- (wacky_rl)
 
 
 ## Documentation 
