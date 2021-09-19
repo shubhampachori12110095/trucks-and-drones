@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras.layers import Dense, Input, LSTM
 
 from wacky_rl.agents import AgentCore
 from wacky_rl.models import WackyModel
@@ -48,7 +48,10 @@ class WackyPPO(AgentCore):
 
         kernel_initializer = tf.keras.initializers.Orthogonal()
 
+        #print(env.observation_space.shape)
+        #input_layer = Input((3,34))
         input_layer = Input(env.observation_space.shape)
+        #lstm_layer = LSTM(32, kernel_initializer=kernel_initializer)(input_layer)
         hidden_layer = Dense(hidden_units, activation=hidden_activation, kernel_initializer=kernel_initializer)(input_layer)
         hidden_layer = Dense(hidden_units, activation=hidden_activation, kernel_initializer=kernel_initializer)(hidden_layer)
 
