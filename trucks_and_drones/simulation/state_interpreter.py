@@ -97,11 +97,18 @@ class BaseObsEncoder:
         array_x = np.array([elem[0]/self.temp_db.grid[0] for elem in coord_list])
         array_y = np.array([elem[1]/self.temp_db.grid[1] for elem in coord_list])
 
+        if key == 'c_coord':
+            for i in range(self.temp_db.num_customers):
+                if self.temp_db.status_dict['n_items'][i + self.temp_db.num_depots] == 0:
+                    array_x[i] = 0.0
+                    array_y[i] = 0.0
+
         return np.nan_to_num(np.append(array_x, array_y))
 
 
     def value_to_contin(self, key):
         ''' Normalizes list of Values'''
+
         max_value = self.temp_db.min_max_dict[key][1]
         min_value = self.temp_db.min_max_dict[key][0]
         value_list = self.temp_db.get_val(key)

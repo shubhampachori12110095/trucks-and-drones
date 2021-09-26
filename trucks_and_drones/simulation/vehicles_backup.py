@@ -233,42 +233,6 @@ class BaseVehicleClass:
         else:
             self.temp_db.time_till_fin[self.v_index] = None
 
-    def set_node_as_destination(self, node_idx):
-        coordinates = np.array(self.temp_db.get_val('n_coord')[node_idx])
-        self.temp_db.status_dict['v_dest'][self.v_index] = coordinates
-
-    def calc_move_time(self, round_to=3, check_if_dest_reachable=True):
-
-        if bool(self.temp_db.status_dict['v_stuck'][self.v_index]):
-            return np.nan, False
-
-        direction = self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
-        distance = self.calc_distance(direction)
-
-        if np.round(np.array([distance]), round_to) == 0:
-            return 0.0, True
-
-        time_frame = np.nanmax(self.range_restr.calc_time(distance), 0)
-
-        if check_if_dest_reachable:
-            self.range_restr.in_time(time_frame)
-            real_distance = self.range_restr.check_subtract_value(distance)
-
-            if np.round(np.array([distance]), round_to) != np.round(np.array([real_distance]), round_to):
-                return np.nan, False
-
-        return time_frame, True
-
-    def set_current_coord_to_dest(self):
-        coordinates = np.copy(
-            self.temp_db.status_dict['v_dest'][self.v_index]
-        )
-        self.temp_db.status_dict['v_coord'][self.v_index] = coordinates
-
-        if self.is_truck:
-            self.temp_db.past_coord_not_transportable_v[self.v_index].append(coordinates)
-        else:
-            self.temp_db.past_coord_transportable_v[self.v_index].append(coordinates)
 
     def v_move(self, calc_time=False):
 

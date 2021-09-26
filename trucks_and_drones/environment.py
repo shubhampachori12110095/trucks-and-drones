@@ -47,7 +47,7 @@ class CustomEnv(gym.Env):
 
         # Init gym spaces:
         self.reset()
-        self.act_decoder.finish_init()
+        #self.act_decoder.finish_init()
 
         self.action_space      = self.act_decoder.action_space()
         self.observation_space = self.obs_encoder.obs_space()
@@ -59,9 +59,10 @@ class CustomEnv(gym.Env):
         
         # take action:
         self.simulation.temp_db.init_step()
-        self.act_decoder.decode_actions(actions)
-        done = self.simulation.finish_step()
-        self.simulation.temp_db.finish_step()
+        #self.act_decoder.decode_actions(actions)
+        done = self.act_decoder.decode_actions(actions)
+        #done = self.simulation.finish_step()
+        #self.simulation.temp_db.finish_step()
 
         # new state:
         observation = self.obs_encoder.observe_state()
@@ -71,6 +72,7 @@ class CustomEnv(gym.Env):
         #reward = -self.simulation.temp_db.total_time_delta()
         #reward = self.simulation.temp_db.bestrafung
         reward = -self.simulation.temp_db.total_time_delta() + self.simulation.temp_db.bestrafung
+        #print(reward)
 
         self.count_steps_of_episode += 1
         self.count_total_steps      += 1

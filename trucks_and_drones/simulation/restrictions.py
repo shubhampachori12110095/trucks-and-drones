@@ -189,15 +189,17 @@ class RestrValueObject:
     def calc_time(self, value):
         return np.nanmax(np.array([0, self.rate], dtype=np.float)) * value
 
-    def in_time(self):
+    def in_time(self, time_frame=None):
         #print()
         #print('in time', self.name)
         #print(np.nanmax(np.array(
         #            [0, self.rate], dtype=np.float)))
         #print(self.temp_db.cur_time_frame)
+        if time_frame is None:
+            time_frame = self.temp_db.cur_time_frame
         if not self.rate is None:
             self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = (np.nanmax(np.array(
-                    [0, self.rate], dtype=np.float)) * self.temp_db.cur_time_frame)
+                    [0, self.rate], dtype=np.float)) * time_frame)
 
         else:
             self.temp_db.status_dict['in_time_'+self.name][self.obj_index] = np.nan

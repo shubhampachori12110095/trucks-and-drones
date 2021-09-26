@@ -10,7 +10,7 @@ def lookup_db(db_dict, name_list):
 '''
 
 def random_coordinates(grid):
-    return np.array([np.random.randint(0,grid[0]+1), np.random.randint(0,grid[1]+1)])
+    return np.array([np.random.randint(1,grid[0]+1), np.random.randint(1,grid[1]+1)])
 
 
 def insert_at_coord(dict_var, key, value, list_index, num_objs):

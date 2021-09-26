@@ -441,8 +441,10 @@ class BuildEnvironment:
         self.visualizor = Visualizer(self.name, self.visual_params, self.temp_db)
 
         # Init observation and actions encoding/decoding:
+        from trucks_and_drones.simulation import acts
         self.obs_encoder = ObsEncoder(self.obs_params, self.temp_db, self.visualizor)
-        self.act_decoder = ActDecoder(self.act_params, self.temp_db, self.simulation)
+        #self.act_decoder = ActDecoder(self.act_params, self.temp_db, self.simulation)
+        self.act_decoder = acts.TSPAction(self.temp_db, self.simulation)
 
         # Init reward calculations:
         self.reward_calc = RewardCalculator(self.reward_params, self.temp_db)

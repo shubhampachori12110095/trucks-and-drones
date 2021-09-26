@@ -1,6 +1,227 @@
+import gym
 import numpy as np
 from gym import spaces
 
+class CustomAction:
+
+    def __init__(self):
+        pass
+
+    def build(self, temp_db, simulation):
+        self.temp_db = temp_db
+        self.simulation = simulation
+
+    def gym_space(self):
+        pass
+
+    def decode_actions(self, actions):
+        pass
+
+    def reset(self):
+        pass
+
+    def to_customer(
+            self,
+            customer_idx,
+            vehicle,
+            terminate_on_mistake=True,
+            mistake_penalty=-10,
+            additional_reward=10
+    ):
+
+        done = False
+        reward = 0
+        node_idx = customer_idx + self.temp_db.num_depots # transform customer index to node index
+
+        # No demand, mistake:
+        if self.temp_db.get_val('n_items')[node_idx] == 0:
+            reward += mistake_penalty
+            if terminate_on_mistake:
+                done = True
+
+        # Customer has demand:
+        else:
+            reward += additional_reward
+
+        vehicle.set_node_to_destination(node_idx)
+
+        # calculate move time and check if vehicle can actually move:
+        time, done_signal = vehicle.calc_move_time(check_if_dest_reachable=True)
+
+        if done_signal:
+            reward += mistake_penalty
+
+        if terminate_on_mistake and done_signal:
+            done = True
+
+        return time, reward, done
+
+
+
+class TSPAction:
+
+    def __init__(self, temp_db, simulation):
+        self.temp_db = temp_db
+        self.simulation = simulation
+
+    def build(self, temp_db, simulation):
+        self.temp_db = temp_db
+        self.simulation = simulation
+
+    def action_space(self):
+        return spaces.Discrete(self.temp_db.num_nodes - 1)
+
+    def decode_actions(self, actions):
+
+        action = int(actions)  + 1
+        cur_node_coord = self.temp_db.get_val('n_coord')
+
+        if self.temp_db.get_val('n_items')[action] == 0:
+            self.temp_db.bestrafung = -10
+            done = True
+            # self.temp_db.done = True
+            # self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+            # self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+            # print(-100)
+        if self.temp_db.get_val('n_items')[action] == 1:
+            self.temp_db.bestrafung = 10
+            done = False
+            # print(100)
+        else:
+            self.temp_db.bestrafung = -10
+            # self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+            # self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+            # print(0)
+
+        self._move(action)
+        self.temp_db.status_dict['n_items'][action] = 0
+        if not done:
+            done = bool(np.sum(self.temp_db.get_val('n_items')[1:]) == 0)
+
+        if done:
+            self._move(0)
+
+        self.temp_db.total_time += self.temp_db.cur_time_frame
+
+        return done
+
+    def _move(self, node_index):
+        coordinates = np.array(self.temp_db.get_val('n_coord')[node_index])
+        vehicle = self.temp_db.base_groups['vehicles'][0]
+        self.temp_db.status_dict['v_dest'][self.temp_db.cur_v_index] = coordinates
+        vehicle.v_move(calc_time=True)
+        self.temp_db.time_till_fin[0] = np.nan_to_num(self.temp_db.time_till_fin[0])
+        self.temp_db.total_time += self.temp_db.time_till_fin[0]
+        self.temp_db.status_dict['v_coord'][vehicle.v_index] = coordinates
+        self.temp_db.past_coord_not_transportable_v[vehicle.v_index].append(
+            np.copy(self.temp_db.status_dict['v_coord'][vehicle.v_index]))
+        self.temp_db.time_till_fin[0] = 0
+
+class TSPDroneAction:
+
+    def __init__(self, temp_db, simulation):
+        self.temp_db = temp_db
+        self.simulation = simulation
+
+    def build(self, temp_db, simulation):
+        self.temp_db = temp_db
+        self.simulation = simulation
+
+    def action_space(self):
+        return spaces.Tuple(spaces=(
+                spaces.Discrete(self.temp_db.num_customers + 1),
+                spaces.Discrete(self.temp_db.num_customers + 1)
+            )
+        )
+
+    def decode_actions(self, actions):
+
+        truck_act = int(actions[0]) + 1
+        drone_act = int(actions[1]) + 1
+        cur_node_coord = self.temp_db.get_val('n_coord')
+
+        if self.temp_db.get_val('n_items')[action] == 0:
+            self.temp_db.bestrafung = -10
+            done = True
+            # self.temp_db.done = True
+            # self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+            # self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+            # print(-100)
+        if self.temp_db.get_val('n_items')[action] == 1:
+            self.temp_db.bestrafung = 10
+            done = False
+            # print(100)
+        else:
+            self.temp_db.bestrafung = -10
+            # self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+            # self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+            # print(0)
+
+        self._move(action)
+        self.temp_db.status_dict['n_items'][action] = 0
+        if not done:
+            done = bool(np.sum(self.temp_db.get_val('n_items')[1:]) == 0)
+
+        if done:
+            self._move(0)
+
+        self.temp_db.total_time += self.temp_db.cur_time_frame
+
+        return done
+
+
+class DiscreteAction:
+
+    def __init__(
+            self,
+            temp_db,
+            key,
+            n=None,
+    ):
+
+        self.temp_db = temp_db
+        self.key = key
+        self.n = n
+
+    def finish_init(self):
+        if self.n is None:
+            self.n = len(self.temp_db(self.key))
+
+    def gym_space(self):
+        return spaces.Discrete(self.n)
+
+    def to_node(self, action):
+
+        action = int(action)
+        cur_node_coord = self.temp_db.get_val('n_coord')
+
+        if self.temp_db.get_val('n_items')[action] == 0:
+            self.temp_db.bestrafung = -10
+            #self.temp_db.done = True
+            #self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+            #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+            #print(-100)
+        if self.temp_db.get_val('n_items')[action] == 1:
+            self.temp_db.bestrafung = 10
+            #print(100)
+        else:
+            self.temp_db.bestrafung = -10
+            #self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+            #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+            #print(0)
+
+        return cur_node_coord[action]
+
+
+class BoxAction:
+
+    def __init__(
+            self,
+            temp_db,
+            key,
+    ):
+        self.temp_db = temp_db
+        self.key = key
 
 class BaseActDecoder:
 
@@ -115,7 +336,7 @@ class BaseActDecoder:
                 return spaces.Box(low=0, high=1, shape=(len(self.contin_max_val),))
 
             for n in self.discrete_bins:
-                return spaces.Discrete(int(n-1))  #  TODO: Quick fix to permanent
+                return spaces.Discrete(int(n))
 
 
 
@@ -301,8 +522,6 @@ class BaseActDecoder:
 
     def to_node(self, key):
 
-        self.actions[self.index_dict[key]] = self.actions[self.index_dict[key]] + 1 #  TODO: Quick fix to permanent
-
         if self.check_dict[key+'_bool'] == True:
 
             cur_node_coord = self.temp_db.get_val('n_coord')
@@ -322,11 +541,6 @@ class BaseActDecoder:
                 #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
                 #print(0)
             self.value_dict[key] = cur_node_coord[int(self.actions[self.index_dict[key]])]
-
-            self.temp_db.done = bool(np.sum(self.temp_db.get_val('n_items')[1:]) == 0) #  TODO: Quick fix to permanent
-            #print(int(self.actions[self.index_dict[key]]))
-            #print(self.temp_db.get_val('n_items')[int(self.actions[self.index_dict[key]])])
-            #print(self.temp_db.bestrafung)
 
     def auto_value(self, key):
         if self.check_dict[key+'_bool'] == True:

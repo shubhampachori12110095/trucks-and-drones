@@ -1,6 +1,342 @@
+import gym
 import numpy as np
 from gym import spaces
 
+class CustomAction:
+    '''
+    Base class for custom actions.
+    '''
+
+    def __init__(self):
+        pass
+
+    def build(self, temp_db, simulation):
+        self.temp_db = temp_db
+        self.simulation = simulation
+
+    def gym_space(self):
+        pass
+
+    def decode_actions(self, actions):
+        pass
+
+    def reset(self):
+        pass
+
+    def to_customer(
+            self,
+            customer_idx,
+            vehicle,
+            terminate_on_mistake=True,
+            mistake_penalty=-10,
+            additional_reward=10
+    ):
+
+        done = False
+        reward = 0
+        node_idx = customer_idx + self.temp_db.num_depots # transform customer index to node index
+
+        # No demand, bad action:
+        if self.temp_db.get_val('n_items')[node_idx] == 0:
+            reward += mistake_penalty
+            if terminate_on_mistake:
+                done = True
+
+        # Customer has demand:
+        else:
+            reward += additional_reward
+
+        vehicle.set_node_as_destination(node_idx)
+
+        # calculate move time and check if vehicle can actually move/ reach destination:
+        time_frame, error_signal = vehicle.calc_move_time(check_if_dest_reachable=True)
+
+        if error_signal:
+            reward += mistake_penalty
+
+        if terminate_on_mistake and error_signal:
+            done = True
+
+        return time_frame, reward, done
+
+    def simple_demand_satisfaction(self, customer_idx):
+        '''
+        Assumes customers demand can be satisfied instantly without any restrictions,
+        additional assumes infinite cargo of vehicle
+        '''
+        node_idx = customer_idx + self.temp_db.num_depots # transform customer index to node index
+        self.temp_db.status_dict['n_items'][node_idx] = 0
+
+    def check_demands(self):
+        return bool(np.sum(self.temp_db.get_val('n_items')[self.temp_db.num_depots:]) == 0)
+
+
+class TSPAction(CustomAction):
+
+    def __init__(self, temp_db, simulation):
+        super().__init__()
+        self.temp_db = temp_db
+        self.simulation = simulation
+
+    def action_space(self):
+        return spaces.Discrete(self.temp_db.num_customers)
+
+    def decode_actions(self, actions):
+
+        vehicle = self.temp_db.base_groups['vehicles'][0] # only one vehicle with index 0
+
+        # calc the time to move and check if action is valid
+        time_frame, reward, done = self.to_customer(
+            customer_idx=int(actions),
+            vehicle=vehicle
+        )
+
+        # if vehicle can move, update reward and log to total time (costs):
+        # (under standard parameter/assumptions, this will always be the case)
+        if not np.isnan(time_frame):
+            reward -= time_frame
+            self.temp_db.total_time += time_frame  # logging
+
+        # if action was vaild, move and update demand:
+        if not done:
+            vehicle.set_current_coord_to_dest()  # 'jump' to destination
+            self.simple_demand_satisfaction(customer_idx=int(actions))  # set demand to zero
+
+        # check if all demands are satisfied,
+        # if so return to depot
+        if self.check_demands() and not done:
+            vehicle.set_node_as_destination(0) # set destination to the single depot with index 0
+            time_frame, error_signal = vehicle.calc_move_time(check_if_dest_reachable=True)
+
+            if not np.isnan(time_frame):
+                reward -= time_frame
+                self.temp_db.total_time += time_frame  # logging
+
+            if not error_signal:
+                vehicle.set_current_coord_to_dest()  # 'jump' to destination
+                reward += 10 # adding the additional reward, so the reward always stays positive for correct actions
+            done = True
+
+        return done, reward
+
+
+class TSPDroneAction(CustomAction):
+
+
+    def __init__(self, temp_db, simulation):
+        super().__init__()
+        self.temp_db = temp_db
+        self.simulation = simulation
+
+    def reset(self):
+        self.truck_action_waits = False
+        self.drone_action_waits = False
+
+    def action_space(self):
+        return spaces.Tuple((
+                spaces.Discrete(self.temp_db.num_customers),
+                spaces.Discrete(self.temp_db.num_customers)
+            )
+        )
+
+    def decode_actions(self, actions):
+        truck = self.temp_db.base_groups['vehicles'][0]  # vehicle with index 0
+        drone = self.temp_db.base_groups['vehicles'][1]  # vehicle with index 1
+
+        reward = 0
+        done_truck = False
+        done_drone = False
+        drone_is_transported = False
+
+        # Truck:
+        if not self.truck_action_waits:
+            time_frame_truck, reward_truck, done_truck = self.to_customer(
+                customer_idx=int(actions[0]),
+                vehicle=truck,
+                terminate_on_mistake=False,
+                mistake_penalty=0,
+            )
+            reward += reward_truck
+            self.temp_db.time_till_fin[0] = time_frame_truck
+
+        # drone and truck are at the same node and have same destination
+        if actions[0] == actions[1] and self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]:
+            drone_is_transported = True
+
+        # Drone:
+        elif not self.drone_action_waits:
+            time_frame_drone, reward_drone, done_drone = self.to_customer(
+                customer_idx=int(actions[1]),
+                vehicle=drone,
+                terminate_on_mistake=False,
+                mistake_penalty=0,
+            )
+            reward += reward_drone
+            self.temp_db.time_till_fin[1] = time_frame_drone
+
+        # Terminate episode if mistakes were made
+        if done_truck or done_drone or np.isnan(self.temp_db.time_till_fin[0]) or np.isnan(self.temp_db.time_till_fin[1]):
+            return True, reward - 10 # additional terminal penalty
+
+        if not drone_is_transported:
+            cur_vehicle_idx = np.argmin(self.temp_db.time_till_fin)
+        else:
+            cur_vehicle_idx = 0
+
+        time_frame = self.temp_db.time_till_fin[cur_vehicle_idx] # get current timeframe
+        self.temp_db.time_till_fin[time_frame] = 0
+
+        if cur_vehicle_idx == 0:
+            vehicle = truck
+            self.truck_action_waits = False
+
+            if drone_is_transported:
+                self.drone_action_waits = False
+                self.temp_db.time_till_fin[1] = 0
+            else:
+                self.drone_action_waits = True
+                self.temp_db.time_till_fin[1] = self.temp_db.time_till_fin[1] - time_frame
+
+        else:
+            vehicle = drone
+            self.drone_action_waits = False
+            self.truck_action_waits = True
+            self.temp_db.time_till_fin[0] = self.temp_db.time_till_fin[1] - time_frame
+
+        vehicle.set_current_coord_to_dest()  # 'jump' to destination
+        if cur_vehicle_idx == 0:
+            self.simple_demand_satisfaction(customer_idx=int(actions))  # set demand to zero
+
+            if drone_is_transported:
+                drone.vehicle.set_current_coord_to_dest()  # 'jump' transported drone to destination
+
+        else:
+            if self.temp_db.status_dict['v_items'][1] != 0: # if drone has cargo
+                self.simple_demand_satisfaction(customer_idx=int(actions))
+                self.temp_db.status_dict['v_items'][1] = 0 # drone has only one cargo slot
+
+
+        reward -= time_frame
+        self.temp_db.total_time += time_frame  # logging
+
+        # truck and drone at the same location, drone gets full cargo
+        if self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]:
+            self.temp_db.status_dict['v_items'][1] = 1
+
+        # terminate if all demands are satisfied
+        if self.check_demands():
+
+            if self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]:
+                truck.set_node_as_destination(0)  # set destination to the single depot with index 0
+                drone.set_node_as_destination(0)  # set destination to the single depot with index 0
+                time_frame, error_signal = truck.calc_move_time(check_if_dest_reachable=True) # only truck needs to be checked
+
+                if error_signal or np.isnan(time_frame):
+                    return True, reward - 10
+
+                truck.set_current_coord_to_dest() # move
+                drone.set_current_coord_to_dest() # move
+
+                return True, reward - time_frame + 10
+
+            else:
+
+                # Try to move drone to depot,
+                # assuming this is always better:
+                drone.set_node_as_destination(0)
+                time_frame_drone, error_signal = drone.calc_move_time(check_if_dest_reachable=True)
+
+                if not error_signal: # drone is able move to depot on its own
+                    truck.set_node_as_destination(0)
+                    time_frame_truck, error_signal = truck.calc_move_time(
+                        check_if_dest_reachable=True)  # truck moves also to depot on its own
+
+                    if error_signal or np.isnan(time_frame_drone) or np.isnan(time_frame_truck):
+                        return True, reward - 10
+
+                    time_frame = np.max(time_frame_truck, time_frame_drone)
+                    truck.set_current_coord_to_dest()  # move
+                    drone.set_current_coord_to_dest()  # move
+
+                    return True, reward - time_frame
+
+                else: # drone has to be transported by truck:
+                    self.temp_db.status_dict['v_dest'][0] = np.copy(self.temp_db.status_dict['v_coord'][1])
+                    time_frame_truck_to_drone, error_signal = truck.calc_move_time(check_if_dest_reachable=True)
+
+                    if error_signal or np.isnan(time_frame_truck_to_drone):
+                        return True, reward - 10
+
+                    truck.set_current_coord_to_dest()
+
+                    truck.set_node_as_destination(0)  # set destination to the single depot with index 0
+                    drone.set_node_as_destination(0)  # set destination to the single depot with index 0
+
+                    time_frame, error_signal = truck.calc_move_time(
+                        check_if_dest_reachable=True)  # only truck needs to be checked
+
+                    if error_signal or np.isnan(time_frame):
+                        return True, reward - 10
+
+                    truck.set_current_coord_to_dest()  # move
+                    drone.set_current_coord_to_dest()  # move
+                    return True, reward - time_frame - time_frame_truck_to_drone
+
+        return False, reward
+
+
+class DiscreteAction:
+
+    def __init__(
+            self,
+            temp_db,
+            key,
+            n=None,
+    ):
+
+        self.temp_db = temp_db
+        self.key = key
+        self.n = n
+
+    def finish_init(self):
+        if self.n is None:
+            self.n = len(self.temp_db(self.key))
+
+    def gym_space(self):
+        return spaces.Discrete(self.n)
+
+    def to_node(self, action):
+
+        action = int(action)
+        cur_node_coord = self.temp_db.get_val('n_coord')
+
+        if self.temp_db.get_val('n_items')[action] == 0:
+            self.temp_db.bestrafung = -10
+            #self.temp_db.done = True
+            #self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+            #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+            #print(-100)
+        if self.temp_db.get_val('n_items')[action] == 1:
+            self.temp_db.bestrafung = 10
+            #print(100)
+        else:
+            self.temp_db.bestrafung = -10
+            #self.temp_db.bestrafung = -0.01 * self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]]
+            #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
+            #print(0)
+
+        return cur_node_coord[action]
+
+
+class BoxAction:
+
+    def __init__(
+            self,
+            temp_db,
+            key,
+    ):
+        self.temp_db = temp_db
+        self.key = key
 
 class BaseActDecoder:
 
@@ -115,7 +451,7 @@ class BaseActDecoder:
                 return spaces.Box(low=0, high=1, shape=(len(self.contin_max_val),))
 
             for n in self.discrete_bins:
-                return spaces.Discrete(int(n-1))  #  TODO: Quick fix to permanent
+                return spaces.Discrete(int(n))
 
 
 
@@ -301,8 +637,6 @@ class BaseActDecoder:
 
     def to_node(self, key):
 
-        self.actions[self.index_dict[key]] = self.actions[self.index_dict[key]] + 1 #  TODO: Quick fix to permanent
-
         if self.check_dict[key+'_bool'] == True:
 
             cur_node_coord = self.temp_db.get_val('n_coord')
@@ -322,11 +656,6 @@ class BaseActDecoder:
                 #self.temp_db.bestrafung_multiplier[self.actions[self.index_dict[key]]] += 1
                 #print(0)
             self.value_dict[key] = cur_node_coord[int(self.actions[self.index_dict[key]])]
-
-            self.temp_db.done = bool(np.sum(self.temp_db.get_val('n_items')[1:]) == 0) #  TODO: Quick fix to permanent
-            #print(int(self.actions[self.index_dict[key]]))
-            #print(self.temp_db.get_val('n_items')[int(self.actions[self.index_dict[key]])])
-            #print(self.temp_db.bestrafung)
 
     def auto_value(self, key):
         if self.check_dict[key+'_bool'] == True:
