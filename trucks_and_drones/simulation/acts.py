@@ -222,6 +222,7 @@ class TSPDroneAction(CustomAction):
         # truck and drone at the same location, drone gets full cargo
         if self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]:
             self.temp_db.status_dict['v_items'][1] = 1
+            drone.range_restr.reset() # reset range of drone
 
         # terminate if all demands are satisfied
         if self.check_demands():
