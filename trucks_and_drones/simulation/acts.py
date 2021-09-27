@@ -14,7 +14,7 @@ class CustomAction:
         self.temp_db = temp_db
         self.simulation = simulation
 
-    def gym_space(self):
+    def action_space(self):
         pass
 
     def decode_actions(self, actions):
@@ -133,11 +133,7 @@ class TSPDroneAction(CustomAction):
         self.drone_action_waits = False
 
     def action_space(self):
-        return spaces.Tuple((
-                spaces.Discrete(self.temp_db.num_customers),
-                spaces.Discrete(self.temp_db.num_customers)
-            )
-        )
+        return spaces.MultiDiscrete([self.temp_db.num_customers,self.temp_db.num_customers])
 
     def decode_actions(self, actions):
         truck = self.temp_db.base_groups['vehicles'][0]  # vehicle with index 0
@@ -160,7 +156,7 @@ class TSPDroneAction(CustomAction):
             self.temp_db.time_till_fin[0] = time_frame_truck
 
         # drone and truck are at the same node and have same destination
-        if actions[0] == actions[1] and self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]:
+        if (actions[0] == actions[1]).all() and (self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]).all():
             drone_is_transported = True
 
         # Drone:
@@ -184,7 +180,7 @@ class TSPDroneAction(CustomAction):
             cur_vehicle_idx = 0
 
         time_frame = self.temp_db.time_till_fin[cur_vehicle_idx] # get current timeframe
-        self.temp_db.time_till_fin[time_frame] = 0
+        self.temp_db.time_till_fin[cur_vehicle_idx] = 0
 
         if cur_vehicle_idx == 0:
             vehicle = truck
@@ -205,14 +201,14 @@ class TSPDroneAction(CustomAction):
 
         vehicle.set_current_coord_to_dest()  # 'jump' to destination
         if cur_vehicle_idx == 0:
-            self.simple_demand_satisfaction(customer_idx=int(actions))  # set demand to zero
+            self.simple_demand_satisfaction(customer_idx=int(actions[0]))  # set demand to zero
 
             if drone_is_transported:
-                drone.vehicle.set_current_coord_to_dest()  # 'jump' transported drone to destination
+                drone.set_current_coord_to_dest()  # 'jump' transported drone to destination
 
         else:
             if self.temp_db.status_dict['v_items'][1] != 0: # if drone has cargo
-                self.simple_demand_satisfaction(customer_idx=int(actions))
+                self.simple_demand_satisfaction(customer_idx=int(actions[1]))
                 self.temp_db.status_dict['v_items'][1] = 0 # drone has only one cargo slot
 
 
@@ -220,14 +216,14 @@ class TSPDroneAction(CustomAction):
         self.temp_db.total_time += time_frame  # logging
 
         # truck and drone at the same location, drone gets full cargo
-        if self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]:
+        if (self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]).all():
             self.temp_db.status_dict['v_items'][1] = 1
             drone.range_restr.reset() # reset range of drone
 
         # terminate if all demands are satisfied
         if self.check_demands():
 
-            if self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]:
+            if (self.temp_db.status_dict['v_coord'][0] == self.temp_db.status_dict['v_coord'][0]).all():
                 truck.set_node_as_destination(0)  # set destination to the single depot with index 0
                 drone.set_node_as_destination(0)  # set destination to the single depot with index 0
                 time_frame, error_signal = truck.calc_move_time(check_if_dest_reachable=True) # only truck needs to be checked

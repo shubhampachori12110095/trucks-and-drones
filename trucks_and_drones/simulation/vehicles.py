@@ -240,13 +240,13 @@ class BaseVehicleClass:
     def calc_move_time(self, round_to=3, check_if_dest_reachable=True):
 
         if bool(self.temp_db.status_dict['v_stuck'][self.v_index]):
-            return np.nan, False
+            return np.nan, True
 
         direction = self.temp_db.status_dict['v_dest'][self.v_index] - self.temp_db.status_dict['v_coord'][self.v_index]
         distance = self.calc_distance(direction)
 
         if np.round(np.array([distance]), round_to) == 0:
-            return 0.0, True
+            return 0.0, False
 
         time_frame = np.nanmax(self.range_restr.calc_time(distance), 0)
 
@@ -255,9 +255,9 @@ class BaseVehicleClass:
             real_distance = self.range_restr.check_subtract_value(distance)
 
             if np.round(np.array([distance]), round_to) != np.round(np.array([real_distance]), round_to):
-                return np.nan, False
+                return np.nan, True
 
-        return time_frame, True
+        return time_frame, False
 
     def set_current_coord_to_dest(self):
         coordinates = np.copy(
@@ -268,7 +268,7 @@ class BaseVehicleClass:
         if self.is_truck:
             self.temp_db.past_coord_not_transportable_v[self.v_index].append(coordinates)
         else:
-            self.temp_db.past_coord_transportable_v[self.v_index].append(coordinates)
+            self.temp_db.past_coord_transportable_v[0].append(coordinates)
 
     def v_move(self, calc_time=False):
 
