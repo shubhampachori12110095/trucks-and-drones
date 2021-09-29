@@ -372,7 +372,7 @@ class BaseVisualizer:
                 self.draw_triangle_down_marker(coord[i], items[i], color=color)
 
             elif symbols[type_index] == 'rectangle':
-                self.draw_rect_marker(coord[i], items[i], color=color)
+                self.draw_rect_marker(coord[i], i, color=color)
 
             else:
                 raise Exception(
