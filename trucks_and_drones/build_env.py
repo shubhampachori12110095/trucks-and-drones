@@ -442,7 +442,9 @@ class BuildEnvironment:
 
         # Init observation and actions encoding/decoding:
         from trucks_and_drones.simulation import acts
-        self.obs_encoder = ObsEncoder(self.obs_params, self.temp_db, self.visualizor)
+        from trucks_and_drones.simulation import obs
+        #self.obs_encoder = ObsEncoder(self.obs_params, self.temp_db, self.visualizor)
+        self.obs_encoder = obs.SimpleObs(self.temp_db)
         #self.act_decoder = ActDecoder(self.act_params, self.temp_db, self.simulation)
         self.act_decoder = acts.TSPDroneAction(self.temp_db, self.simulation)
 

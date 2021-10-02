@@ -160,6 +160,7 @@ class BaseVehicleClass:
         self.cargo_type = v_params['cargo_type']
         self.v_loadable = v_params['loadable']
         self.v_weight = param_interpret(v_params['weight'])
+        self.speed = v_params['speed']
 
         self.temp_db.min_max_dict['v_weight'] = np.append(self.temp_db.min_max_dict['v_weight'], v_params['weight'])
 

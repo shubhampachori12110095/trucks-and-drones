@@ -89,6 +89,9 @@ class BaseObsEncoder:
 
         self.combine_per_type = self.combine_per_type + self.uncombined_elem
 
+    def reset(self):
+        pass
+
 
     def coord_to_contin(self, key):
         ''' Normalizes list of Coordinates'''

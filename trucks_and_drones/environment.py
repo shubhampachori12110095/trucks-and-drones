@@ -93,6 +93,7 @@ class CustomEnv(gym.Env):
         self.count_episodes += 1
 
         self.act_decoder.reset()
+        self.obs_encoder.reset()
         self.simulation.reset_simulation()
 
         # Init first state:
