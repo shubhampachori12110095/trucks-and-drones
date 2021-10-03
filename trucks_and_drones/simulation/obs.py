@@ -154,8 +154,6 @@ class CustomObs:
         return np.nan_to_num(array_value)
 
 
-
-
 class SimpleObs(CustomObs):
 
     def __init__(self, temp_db, keys=None):
@@ -180,8 +178,8 @@ class SimpleObs(CustomObs):
                 inputs = np.append(inputs, self.value_to_contin(key))
 
         distances = np.array([])
-        distances = np.append(distances, self.euclidean_distances_from_vehicle(0, consider_speed=False))
-        distances = np.append(distances, self.manhatten_distances_from_vehicle(1, consider_speed=False))
+        distances = np.append(distances, self.manhatten_distances_from_vehicle(0, consider_speed=False))
+        distances = np.append(distances, self.euclidean_distances_from_vehicle(1, consider_speed=False))
 
         distances = self.min_max_scaler(distances, val_low=0, val_high=np.max(self.temp_db.grid))
 
